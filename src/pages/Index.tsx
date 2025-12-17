@@ -8,23 +8,26 @@ import CaseStudiesSection from '@/components/CaseStudiesSection';
 import FAQSection from '@/components/FAQSection';
 import CTASection from '@/components/CTASection';
 import Footer from '@/components/Footer';
+import PageTransition from '@/components/PageTransition';
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
-      <Navbar />
-      <main>
-        <HeroSection />
-        <TrustBadges />
-        <FeaturesSection />
-        <HowItWorksSection />
-        <CustomSolutionsSection />
-        <CaseStudiesSection />
-        <FAQSection />
-        <CTASection />
-      </main>
-      <Footer />
-    </div>
+    <PageTransition>
+      <div className="min-h-screen bg-background overflow-x-hidden">
+        <Navbar />
+        <main>
+          <HeroSection />
+          <TrustBadges />
+          <FeaturesSection />
+          <HowItWorksSection />
+          <CustomSolutionsSection />
+          <CaseStudiesSection />
+          <FAQSection />
+          <CTASection />
+        </main>
+        <Footer />
+      </div>
+    </PageTransition>
   );
 };
 
