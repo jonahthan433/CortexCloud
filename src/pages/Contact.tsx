@@ -66,22 +66,22 @@ const Contact = () => {
       <div className="min-h-screen bg-background">
         <Navbar />
         
-        <main className="pt-24 md:pt-32">
+        <main className="pt-20 md:pt-32">
           {/* Hero Section */}
-          <section className="py-16 md:py-24 relative overflow-hidden">
+          <section className="py-12 md:py-24 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-hero" />
-            <div className="absolute top-1/2 left-1/3 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse-glow" />
+            <div className="absolute top-1/2 left-1/3 w-64 md:w-96 h-64 md:h-96 bg-primary/10 rounded-full blur-3xl animate-pulse-glow" />
             
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
               <FadeIn>
-                <div className="max-w-3xl mx-auto text-center space-y-6">
+                <div className="max-w-3xl mx-auto text-center space-y-4 md:space-y-6">
                   <span className="inline-block glass px-4 py-2 rounded-full text-sm font-medium text-primary">
                     Contact Us
                   </span>
-                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold font-display">
+                  <h1 className="text-mobile-hero font-bold font-display">
                     Let's Start a <span className="text-gradient">Conversation</span>
                   </h1>
-                  <p className="text-lg text-muted-foreground">
+                  <p className="text-mobile-body text-muted-foreground">
                     Have questions about our AI solutions? Ready to transform your business? We'd love to hear from you.
                   </p>
                 </div>
@@ -90,14 +90,14 @@ const Contact = () => {
           </section>
 
           {/* Contact Section */}
-          <section className="py-16 md:py-24 relative">
+          <section className="py-12 md:py-24 relative">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="grid lg:grid-cols-2 gap-12">
+              <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
                 {/* Contact Form */}
                 <FadeIn direction="left" className="order-2 lg:order-1">
-                  <div className="glass-strong rounded-2xl p-8">
-                    <h2 className="text-2xl font-bold font-display mb-6">Send us a message</h2>
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="glass-strong rounded-2xl p-6 md:p-8">
+                    <h2 className="text-xl md:text-2xl font-bold font-display mb-6">Send us a message</h2>
+                    <form onSubmit={handleSubmit} className="space-y-5">
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <label htmlFor="name" className="text-sm font-medium">Name</label>
@@ -108,7 +108,7 @@ const Contact = () => {
                             value={formData.name}
                             onChange={handleChange}
                             required
-                            className="glass border-border/50 focus:border-primary"
+                            className="glass border-border/50 focus:border-primary h-12 text-base"
                           />
                         </div>
                         <div className="space-y-2">
@@ -121,7 +121,7 @@ const Contact = () => {
                             value={formData.email}
                             onChange={handleChange}
                             required
-                            className="glass border-border/50 focus:border-primary"
+                            className="glass border-border/50 focus:border-primary h-12 text-base"
                           />
                         </div>
                       </div>
@@ -133,7 +133,7 @@ const Contact = () => {
                           placeholder="Your company name"
                           value={formData.company}
                           onChange={handleChange}
-                          className="glass border-border/50 focus:border-primary"
+                          className="glass border-border/50 focus:border-primary h-12 text-base"
                         />
                       </div>
                       <div className="space-y-2">
@@ -141,15 +141,15 @@ const Contact = () => {
                         <Textarea
                           id="message"
                           name="message"
-                          placeholder="Tell us about your project or ask us anything..."
-                          rows={5}
+                          placeholder="Tell us about your project..."
+                          rows={4}
                           value={formData.message}
                           onChange={handleChange}
                           required
-                          className="glass border-border/50 focus:border-primary resize-none"
+                          className="glass border-border/50 focus:border-primary resize-none text-base"
                         />
                       </div>
-                      <Button variant="primary" size="lg" className="w-full">
+                      <Button variant="primary" size="lg" className="w-full h-14 text-base">
                         Send Message <Send size={18} className="ml-2" />
                       </Button>
                     </form>
@@ -158,38 +158,41 @@ const Contact = () => {
 
                 {/* Contact Info */}
                 <FadeIn direction="right" className="order-1 lg:order-2 space-y-6">
-                  <div className="space-y-4">
-                    <h2 className="text-2xl font-bold font-display">Get in touch</h2>
-                    <p className="text-muted-foreground">
+                  <div className="space-y-3">
+                    <h2 className="text-xl md:text-2xl font-bold font-display">Get in touch</h2>
+                    <p className="text-muted-foreground text-mobile-body">
                       Whether you're ready to start your AI journey or just exploring options, our team is here to help.
                     </p>
                   </div>
 
-                  <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3 md:gap-4">
                     {contactInfo.map((info, index) => (
                       <FadeIn key={index} delay={index * 0.1}>
-                        <div className="glass-strong rounded-xl p-6 hover:-translate-y-1 transition-transform duration-300 h-full">
-                          <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center mb-4">
+                        <a 
+                          href={info.title === 'Email Us' ? `mailto:${info.content}` : info.title === 'Call Us' ? `tel:${info.content.replace(/\D/g, '')}` : '#'}
+                          className="glass-strong rounded-xl p-4 md:p-6 hover:-translate-y-1 transition-transform duration-300 block touch-manipulation active:scale-95"
+                        >
+                          <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center mb-3">
                             <info.icon size={20} className="text-primary-foreground" />
                           </div>
-                          <h3 className="font-bold font-display mb-1">{info.title}</h3>
-                          <p className="text-foreground">{info.content}</p>
-                          <p className="text-sm text-muted-foreground">{info.description}</p>
-                        </div>
+                          <h3 className="font-bold font-display text-sm md:text-base mb-1">{info.title}</h3>
+                          <p className="text-foreground text-sm md:text-base break-all">{info.content}</p>
+                          <p className="text-xs md:text-sm text-muted-foreground">{info.description}</p>
+                        </a>
                       </FadeIn>
                     ))}
                   </div>
 
                   {/* Book a Call CTA */}
                   <FadeIn delay={0.4}>
-                    <div className="relative mt-8">
+                    <div className="relative">
                       <div className="absolute -inset-1 bg-gradient-primary rounded-2xl opacity-20 blur-xl" />
-                      <div className="relative glass-strong rounded-2xl p-8 text-center">
-                        <h3 className="text-xl font-bold font-display mb-2">Prefer a conversation?</h3>
-                        <p className="text-muted-foreground mb-4">
+                      <div className="relative glass-strong rounded-2xl p-6 md:p-8 text-center">
+                        <h3 className="text-lg md:text-xl font-bold font-display mb-2">Prefer a conversation?</h3>
+                        <p className="text-muted-foreground text-sm md:text-base mb-4">
                           Schedule a free 30-minute consultation with our AI experts.
                         </p>
-                        <Button variant="primary" size="lg">
+                        <Button variant="primary" size="lg" className="w-full sm:w-auto h-14 px-8">
                           Book a Free Call
                         </Button>
                       </div>

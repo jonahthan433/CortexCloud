@@ -9,6 +9,7 @@ import FAQSection from '@/components/FAQSection';
 import CTASection from '@/components/CTASection';
 import Footer from '@/components/Footer';
 import PageTransition from '@/components/PageTransition';
+import ScrollToTop from '@/components/ScrollToTop';
 
 const Index = () => {
   return (
@@ -26,6 +27,7 @@ const Index = () => {
           <CTASection />
         </main>
         <Footer />
+        <ScrollToTop />
       </div>
     </PageTransition>
   );
