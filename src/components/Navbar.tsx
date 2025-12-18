@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Menu, X, Home, Info, Briefcase, DollarSign, Mail } from 'lucide-react';
+import { Home, Info, Briefcase, DollarSign, Mail } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
 import cortexLogo from '@/assets/cortexcloud-logo.jpg';
 
 const Navbar = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
 
@@ -30,11 +29,6 @@ const Navbar = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  // Close menu when route changes
-  useEffect(() => {
-    setIsMenuOpen(false);
-  }, [location.pathname]);
 
   return (
     <>
@@ -69,58 +63,12 @@ const Navbar = () => {
               ))}
             </div>
 
-            {/* CTA Button */}
-            <div className="hidden md:block">
-              <Button variant="primary" size="lg" asChild>
-                <Link to="/contact">Book a Call</Link>
-              </Button>
-            </div>
-
-            {/* Mobile Menu Button */}
-            <button
-              className="md:hidden p-3 -mr-2 text-foreground touch-manipulation"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              aria-label="Toggle menu"
-            >
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
+            {/* CTA Button - visible on all screen sizes */}
+            <Button variant="primary" size="lg" asChild className="text-sm md:text-base px-4 md:px-6">
+              <Link to="/contact">Book a Call</Link>
+            </Button>
           </div>
         </div>
-
-        {/* Mobile Menu Overlay */}
-        {isMenuOpen && (
-          <div 
-            className="md:hidden fixed inset-0 top-16 bg-background/95 backdrop-blur-xl z-40"
-            onClick={() => setIsMenuOpen(false)}
-          >
-            <div className="container mx-auto px-4 py-6" onClick={e => e.stopPropagation()}>
-              <div className="space-y-2">
-                {mobileNavLinks.map((link) => (
-                  <Link
-                    key={link.label}
-                    to={link.href}
-                    className={`flex items-center gap-4 px-4 py-4 rounded-xl transition-all duration-200 touch-manipulation ${
-                      isActive(link.href)
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-foreground hover:bg-secondary active:bg-secondary/80'
-                    }`}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    <link.icon size={22} />
-                    <span className="text-lg font-medium">{link.label}</span>
-                  </Link>
-                ))}
-              </div>
-              <div className="mt-6 px-4">
-                <Button variant="primary" className="w-full h-14 text-lg" asChild>
-                  <Link to="/contact" onClick={() => setIsMenuOpen(false)}>
-                    Book a Call
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
       </nav>
 
       {/* Mobile Bottom Navigation */}
