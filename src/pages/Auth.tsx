@@ -116,7 +116,7 @@ const Auth = () => {
           options: {
             emailRedirectTo: redirectUrl,
             data: {
-              name: formData.name,
+              full_name: formData.name,
             },
           },
         });
