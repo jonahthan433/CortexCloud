@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Button } from './ui/button';
 import ChatMockup from './ChatMockup';
 import FadeIn from './FadeIn';
@@ -34,8 +35,8 @@ const HeroSection = () => {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start">
-                <Button variant="primary" size="xl" className="w-full sm:w-auto min-h-[56px] text-base">
-                  Book a Call
+                <Button variant="primary" size="xl" className="w-full sm:w-auto min-h-[56px] text-base" asChild>
+                  <Link to="/contact">Book a Call</Link>
                 </Button>
                 <Button variant="outline" size="xl" className="w-full sm:w-auto min-h-[56px] text-base">
                   Watch Demo
