@@ -9,6 +9,8 @@ import About from "./pages/About";
 import Pricing from "./pages/Pricing";
 import Services from "./pages/Services";
 import Contact from "./pages/Contact";
+import Auth from "./pages/Auth";
+import Blog from "./pages/Blog";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
