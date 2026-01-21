@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Home, Info, Briefcase, DollarSign, Mail } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { Home, Info, Briefcase, DollarSign, Mail, LogOut, User } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
+import { supabase } from '@/integrations/supabase/client';
 import cortexLogo from '@/assets/cortexcloud-logo.jpg';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const navLinks = [
     { label: 'About', href: '/about', icon: Info },
@@ -29,6 +32,23 @@ const Navbar = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/');
+  };
 
   return (
     <>
@@ -63,10 +83,17 @@ const Navbar = () => {
               ))}
             </div>
 
-            {/* CTA Button - visible on all screen sizes */}
-            <Button variant="primary" size="lg" asChild className="text-sm md:text-base px-4 md:px-6">
-              <Link to="/contact">Book a Call</Link>
-            </Button>
+            {/* Auth Buttons */}
+            {user ? (
+              <Button variant="outline" size="lg" onClick={handleLogout} className="text-sm md:text-base px-4 md:px-6 gap-2">
+                <LogOut size={18} />
+                <span className="hidden sm:inline">Logout</span>
+              </Button>
+            ) : (
+              <Button variant="primary" size="lg" asChild className="text-sm md:text-base px-4 md:px-6">
+                <Link to="/auth">Sign In</Link>
+              </Button>
+            )}
           </div>
         </div>
       </nav>
