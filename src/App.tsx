@@ -11,6 +11,9 @@ import Services from "./pages/Services";
 import Contact from "./pages/Contact";
 import Auth from "./pages/Auth";
 import Blog from "./pages/Blog";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import Cookies from "./pages/Cookies";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +30,9 @@ const AnimatedRoutes = () => {
         <Route path="/services" element={<Services />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/auth" element={<Auth />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/cookies" element={<Cookies />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AnimatePresence>
