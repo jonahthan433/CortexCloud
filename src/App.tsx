@@ -26,6 +26,7 @@ const AnimatedRoutes = () => {
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/services" element={<Services />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/auth" element={<Auth />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AnimatePresence>
