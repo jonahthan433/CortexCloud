@@ -27,5 +27,8 @@ Ground truth as of 2026-08-03 (verified against repo on CT105 + live site).
   - Real tables DO have rows: UsageRecord=3, Organization=1, Payment=1; but APIs/model layer read the snake_case ghosts.
 - Fix path (not yet applied): align dashboard models/tables to the real CamelCase schema (UsageRecord with organization_id, Organization, Membership) OR create the expected tables + backfill — decision pending.
 
-## T6 catalog/registration payloads — NOT started
-- No branches/PRs/registration payloads found.
+## T6 catalog/registration payloads — DONE (this session)
+- **None exist.** Verified: no git branches beyond main, no stashes, no untracked payload files (untracked = deployed modules + backups only), GitHub API shows 0 PRs (open/closed/draft) on jonahthan433/CortexCloudAPI. Nothing drafted, nothing unsubmitted — no cleanup needed. If a catalog listing (e.g. Bazaar/MCP directory) is wanted, that's net-new work, not resumption.
+
+---
+ALL SIX TASKS RECONCILED. 3/6 needed work this session (T2 flag, T1+T5 findings); 3/6 were already live (T3, T4) or empty (T6).
