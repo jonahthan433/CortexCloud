@@ -7,13 +7,14 @@ Falls back to a single verified settlement if the chain is unreachable.
 import time
 import httpx
 from fastapi import APIRouter, HTTPException
+from app.core.config import settings
 
 router = APIRouter()
 
 # Base mainnet public RPC (no key). Swap for your own if rate-limited.
 BASE_RPC = "https://mainnet.base.org"
 USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-MERCHANT = "0xE816eA741a0084748DC9f2BEeB86Be6705862365"
+MERCHANT = getattr(settings, "WALLET_ADDRESS", "") or ""
 TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 TRANSFER_ABI_NIBBLE = 0  # topic[1] = from, topic[2] = to (indexed)
 

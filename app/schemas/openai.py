@@ -110,6 +110,12 @@ class ModelObject(BaseModel):
     object: Literal["model"] = "model"
     created: int = 1718000000  # Default epoch
     owned_by: str = "cortexcloud"
+    # S1: per-model metadata (additive — defaults keep old clients working)
+    context_window: Optional[int] = None
+    supports_vision: bool = False
+    supports_tools: bool = False
+    supports_streaming: bool = True
+    price_per_call: Optional[str] = None
 
 
 class ModelListResponse(BaseModel):

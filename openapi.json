@@ -68,7 +68,33 @@
         },
         "responses": {
           "200": {
-            "description": "Result (after valid x402 payment)"
+            "description": "Result (after valid x402 payment)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "example": {
+                    "id": "chatcmpl-abc",
+                    "object": "chat.completion",
+                    "choices": [
+                      {
+                        "index": 0,
+                        "message": {
+                          "role": "assistant",
+                          "content": "..."
+                        },
+                        "finish_reason": "stop"
+                      }
+                    ],
+                    "usage": {
+                      "prompt_tokens": 10,
+                      "completion_tokens": 5,
+                      "total_tokens": 15
+                    }
+                  }
+                }
+              }
+            }
           },
           "402": {
             "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
@@ -126,7 +152,30 @@
         },
         "responses": {
           "200": {
-            "description": "Result (after valid x402 payment)"
+            "description": "Result (after valid x402 payment)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "example": {
+                    "id": "resp_abc",
+                    "object": "response",
+                    "output": [
+                      {
+                        "type": "message",
+                        "role": "assistant",
+                        "content": [
+                          {
+                            "type": "output_text",
+                            "text": "..."
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
           },
           "402": {
             "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
@@ -143,7 +192,7 @@
           "price": {
             "mode": "fixed",
             "currency": "USD",
-            "amount": "0.001"
+            "amount": "0.005"
           },
           "protocols": [
             {
@@ -174,7 +223,32 @@
         },
         "responses": {
           "200": {
-            "description": "Result (after valid x402 payment)"
+            "description": "Result (after valid x402 payment)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "example": {
+                    "id": "emb_abc",
+                    "object": "list",
+                    "data": [
+                      {
+                        "object": "embedding",
+                        "embedding": [
+                          0.01,
+                          -0.02
+                        ],
+                        "index": 0
+                      }
+                    ],
+                    "usage": {
+                      "prompt_tokens": 8,
+                      "total_tokens": 8
+                    }
+                  }
+                }
+              }
+            }
           },
           "402": {
             "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
@@ -191,7 +265,7 @@
           "price": {
             "mode": "fixed",
             "currency": "USD",
-            "amount": "0.001"
+            "amount": "0.005"
           },
           "protocols": [
             {
@@ -221,7 +295,20 @@
         ],
         "responses": {
           "200": {
-            "description": "Result (after valid x402 payment)"
+            "description": "Result (after valid x402 payment)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "example": {
+                    "bitcoin": {
+                      "usd": 67000.0,
+                      "eur": 62000.0
+                    }
+                  }
+                }
+              }
+            }
           },
           "402": {
             "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
@@ -238,7 +325,7 @@
           "price": {
             "mode": "fixed",
             "currency": "USD",
-            "amount": "0.001"
+            "amount": "0.005"
           },
           "protocols": [
             {
@@ -259,7 +346,23 @@
         ],
         "responses": {
           "200": {
-            "description": "Result (after valid x402 payment)"
+            "description": "Result (after valid x402 payment)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "example": {
+                    "coins": [
+                      {
+                        "id": "bitcoin",
+                        "symbol": "btc",
+                        "name": "Bitcoin"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
           },
           "402": {
             "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
@@ -276,7 +379,7 @@
           "price": {
             "mode": "fixed",
             "currency": "USD",
-            "amount": "0.001"
+            "amount": "0.005"
           },
           "protocols": [
             {
@@ -297,7 +400,28 @@
         ],
         "responses": {
           "200": {
-            "description": "Result (after valid x402 payment)"
+            "description": "Result (after valid x402 payment)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "example": {
+                    "pairs": [
+                      {
+                        "chainId": "ethereum",
+                        "dexId": "uniswap-v2",
+                        "baseToken": {
+                          "symbol": "WETH"
+                        },
+                        "quoteToken": {
+                          "symbol": "USDC"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
           },
           "402": {
             "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
@@ -314,7 +438,7 @@
           "price": {
             "mode": "fixed",
             "currency": "USD",
-            "amount": "0.001"
+            "amount": "0.005"
           },
           "protocols": [
             {
@@ -344,7 +468,23 @@
         ],
         "responses": {
           "200": {
-            "description": "Result (after valid x402 payment)"
+            "description": "Result (after valid x402 payment)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "example": {
+                    "pairs": [
+                      {
+                        "chainId": "ethereum",
+                        "dexId": "uniswap-v2",
+                        "priceUsd": "3500.12"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
           },
           "402": {
             "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
@@ -361,7 +501,7 @@
           "price": {
             "mode": "fixed",
             "currency": "USD",
-            "amount": "0.001"
+            "amount": "0.005"
           },
           "protocols": [
             {
@@ -382,7 +522,19 @@
         ],
         "responses": {
           "200": {
-            "description": "Result (after valid x402 payment)"
+            "description": "Result (after valid x402 payment)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "example": {
+                    "address": "0x...",
+                    "balance": "1234567890123456789",
+                    "network": "base"
+                  }
+                }
+              }
+            }
           },
           "402": {
             "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
@@ -399,7 +551,7 @@
           "price": {
             "mode": "fixed",
             "currency": "USD",
-            "amount": "0.001"
+            "amount": "0.005"
           },
           "protocols": [
             {
@@ -429,7 +581,21 @@
         ],
         "responses": {
           "200": {
-            "description": "Result (after valid x402 payment)"
+            "description": "Result (after valid x402 payment)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "example": {
+                    "address": "0x...",
+                    "token": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                    "network": "base",
+                    "raw": "5000000",
+                    "note": "balance is in token base units (USDC has 6 decimals)"
+                  }
+                }
+              }
+            }
           },
           "402": {
             "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
@@ -446,7 +612,7 @@
           "price": {
             "mode": "fixed",
             "currency": "USD",
-            "amount": "0.001"
+            "amount": "0.005"
           },
           "protocols": [
             {
@@ -467,7 +633,18 @@
         ],
         "responses": {
           "200": {
-            "description": "Result (after valid x402 payment)"
+            "description": "Result (after valid x402 payment)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "example": {
+                    "address": "0x...",
+                    "nonce": 7
+                  }
+                }
+              }
+            }
           },
           "402": {
             "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
@@ -507,6 +684,155 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/x402/v1/search": {
+      "post": {
+        "operationId": "exa_search",
+        "summary": "Web search via Exa AI (x402 payment-gated)",
+        "description": "Returns HTTP 402 with an x402 PaymentRequirements challenge (USDC on Base) unless a valid X-PAYMENT header is supplied.",
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.03"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            }
+          ]
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "Search query"
+                  },
+                  "numResults": {
+                    "type": "integer",
+                    "description": "Number of results to return",
+                    "default": 10
+                  },
+                  "useAutoprompt": {
+                    "type": "boolean",
+                    "description": "Use autoprompt for better results"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "neural",
+                      "keyword"
+                    ],
+                    "description": "Search type"
+                  },
+                  "includeDomains": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Domains to include"
+                  },
+                  "excludeDomains": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Domains to exclude"
+                  },
+                  "startPublishedDate": {
+                    "type": "string",
+                    "description": "Start date for published content (ISO format)"
+                  },
+                  "endPublishedDate": {
+                    "type": "string",
+                    "description": "End date for published content (ISO format)"
+                  }
+                },
+                "required": [
+                  "query"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result (after valid x402 payment)"
+          },
+          "402": {
+            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+          }
+        }
+      }
+    },
+    "/x402/v1/search/contents": {
+      "post": {
+        "operationId": "exa_search_contents",
+        "summary": "Fetch content for search result IDs via Exa AI (x402 payment-gated)",
+        "description": "Returns HTTP 402 with an x402 PaymentRequirements challenge (USDC on Base) unless a valid X-PAYMENT header is supplied.",
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.02"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            }
+          ]
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Result IDs to fetch content for"
+                  },
+                  "text": {
+                    "type": "boolean",
+                    "description": "Include text content",
+                    "default": true
+                  },
+                  "summary": {
+                    "type": "boolean",
+                    "description": "Include summary",
+                    "default": true
+                  },
+                  "highlights": {
+                    "type": "boolean",
+                    "description": "Include highlights",
+                    "default": false
+                  }
+                },
+                "required": [
+                  "ids"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result (after valid x402 payment)"
+          },
+          "402": {
+            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
           }
         }
       }

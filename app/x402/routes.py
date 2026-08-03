@@ -104,6 +104,9 @@ async def x402_chat_completions(
         stream_generator, routed_model = await router_engine.route_chat_completion_stream(
             request, correlation_id
         )
+        # S6: share upstream info with the x402 middleware via scope state
+        # (contextvars do not cross the starlette task-group boundary).
+        req_http.state.upstream_provider = routed_model.provider; req_http.state.request_id = correlation_id
         return StreamingResponse(
             _x402_stream_wrapper(
                 stream_generator=stream_generator,
@@ -121,6 +124,8 @@ async def x402_chat_completions(
             request, correlation_id
         )
         response.model = request.model
+        req_http.state.upstream_provider = routed_model.provider; req_http.state.request_id = correlation_id
+        req_http.state.upstream_latency_ms = latency_ms
 
         logger.info(
             f"x402 completion: model={routed_model.name} "
@@ -208,11 +213,26 @@ async def x402_list_models(
     """
     db_models = await ModelRegistryService.get_active_models(db)
 
+    # S1: x402 charges a fixed price per call (route pricing), so price_per_call
+    # reflects the flat per-request price for the model's route.
+    _PRICE_BY_ROUTE = {
+        "chat": "$0.005",
+        "embedding": "$0.005",
+    }
+
+    def _route_kind(name: str) -> str:
+        return "embedding" if "embedding" in name else "chat"
+
     models_data = [
         ModelObject(
             id=model.name,
             created=int(model.created_at.timestamp()) if model.created_at else 1718000000,
             owned_by=model.provider,
+            context_window=model.context_length,
+            supports_vision=bool(model.capabilities.get("vision", False)),
+            supports_tools=bool(model.capabilities.get("tool_calling", False)),
+            supports_streaming=bool(model.capabilities.get("streaming", True)),
+            price_per_call=_PRICE_BY_ROUTE[_route_kind(model.name)],
         )
         for model in db_models
     ]

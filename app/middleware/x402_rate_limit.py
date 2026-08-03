@@ -15,7 +15,7 @@ from app.middleware.rate_limit import RateLimiter
 
 logger = logging.getLogger("cortexcloud.middleware.x402_ratelimit")
 
-X402_IP_LIMIT = 60          # requests per window
+X402_IP_LIMIT = 1200          # requests per window
 X402_IP_WINDOW = 60         # seconds
 
 

@@ -71,7 +71,12 @@ class Settings(BaseSettings):
     X402_FACILITATOR_API_KEY_ID: Optional[str] = Field(default=None, env="X402_FACILITATOR_API_KEY_ID")
     X402_FACILITATOR_API_KEY_SECRET: Optional[str] = Field(default=None, env="X402_FACILITATOR_API_KEY_SECRET")
     X402_NETWORK: str = Field(default="eip155:8453", env="X402_NETWORK")
-    X402_RESOURCE_BASE: str = Field(default="https://cortexcloud.org", env="X402_RESOURCE_BASE")
+    X402_RATE_LIMIT: int = Field(default=60, env="X402_RATE_LIMIT")
+    X402_RESOURCE_BASE: str = Field(default="https://api.cortexcloud.org", env="X402_RESOURCE_BASE")
+
+    # the402.ai provider webhook (job dispatch relay)
+    THE402_WEBHOOK_SECRET: Optional[str] = Field(default=None, env="THE402_WEBHOOK_SECRET")
+    THE402_API_KEY: Optional[str] = Field(default=None, env="THE402_API_KEY")
 
     @model_validator(mode="after")
     def assemble_db_connection(self) -> "Settings":

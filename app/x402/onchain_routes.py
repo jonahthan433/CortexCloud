@@ -10,6 +10,9 @@ import httpx
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
+from app.core.cache import cached_json
+from app.core.http import shared_client
+
 logger = logging.getLogger("cortexcloud.x402.onchain")
 
 router = APIRouter()
@@ -45,17 +48,19 @@ def _decode_hex_int(hexstr: str) -> int:
 async def _rpc_call(method: str, params: list) -> dict | None:
     payload = {"jsonrpc": "2.0", "method": method, "params": params, "id": 1}
     last_err = None
-    async with httpx.AsyncClient(timeout=12.0, headers=_HEADERS) as c:
-        for url in RPC_ENDPOINTS:
-            try:
-                r = await c.post(url, json=payload)
-                if r.status_code == 200:
-                    j = r.json()
-                    if "result" in j:
-                        return j
-            except Exception as e:
-                last_err = e
-                continue
+    # S2: shared pooled client, hard 10s timeout per call (httpx raises
+    # TimeoutException on exceed — never hangs).
+    c = shared_client("base_rpc", 10.0, _HEADERS)
+    for url in RPC_ENDPOINTS:
+        try:
+            r = await c.post(url, json=payload)
+            if r.status_code == 200:
+                j = r.json()
+                if "result" in j:
+                    return j
+        except Exception as e:
+            last_err = e
+            continue
     if last_err:
         logger.warning(f"onchain rpc all endpoints failed: {last_err}")
     return None
@@ -64,9 +69,10 @@ async def _rpc_call(method: str, params: list) -> dict | None:
 @router.get("/data/base/balance")
 async def base_balance(address: str = Query(..., description="Base wallet address, e.g. 0x1234...abcd")):
     """Native ETH balance of a Base address (in wei + human-readable)."""
-    res = await _rpc_call("eth_getBalance", [address, "latest"])
+    # S4: 5s cache on the RPC result (full request key = address).
+    res, _ = await cached_json(f"x402:rpc:balance:{address}", 5, lambda: _rpc_call("eth_getBalance", [address, "latest"]))
     if res is None or "result" not in res:
-        return JSONResponse(status_code=502, content={"error": "upstream_base_rpc"})
+        return JSONResponse(status_code=503, content={"error": "upstream_base_rpc"})
     wei = _decode_hex_int(res["result"])
     return JSONResponse({
         "address": address,
@@ -85,9 +91,13 @@ async def base_token_balance(
     """ERC-20 token balance for a Base address. token=usdc uses the canonical USDC."""
     token_addr = KNOWN_TOKENS.get(token.lower(), token)
     data = ERC20_BALANCE_SELECTOR + _addr(address)
-    res = await _rpc_call("eth_call", [{"to": token_addr, "data": data}, "latest"])
+    # S4: 5s cache keyed on address + token.
+    res, _ = await cached_json(
+        f"x402:rpc:token:{address}:{token_addr}", 5,
+        lambda: _rpc_call("eth_call", [{"to": token_addr, "data": data}, "latest"]),
+    )
     if res is None or "result" not in res:
-        return JSONResponse(status_code=502, content={"error": "upstream_base_rpc"})
+        return JSONResponse(status_code=503, content={"error": "upstream_base_rpc"})
     raw = res["result"]
     if isinstance(raw, str) and raw.startswith("0x"):
         bal = _decode_hex_int(raw)
@@ -105,9 +115,10 @@ async def base_token_balance(
 @router.get("/data/base/nonce")
 async def base_nonce(address: str = Query(..., description="Base wallet address")):
     """Transaction count (nonce) for a Base address."""
-    res = await _rpc_call("eth_getTransactionCount", [address, "latest"])
+    # S4: 5s cache keyed on address.
+    res, _ = await cached_json(f"x402:rpc:nonce:{address}", 5, lambda: _rpc_call("eth_getTransactionCount", [address, "latest"]))
     if res is None or "result" not in res:
-        return JSONResponse(status_code=502, content={"error": "upstream_base_rpc"})
+        return JSONResponse(status_code=503, content={"error": "upstream_base_rpc"})
     return JSONResponse({
         "address": address,
         "network": "base",

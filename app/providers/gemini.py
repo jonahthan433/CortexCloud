@@ -20,6 +20,16 @@ from app.schemas.openai import (
     UsageInfo,
 )
 
+from contextlib import asynccontextmanager
+from app.core.http import shared_client
+
+
+@asynccontextmanager
+async def _client_scope(timeout):
+    # S3: shared pooled client; scope exit is a no-op (client persists).
+    yield shared_client("up:GeminiProvider", timeout)
+
+
 
 class GeminiProvider(BaseProvider):
     """Provider for Google Gemini API."""
@@ -220,7 +230,7 @@ class GeminiProvider(BaseProvider):
 
         data = self._translate_request(request)
 
-        async with httpx.AsyncClient(timeout=ctx.timeout) as client:
+        async with _client_scope(ctx.timeout) as client:
             try:
                 response = await client.post(url, headers=headers, json=data)
                 if response.status_code != 200:
@@ -246,7 +256,7 @@ class GeminiProvider(BaseProvider):
 
         data = self._translate_request(request)
 
-        client = httpx.AsyncClient(timeout=ctx.timeout)
+        client = shared_client("up:GeminiProvider", ctx.timeout)
         try:
             req = client.build_request("POST", url, headers=headers, json=data)
             response = await client.send(req, stream=True)
@@ -369,8 +379,6 @@ class GeminiProvider(BaseProvider):
                 status_code=502,
                 detail=f"Failed to connect to Gemini stream: {str(e)}",
             )
-        finally:
-            await client.aclose()
 
     async def embeddings(
         self, request: EmbeddingsRequest, ctx: ProviderContext
@@ -411,7 +419,7 @@ class GeminiProvider(BaseProvider):
                 "content": contents[0]
             }
 
-        async with httpx.AsyncClient(timeout=ctx.timeout) as client:
+        async with _client_scope(ctx.timeout) as client:
             try:
                 response = await client.post(url, headers=headers, json=data)
                 if response.status_code != 200:

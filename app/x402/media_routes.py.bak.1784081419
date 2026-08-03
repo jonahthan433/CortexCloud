@@ -1,0 +1,172 @@
+"""
+x402 payment-gated AI MODALITY endpoints (Wave 2 — uses existing provider keys).
+
+Adds the modalities BlockRun exposes, using keys already configured on CT:
+  - POST /images/generations   -> OpenAI images (gpt-image-1 / dall-e-3)
+  - POST /audio/speech         -> OpenAI TTS (tts-1 / gpt-4o-mini-tts)
+  - POST /audio/transcriptions -> OpenAI Whisper (whisper-1)  [JSON body: {url|b64, model}]
+  - POST /messages             -> Anthropic-native Messages API passthrough
+  - POST /videos/generations   -> xAI Grok video (best-effort; returns job/result)
+
+All gated by the x402 middleware via ROUTE_PRICING. Bodies are passed through to
+the upstream provider; responses returned as-is (JSON) or streamed bytes (audio).
+"""
+import base64
+import logging
+import httpx
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse, Response
+
+from app.core.config import settings
+
+logger = logging.getLogger("cortexcloud.x402.media")
+
+router = APIRouter()
+
+OPENAI_BASE = "https://api.openai.com/v1"
+ANTHROPIC_BASE = "https://api.anthropic.com/v1"
+XAI_BASE = "https://api.x.ai/v1"
+
+
+def _need(key: str | None, name: str):
+    if not key:
+        return JSONResponse(status_code=503, content={"error": "provider_unconfigured", "detail": f"{name} key not set"})
+    return None
+
+
+# ---------------- Images ----------------
+@router.post("/images/generations")
+async def images_generations(body: dict):
+    """OpenAI-compatible image generation. Body: {prompt, model?, size?, n?}."""
+    err = _need(settings.OPENAI_API_KEY, "OpenAI")
+    if err:
+        return err
+    payload = {"model": body.get("model", "gpt-image-1"), "prompt": body.get("prompt", "")}
+    for k in ("size", "n", "quality", "background", "response_format"):
+        if k in body:
+            payload[k] = body[k]
+    async with httpx.AsyncClient(timeout=120.0) as c:
+        r = await c.post(
+            f"{OPENAI_BASE}/images/generations",
+            headers={"Authorization": f"Bearer {settings.OPENAI_API_KEY}"},
+            json=payload,
+        )
+        return JSONResponse(status_code=r.status_code, content=r.json())
+
+
+@router.post("/images/image2image")
+async def images_image2image(body: dict):
+    """Image-to-image edit via OpenAI images/edits. Body: {image_b64, prompt, model?, size?}."""
+    err = _need(settings.OPENAI_API_KEY, "OpenAI")
+    if err:
+        return err
+    try:
+        img_bytes = base64.b64decode(body["image_b64"])
+    except Exception:
+        return JSONResponse(status_code=400, content={"error": "bad_request", "detail": "image_b64 required (base64 PNG)"})
+    data = {"model": body.get("model", "gpt-image-1"), "prompt": body.get("prompt", "")}
+    if "size" in body:
+        data["size"] = body["size"]
+    files = {"image": ("image.png", img_bytes, "image/png")}
+    async with httpx.AsyncClient(timeout=120.0) as c:
+        r = await c.post(
+            f"{OPENAI_BASE}/images/edits",
+            headers={"Authorization": f"Bearer {settings.OPENAI_API_KEY}"},
+            data=data,
+            files=files,
+        )
+        return JSONResponse(status_code=r.status_code, content=r.json())
+
+
+# ---------------- Audio ----------------
+@router.post("/audio/speech")
+async def audio_speech(body: dict):
+    """OpenAI-compatible text-to-speech. Body: {input, voice?, model?, format?}. Returns audio bytes."""
+    err = _need(settings.OPENAI_API_KEY, "OpenAI")
+    if err:
+        return err
+    fmt = body.get("response_format", body.get("format", "mp3"))
+    payload = {
+        "model": body.get("model", "tts-1"),
+        "input": body.get("input", ""),
+        "voice": body.get("voice", "alloy"),
+        "response_format": fmt,
+    }
+    async with httpx.AsyncClient(timeout=120.0) as c:
+        r = await c.post(
+            f"{OPENAI_BASE}/audio/speech",
+            headers={"Authorization": f"Bearer {settings.OPENAI_API_KEY}"},
+            json=payload,
+        )
+        if r.status_code != 200:
+            return JSONResponse(status_code=r.status_code, content={"error": "upstream_openai", "detail": r.text[:300]})
+        media = {"mp3": "audio/mpeg", "opus": "audio/opus", "aac": "audio/aac", "flac": "audio/flac", "wav": "audio/wav", "pcm": "audio/pcm"}.get(fmt, "audio/mpeg")
+        return Response(content=r.content, media_type=media)
+
+
+@router.post("/audio/transcriptions")
+async def audio_transcriptions(body: dict):
+    """Whisper transcription. Body: {audio_b64, model?, language?} (audio_b64 = base64 mp3/wav)."""
+    err = _need(settings.OPENAI_API_KEY, "OpenAI")
+    if err:
+        return err
+    try:
+        audio_bytes = base64.b64decode(body["audio_b64"])
+    except Exception:
+        return JSONResponse(status_code=400, content={"error": "bad_request", "detail": "audio_b64 required (base64 audio)"})
+    data = {"model": body.get("model", "whisper-1")}
+    if "language" in body:
+        data["language"] = body["language"]
+    files = {"file": ("audio.mp3", audio_bytes, "audio/mpeg")}
+    async with httpx.AsyncClient(timeout=120.0) as c:
+        r = await c.post(
+            f"{OPENAI_BASE}/audio/transcriptions",
+            headers={"Authorization": f"Bearer {settings.OPENAI_API_KEY}"},
+            data=data,
+            files=files,
+        )
+        return JSONResponse(status_code=r.status_code, content=r.json())
+
+
+# ---------------- Anthropic Messages (native format) ----------------
+@router.post("/messages")
+async def anthropic_messages(request: Request):
+    """Anthropic-native Messages API passthrough. Body = Anthropic messages request."""
+    err = _need(settings.ANTHROPIC_API_KEY, "Anthropic")
+    if err:
+        return err
+    body = await request.json()
+    async with httpx.AsyncClient(timeout=120.0) as c:
+        r = await c.post(
+            f"{ANTHROPIC_BASE}/messages",
+            headers={
+                "x-api-key": settings.ANTHROPIC_API_KEY,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json=body,
+        )
+        return JSONResponse(status_code=r.status_code, content=r.json())
+
+
+# ---------------- Video (xAI Grok, best-effort) ----------------
+@router.post("/videos/generations")
+async def videos_generations(body: dict):
+    """Text-to-video via xAI. Body: {prompt, model?}. Returns provider job/result JSON."""
+    err = _need(settings.XAI_API_KEY, "xAI")
+    if err:
+        return err
+    payload = {"model": body.get("model", "grok-video"), "prompt": body.get("prompt", "")}
+    for k in ("duration", "aspect_ratio", "resolution"):
+        if k in body:
+            payload[k] = body[k]
+    async with httpx.AsyncClient(timeout=180.0) as c:
+        try:
+            r = await c.post(
+                f"{XAI_BASE}/videos/generations",
+                headers={"Authorization": f"Bearer {settings.XAI_API_KEY}"},
+                json=payload,
+            )
+            return JSONResponse(status_code=r.status_code, content=r.json())
+        except Exception as e:
+            return JSONResponse(status_code=502, content={"error": "upstream_xai", "detail": str(e)[:300]})
