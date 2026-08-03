@@ -96,6 +96,11 @@ app.add_middleware(
 from app.middleware.trace import TracingMiddleware
 app.add_middleware(TracingMiddleware)
 
+# x402scan crawler probes every route with HEAD/OPTIONS; FastAPI GET routes
+# 405 those. Rewrite HEAD->GET / answer OPTIONS app-wide (before routing).
+from app.middleware.probe import ProbeMiddleware
+app.add_middleware(ProbeMiddleware)
+
 
 # S6: Prometheus metrics (latency histograms, upstream error counters)
 @app.get("/metrics", include_in_schema=False, tags=["System"])

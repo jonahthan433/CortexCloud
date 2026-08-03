@@ -3,7 +3,12 @@
   "info": {
     "title": "CortexCloud API",
     "description": "Production-ready OpenAI-compatible AI gateway and routing layer.",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "contact": {
+      "email": "team@cortexcloud.org",
+      "name": "CortexCloud",
+      "url": "https://api.cortexcloud.org"
+    }
   },
   "paths": {
     "/health": {
