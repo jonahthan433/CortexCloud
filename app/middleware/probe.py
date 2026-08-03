@@ -21,8 +21,8 @@ class ProbeMiddleware(BaseHTTPMiddleware):
                 return Response(status_code=204)
             if method == "HEAD":
                 return Response(status_code=resp.status_code,
-                                headers=resp.raw_headers, content=b"")
+                                headers=dict(resp.headers), content=b"")
             return Response(status_code=200,
-                            headers=[(b"allow", b"GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS")],
+                            headers={"allow": "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS"},
                             content=b"")
         return await call_next(request)
