@@ -10,7 +10,7 @@ Ground truth as of 2026-08-03 (verified against repo on CT105 + live site).
 ## T2 discoverable metadata — DONE (this session)
 - `discoverable: True` added to 402 challenge extensions.bazaar (app/middleware/x402.py L466), verified live in challenge body via origin localhost.
 - Per-route INPUT_SCHEMAS (middleware L121+) + INPUT_EXAMPLES/OUTPUT_EXAMPLES + bazaar schema/example blocks confirmed in challenge.
-- Committed: 2a707f5 parent + "x402: mark endpoints discoverable in bazaar extension + status checklist".
+- Committed: "x402: mark endpoints discoverable in bazaar extension + status checklist".
 
 ## T3 /.well-known/x402.json — DONE
 - Live 200, 8 top keys, 27 endpoints, merchant_wallet = CDP wallet 0xab55…8008, facilitator api.cdp.coinbase.com/platform/v2/x402.
@@ -19,8 +19,13 @@ Ground truth as of 2026-08-03 (verified against repo on CT105 + live site).
 ## T4 /llms.txt — DONE
 - Live 200 text/plain; generated from model registry + ROUTE_PRICING.
 
-## T5 dashboard zero-value finding — NOT started
-- /v1/dashboard/analytics + /requests exist; zero-value question (hydration vs gap) never diagnosed.
+## T5 dashboard zero-value finding — DONE (this session)
+- **REAL GAP, not hydration.** Dashboard analytics (app/api/dashboard/routes.py get_analytics ~L347) queries SQLAlchemy models whose tables DO NOT exist in Postgres:
+  - Queried: usage_logs, organizations, organization_members (UsageLog/Organization/OrgMember models)
+  - Actual physical tables (CamelCase): UsageRecord, Organization, Membership, Payment, ApiKey, AuditLog, Project, RateLimit, User, Wallet, models
+  - Every analytics query on the missing tables raises UndefinedTable → summary zeroed / error.
+  - Real tables DO have rows: UsageRecord=3, Organization=1, Payment=1; but APIs/model layer read the snake_case ghosts.
+- Fix path (not yet applied): align dashboard models/tables to the real CamelCase schema (UsageRecord with organization_id, Organization, Membership) OR create the expected tables + backfill — decision pending.
 
 ## T6 catalog/registration payloads — NOT started
 - No branches/PRs/registration payloads found.
