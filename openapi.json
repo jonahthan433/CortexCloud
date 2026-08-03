@@ -28,7 +28,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/v1/responses": {
@@ -39,11 +40,7 @@
         "summary": "Chat Completions",
         "description": "OpenAI-compatible chat completion endpoint.\nSupports standard HTTP response and streaming SSE.",
         "operationId": "chat_completions_v1_responses_post",
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ],
+        "security": [],
         "parameters": [
           {
             "name": "x-correlation-id",
@@ -102,11 +99,7 @@
         "summary": "Chat Completions",
         "description": "OpenAI-compatible chat completion endpoint.\nSupports standard HTTP response and streaming SSE.",
         "operationId": "chat_completions_v1_chat_completions_post",
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ],
+        "security": [],
         "parameters": [
           {
             "name": "x-correlation-id",
@@ -165,11 +158,7 @@
         "summary": "Embeddings",
         "description": "OpenAI-compatible text embeddings endpoint.",
         "operationId": "embeddings_v1_embeddings_post",
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ],
+        "security": [],
         "parameters": [
           {
             "name": "x-correlation-id",
@@ -238,7 +227,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/pricing": {
@@ -257,7 +247,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/v1/models": {
@@ -280,11 +271,7 @@
             }
           }
         },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        "security": []
       }
     },
     "/v1/dashboard/auth/register": {
@@ -326,7 +313,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/v1/dashboard/auth/login": {
@@ -368,7 +356,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/v1/dashboard/auth/me": {
@@ -391,11 +380,7 @@
             }
           }
         },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        "security": []
       }
     },
     "/v1/dashboard/api-keys": {
@@ -467,11 +452,7 @@
             }
           }
         },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        "security": []
       }
     },
     "/v1/dashboard/api-keys/{key_id}": {
@@ -482,11 +463,7 @@
         "summary": "Revoke Key",
         "description": "Revoke (delete) a specific API Key.",
         "operationId": "revoke_key_v1_dashboard_api_keys__key_id__delete",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
+        "security": [],
         "parameters": [
           {
             "name": "key_id",
@@ -539,11 +516,7 @@
             }
           }
         },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        "security": []
       }
     },
     "/v1/dashboard/billing/transactions": {
@@ -564,11 +537,7 @@
             }
           }
         },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        "security": []
       }
     },
     "/v1/dashboard/billing/deposit": {
@@ -579,11 +548,7 @@
         "summary": "Simulated Deposit",
         "description": "Simulate a credit card deposit top-up (adds balance).",
         "operationId": "simulated_deposit_v1_dashboard_billing_deposit_post",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
+        "security": [],
         "parameters": [
           {
             "name": "amount",
@@ -645,11 +610,7 @@
             }
           }
         },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        "security": []
       }
     },
     "/v1/dashboard/requests": {
@@ -660,11 +621,7 @@
         "summary": "Get Request History",
         "description": "View historical requests log for user's organization.",
         "operationId": "get_request_history_v1_dashboard_requests_get",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
+        "security": [],
         "parameters": [
           {
             "name": "limit",
@@ -717,11 +674,7 @@
             }
           }
         },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        "security": []
       }
     },
     "/v1/admin/models": {
@@ -764,11 +717,7 @@
             }
           }
         },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        "security": []
       }
     },
     "/v1/admin/models/{model_id}/toggle": {
@@ -779,11 +728,7 @@
         "summary": "Admin Toggle Model",
         "description": "Enable or disable a model by its registry ID. Requires Admin auth.",
         "operationId": "admin_toggle_model_v1_admin_models__model_id__toggle_patch",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
+        "security": [],
         "parameters": [
           {
             "name": "model_id",
@@ -855,11 +800,7 @@
             }
           }
         },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        "security": []
       }
     },
     "/v1/admin/api-keys": {
@@ -886,11 +827,7 @@
             }
           }
         },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        "security": []
       }
     },
     "/v1/admin/usage": {
@@ -901,11 +838,7 @@
         "summary": "Admin View Usage",
         "description": "View recent API request logs. Requires Admin auth.",
         "operationId": "admin_view_usage_v1_admin_usage_get",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
+        "security": [],
         "parameters": [
           {
             "name": "limit",
@@ -958,11 +891,7 @@
             }
           }
         },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        "security": []
       }
     },
     "/v1/admin/provider-health": {
@@ -983,11 +912,7 @@
             }
           }
         },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        "security": []
       }
     },
     "/x402/v1/responses": {
@@ -1060,7 +985,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/chat/completions": {
@@ -1133,7 +1059,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/embeddings": {
@@ -1208,7 +1135,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/models": {
@@ -1245,7 +1173,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/.well-known/bazaar": {
@@ -1265,7 +1194,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/mcp": {
@@ -1303,7 +1233,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/status": {
@@ -1323,7 +1254,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/data/prices": {
@@ -1393,7 +1325,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/data/coins/search": {
@@ -1451,7 +1384,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/data/dex/search": {
@@ -1509,7 +1443,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/data/dex/pairs": {
@@ -1578,7 +1513,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/data/base/balance": {
@@ -1636,7 +1572,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/data/base/token-balance": {
@@ -1705,7 +1642,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/data/base/nonce": {
@@ -1763,7 +1701,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/defillama/chains": {
@@ -1798,7 +1737,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/defillama/protocols": {
@@ -1833,7 +1773,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/defillama/protocol": {
@@ -1891,7 +1832,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/defillama/prices": {
@@ -1949,7 +1891,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/defillama/yields": {
@@ -1984,7 +1927,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/crypto/list": {
@@ -2019,7 +1963,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/crypto/price": {
@@ -2089,7 +2034,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/crypto/history": {
@@ -2171,7 +2117,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/fx/list": {
@@ -2206,7 +2153,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/fx/price": {
@@ -2277,7 +2225,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/fx/history": {
@@ -2370,7 +2319,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/rpc/ethereum": {
@@ -2427,7 +2377,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/images/generations": {
@@ -2484,7 +2435,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/images/image2image": {
@@ -2541,7 +2493,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/audio/speech": {
@@ -2598,7 +2551,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/audio/transcriptions": {
@@ -2655,7 +2609,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/messages": {
@@ -2690,7 +2645,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/videos/generations": {
@@ -2747,7 +2703,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/search": {
@@ -2803,7 +2760,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/search/contents": {
@@ -2859,7 +2817,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/webhook": {
@@ -2878,7 +2837,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/pubkey": {
@@ -2898,7 +2858,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/usage": {
@@ -2939,7 +2900,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/receipts": {
@@ -3003,7 +2965,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/jobs": {
@@ -3058,7 +3021,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/jobs/{job_id}": {
@@ -3099,7 +3063,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/embeddings/batch": {
@@ -3165,7 +3130,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/data/news": {
@@ -3233,7 +3199,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/data/eth/balance": {
@@ -3289,7 +3256,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/data/solana/balance": {
@@ -3345,7 +3313,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/data/defi/yields": {
@@ -3401,7 +3370,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/data/gas": {
@@ -3436,7 +3406,8 @@
               "x402": {}
             }
           ]
-        }
+        },
+        "security": []
       }
     },
     "/.well-known/x402.json": {
@@ -3455,7 +3426,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/llms.txt": {
@@ -3476,7 +3448,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     }
   },
