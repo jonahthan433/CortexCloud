@@ -66,6 +66,7 @@ class Settings(BaseSettings):
     # x402 Payment Configuration
     X402_ENABLED: bool = Field(default=True, env="X402_ENABLED")
     WALLET_ADDRESS: Optional[str] = Field(default=None, env="WALLET_ADDRESS")
+    CDP_WALLET_SECRET: Optional[str] = Field(default=None, env="CDP_WALLET_SECRET")
     X402_FACILITATOR_URL: str = Field(default="https://api.cdp.coinbase.com/platform/v2/x402", env="X402_FACILITATOR_URL")
     X402_FACILITATOR_API_KEY: Optional[str] = Field(default=None, env="X402_FACILITATOR_API_KEY")
     X402_FACILITATOR_API_KEY_ID: Optional[str] = Field(default=None, env="X402_FACILITATOR_API_KEY_ID")
@@ -77,6 +78,27 @@ class Settings(BaseSettings):
     # the402.ai provider webhook (job dispatch relay)
     THE402_WEBHOOK_SECRET: Optional[str] = Field(default=None, env="THE402_WEBHOOK_SECRET")
     THE402_API_KEY: Optional[str] = Field(default=None, env="THE402_API_KEY")
+
+    @model_validator(mode="after")
+    def enforce_secrets_in_production(self) -> "Settings":
+        """Section 7: fail fast — never boot prod with dev/placeholder secrets."""
+        if self.ENV == "development":
+            return self
+        # Reject dev-default secrets in prod (would be catastrophic if exposed):
+        # POSTGRES_PASSWORD=postgres is excluded here deliberately — see section
+        # 7 report (flagged for rotation), because blocking its (weak) value
+        # would keep the whole API offline until the DB password is rotated.
+        crit = {"JWT_SECRET_KEY": "dev-jwt-secret-key-change-in-production-1234567890",
+                "API_KEY_SALT": "dev-api-key-salt-change-in-production"}
+        for var, bad in crit.items():
+            if getattr(self, var, None) in (None, "", bad):
+                raise ValueError(f"[S7] ENV=production requires a real value for {var}.")
+        critical = ["WALLET_ADDRESS", "CDP_WALLET_SECRET",
+                    "X402_FACILITATOR_API_KEY_ID", "X402_FACILITATOR_API_KEY_SECRET"]
+        for var in critical:
+            if getattr(self, var, None) in (None, ""):
+                raise ValueError(f"[S7] ENV=production requires {var} in environment.")
+        return self
 
     @model_validator(mode="after")
     def assemble_db_connection(self) -> "Settings":
