@@ -20,7 +20,7 @@ logger = logging.getLogger("cortexcloud.middleware.headers")
 
 # Section 5: security headers emitted on every response.
 _SECURITY_HEADERS = {
-    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Content-Security-Policy": "default-src 'none'",
