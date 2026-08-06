@@ -69,15 +69,16 @@ def _valid_addr(a) -> bool:
 
 
 def _models():
-    """Reusable cache accessor (kept for parity with tests)."""
-    return _model_cache["ids"], _model_cache["win"]
+    """Reusable cache accessor (ids, windows, capabilities)."""
+    c = _model_cache
+    return c["ids"], c["win"], c.get("cap", {})
 
 
 async def _refresh_models():
     cache = _model_cache
     now = time.time()
     if cache["ids"] and now - cache["t"] < 60:
-        return cache["ids"], cache["win"]
+        return cache["ids"], cache["win"], cache.get("cap", {})
     try:
         from sqlalchemy import select
         from app.database.session import AsyncSessionLocal
@@ -86,14 +87,15 @@ async def _refresh_models():
             rows = (await db.execute(
                 select(ModelRegistry).where(ModelRegistry.is_active == True)
             )).scalars().all()
-        ids, win = set(), {}
+        ids, win, cap = set(), {}, {}
         for m in rows:
             ids.add(m.name)          # client-facing alias, e.g. "gpt-4o"
             win[m.name] = int(m.context_length or 0)
-        cache.update({"t": now, "ids": ids, "win": win})
+            cap[m.name] = (m.capabilities or {}) if isinstance(m.capabilities, dict) else {}
+        cache.update({"t": now, "ids": ids, "win": win, "cap": cap})
     except Exception:
-        return None, {}
-    return cache["ids"], cache["win"]
+        return None, {}, {}
+    return cache["ids"], cache["win"], cache.get("cap", {})
 
 
 CHAT_PATHS = ("/x402/v1/chat/completions", "/x402/v1/responses")
@@ -141,13 +143,25 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
             model = data.get("model") if isinstance(data, dict) else None
             if model is not None and not isinstance(model, str):
                 return JSONResponse(status_code=400, content={"detail": "model must be a string"})
-            ids, win = await _refresh_models()
+            ids, win, cap = await _refresh_models()
             if model and ids and model not in ids:
                 return JSONResponse(status_code=400, content={"detail": f"unknown model: {model}"})
             if msgs and model and win.get(model):
                 est = sum(_est_tokens(m.get("content", "")) for m in msgs if isinstance(m, dict))
                 if est > win[model]:
                     return JSONResponse(status_code=400, content={"detail": "token estimate exceeds model context window"})
+
+            # Section 3: AI/agent abuse hardening — capability-consistent payload.
+            if isinstance(data, dict):
+                tools = data.get("tools") or []
+                if tools:
+                    if not isinstance(tools, list) or len(tools) > 64:
+                        return JSONResponse(status_code=400, content={"detail": "tools exceeds 64 items"})
+                    if model and cap and not cap.get(model, {}).get("tool_calling"):
+                        return JSONResponse(status_code=400, content={"detail": f"model '{model}' does not support tool calling"})
+                mt = data.get("max_tokens") or data.get("max_completion_tokens")
+                if model and cap and isinstance(mt, int) and mt > win.get(model, 0):
+                    return JSONResponse(status_code=400, content={"detail": "max_tokens exceeds model context window"})
 
         return await call_next(request)
 
