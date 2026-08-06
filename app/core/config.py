@@ -68,7 +68,6 @@ class Settings(BaseSettings):
     WALLET_ADDRESS: Optional[str] = Field(default=None, env="WALLET_ADDRESS")
     CDP_WALLET_SECRET: Optional[str] = Field(default=None, env="CDP_WALLET_SECRET")
     X402_FACILITATOR_URL: str = Field(default="https://api.cdp.coinbase.com/platform/v2/x402", env="X402_FACILITATOR_URL")
-    X402_FACILITATOR_API_KEY: Optional[str] = Field(default=None, env="X402_FACILITATOR_API_KEY")
     X402_FACILITATOR_API_KEY_ID: Optional[str] = Field(default=None, env="X402_FACILITATOR_API_KEY_ID")
     X402_FACILITATOR_API_KEY_SECRET: Optional[str] = Field(default=None, env="X402_FACILITATOR_API_KEY_SECRET")
     X402_NETWORK: str = Field(default="eip155:8453", env="X402_NETWORK")
