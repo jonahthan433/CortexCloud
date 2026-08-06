@@ -83,12 +83,9 @@ class Settings(BaseSettings):
         """Section 7: fail fast — never boot prod with dev/placeholder secrets."""
         if self.ENV == "development":
             return self
-        # Reject dev-default secrets in prod (would be catastrophic if exposed):
-        # POSTGRES_PASSWORD=postgres is excluded here deliberately — see section
-        # 7 report (flagged for rotation), because blocking its (weak) value
-        # would keep the whole API offline until the DB password is rotated.
         crit = {"JWT_SECRET_KEY": "dev-jwt-secret-key-change-in-production-1234567890",
-                "API_KEY_SALT": "dev-api-key-salt-change-in-production"}
+                "API_KEY_SALT": "dev-api-key-salt-change-in-production",
+                "POSTGRES_PASSWORD": "postgres"}
         for var, bad in crit.items():
             if getattr(self, var, None) in (None, "", bad):
                 raise ValueError(f"[S7] ENV=production requires a real value for {var}.")
