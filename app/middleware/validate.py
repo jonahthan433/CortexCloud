@@ -37,7 +37,7 @@ MAX_MSG_JSON = 100_000        # per-message serialized budget (chars)
 # allowlist for /data/* query params: alnum, comma, dot, slash, dash, under-score, colon, space
 _SAFE_PARAM = re.compile(r"^[0-9A-Za-z_,./:\-\s]{1,300}$")
 _ADDR_PARAMS = {"address", "addr", "pair", "token"}  # ERC-55 checked names
-_DATA_PREFIX = "/data/"
+_DATA_SUFFIX = "/data/"  # matches any /data/ under any prefix
 
 _model_cache = {"t": 0.0, "ids": None, "win": {}}
 
@@ -103,51 +103,51 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         # GET /data/* -> query-param sanitization only.
         if request.method == "GET":
-            if request.url.path.startswith(_DATA_PREFIX):
+            if _DATA_SUFFIX in request.url.path:
                 for k, v in request.query_params.multi_items():
                     if k in _ADDR_PARAMS:
                         if not _valid_addr(v):
-                            return JSONResponse(400, content={"detail": f"invalid address param: {k}"})
+                            return JSONResponse(status_code=400, content={"detail": f"invalid address param: {k}"})
                     elif not _SAFE_PARAM.match(v):
-                        return JSONResponse(400, content={"detail": f"unsafe query param: {k}"})
+                        return JSONResponse(status_code=400, content={"detail": f"unsafe query param: {k}"})
             return await call_next(request)
 
         # Body-based methods.
         ct = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
         if ct != "application/json":
-            return JSONResponse(415, content={"detail": "Content-Type must be application/json"})
+            return JSONResponse(status_code=415, content={"detail": "Content-Type must be application/json"})
 
         raw = await request.body()
         if len(raw) > MAX_BODY:
-            return JSONResponse(413, content={"detail": "Request body too large (max 1MB)"})
+            return JSONResponse(status_code=413, content={"detail": "Request body too large (max 1MB)"})
 
         try:
             data = json.loads(raw)
             _depth(data)
         except json.JSONDecodeError:
-            return JSONResponse(400, content={"detail": "Invalid JSON"})
+            return JSONResponse(status_code=400, content={"detail": "Invalid JSON"})
         except (ValueError, RecursionError):
-            return JSONResponse(400, content={"detail": "JSON too deeply nested"})
+            return JSONResponse(status_code=400, content={"detail": "JSON too deeply nested"})
 
         path = request.url.path
         if path in CHAT_PATHS:
             msgs = data.get("messages") if isinstance(data, dict) else None
             if msgs is not None:
                 if not isinstance(msgs, list) or len(msgs) > MAX_MESSAGES:
-                    return JSONResponse(400, content={"detail": f"messages exceeds {MAX_MESSAGES} items"})
+                    return JSONResponse(status_code=400, content={"detail": f"messages exceeds {MAX_MESSAGES} items"})
                 for m in msgs:
                     if len(json.dumps(m, separators=(",", ":"))) > MAX_MSG_JSON:
-                        return JSONResponse(400, content={"detail": "message content too large"})
+                        return JSONResponse(status_code=400, content={"detail": "message content too large"})
             model = data.get("model") if isinstance(data, dict) else None
             if model is not None and not isinstance(model, str):
-                return JSONResponse(400, content={"detail": "model must be a string"})
+                return JSONResponse(status_code=400, content={"detail": "model must be a string"})
             ids, win = await _refresh_models()
             if model and ids and model not in ids:
-                return JSONResponse(400, content={"detail": f"unknown model: {model}"})
+                return JSONResponse(status_code=400, content={"detail": f"unknown model: {model}"})
             if msgs and model and win.get(model):
                 est = sum(_est_tokens(m.get("content", "")) for m in msgs if isinstance(m, dict))
                 if est > win[model]:
-                    return JSONResponse(400, content={"detail": "token estimate exceeds model context window"})
+                    return JSONResponse(status_code=400, content={"detail": "token estimate exceeds model context window"})
 
         return await call_next(request)
 
