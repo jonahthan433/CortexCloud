@@ -114,7 +114,9 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
                         return JSONResponse(status_code=400, content={"detail": f"unsafe query param: {k}"})
             return await call_next(request)
 
-        # Body-based methods.
+        # Body-based methods only. GET/HEAD/OPTIONS carry no body.
+        if request.method not in ("POST", "PUT", "PATCH", "DELETE"):
+            return await call_next(request)
         ct = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
         # OAuth2 login and any multipart routes use form encoding, not JSON.
         if ct == "application/x-www-form-urlencoded" or ct.startswith("multipart/form-data"):
