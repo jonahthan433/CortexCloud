@@ -250,6 +250,12 @@ if settings.X402_ENABLED and settings.WALLET_ADDRESS:
         from app.middleware.headers import CortexHeadersMiddleware
         app.add_middleware(CortexHeadersMiddleware)
 
+        # Section 2: input validation at the trust boundary. Outer-most so it
+        # short-circuits malformed/oversized/unsafe bodies before the payment
+        # gateway or rate limiting touches them.
+        from app.middleware.validate import InputValidationMiddleware
+        app.add_middleware(InputValidationMiddleware)
+
         _x402_active = True
         logger.info("x402 payment gateway middleware and router enabled")
 
