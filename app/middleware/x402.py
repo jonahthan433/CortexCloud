@@ -579,6 +579,18 @@ class X402Middleware(BaseHTTPMiddleware):
                 content={"error": "Payment nonce already used"},
             )
 
+        # S1 (hardening): in-process proof verification — ECDSA signer recovery,
+        # amount >= required, chainId==8453, asset==USDC, payTo==our wallet,
+        # validBefore expiry window. Fail closed: ANY failure is a 402.
+        from app.middleware.payverify import verify_proof
+        ok, reason, _auth_verified = verify_proof(payment_signature, price_str, path)
+        if not ok:
+            logger.warning(json.dumps({"event": "proof_rejected", "payer": _auth0.get("from"), "reason": reason}))
+            return JSONResponse(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                content={"error": "Payment verification failed", "details": reason},
+            )
+
         # S2: shared pooled CDP client (2 calls per payment — pooling pays).
         cdp_client = shared_client("cdp", 30.0)
         try:
