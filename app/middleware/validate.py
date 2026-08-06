@@ -23,6 +23,8 @@ import time
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.middleware.audit import audit
+
 try:
     from web3 import Web3
     _web3 = Web3()
@@ -109,8 +111,10 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
                 for k, v in request.query_params.multi_items():
                     if k in _ADDR_PARAMS:
                         if not _valid_addr(v):
+                            audit("rejected", kind="bad_addr", ip=(request.client.host if request.client else "?"), param=k)
                             return JSONResponse(status_code=400, content={"detail": f"invalid address param: {k}"})
                     elif not _SAFE_PARAM.match(v):
+                        audit("rejected", kind="unsafe_query", ip=(request.client.host if request.client else "?"), param=k)
                         return JSONResponse(status_code=400, content={"detail": f"unsafe query param: {k}"})
             return await call_next(request)
 
@@ -122,18 +126,22 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
         if ct == "application/x-www-form-urlencoded" or ct.startswith("multipart/form-data"):
             return await call_next(request)
         if ct != "application/json":
+            audit("rejected", kind="bad_content_type", ip=(request.client.host if request.client else "?"), path=request.url.path)
             return JSONResponse(status_code=415, content={"detail": "Content-Type must be application/json"})
 
         raw = await request.body()
         if len(raw) > MAX_BODY:
+            audit("rejected", kind="oversize", ip=(request.client.host if request.client else "?"), path=request.url.path, bytes=len(raw))
             return JSONResponse(status_code=413, content={"detail": "Request body too large (max 1MB)"})
 
         try:
             data = json.loads(raw)
             _depth(data)
         except json.JSONDecodeError:
+            audit("rejected", kind="bad_json", ip=(request.client.host if request.client else "?"), path=request.url.path)
             return JSONResponse(status_code=400, content={"detail": "Invalid JSON"})
         except (ValueError, RecursionError):
+            audit("rejected", kind="json_depth", ip=(request.client.host if request.client else "?"), path=request.url.path)
             return JSONResponse(status_code=400, content={"detail": "JSON too deeply nested"})
 
         path = request.url.path

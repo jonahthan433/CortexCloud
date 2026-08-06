@@ -12,6 +12,7 @@ from app.auth.dependencies import get_current_user
 from app.core.security import get_password_hash, verify_password, create_access_token, generate_api_key
 from app.database.session import get_db
 from app.middleware.rate_limit import RateLimiter
+from app.middleware.audit import audit
 from app.models.billing import BillingAccount, BillingTransaction
 from app.models.key import APIKey
 from app.models.org import Organization, OrganizationMember
@@ -147,6 +148,7 @@ async def login(
         if await RateLimiter.is_rate_limited(
             f"ratelimit:login:ip:{ip}", 10, 60
         ):
+            audit("login_bruteforce", ip=ip)
             raise HTTPException(status_code=429, detail="Too many login attempts. Try again later.")
     result = await db.execute(select(User).filter(User.email == form_data.username))
     user = result.scalar_one_or_none()

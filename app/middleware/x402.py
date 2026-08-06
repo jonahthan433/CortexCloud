@@ -10,8 +10,9 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.responses import Response
 
 from app.core.config import settings
-from app.core.cache import cache_proof, nonce_seen, proof_is_cached, rate_allow
+from app.core.cache import cache_proof, nonce_seen, proof_is_cached, rate_allow, get_redis
 from app.core.http import shared_client
+from app.middleware.audit import audit, alert
 from app.core.reqlog import CACHE_HITS, LATENCY, get_req
 from app.x402.pricing import ROUTE_PRICING, ROUTE_DESCRIPTIONS, usd_to_usdc_atomic
 
@@ -48,7 +49,10 @@ async def _rate_limit(request) -> JSONResponse | None:
         return None
     count = await rate_allow(payer)
     if count > settings.X402_RATE_LIMIT:
-        logger.warning(json.dumps({"event": "rate_limited", "payer": payer, "count": count}))
+        log = json.dumps({"event": "rate_limited", "payer": payer, "count": count})
+        audit("rate_limited", payer=payer, count=count)
+        await alert(get_redis(), "rate_limit", 300, 200, "rate_limit_dos", payer=payer)
+        logger.warning(log)
         return JSONResponse(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             content={"error": "rate limit exceeded", "retry_after": 60},
@@ -573,6 +577,7 @@ class X402Middleware(BaseHTTPMiddleware):
         # validBefore (the x402 validUntil timestamp). Verified BEFORE CDP so a
         # double-spend attempt never reaches the facilitator.
         if _auth0.get("nonce") and await nonce_seen(_auth0["nonce"], _auth0.get("validBefore")):
+            audit("nonce_replay", payer=_auth0.get("from") or "?", nonce=_auth0["nonce"])
             logger.warning(f"x402 nonce replay rejected: {_auth0['nonce']}")
             return JSONResponse(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
@@ -585,6 +590,10 @@ class X402Middleware(BaseHTTPMiddleware):
         from app.middleware.payverify import verify_proof
         ok, reason, _auth_verified = verify_proof(payment_signature, price_str, path)
         if not ok:
+            ip = request.client.host if request.client else "?"
+            audit("proof_rejected", payer=_auth0.get("from") or "?", reason=reason, ip=ip)
+            await alert(get_redis(), "proof_reject", 60, 10, "proof_rejected_alert",
+                        payer=_auth0.get("from") or "", reason=reason, ip=ip)
             logger.warning(json.dumps({"event": "proof_rejected", "payer": _auth0.get("from"), "reason": reason}))
             return JSONResponse(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
