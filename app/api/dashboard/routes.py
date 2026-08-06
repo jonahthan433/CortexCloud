@@ -2,7 +2,7 @@ import uuid
 from decimal import Decimal
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select, func
@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import get_current_user
 from app.core.security import get_password_hash, verify_password, create_access_token, generate_api_key
 from app.database.session import get_db
+from app.middleware.rate_limit import RateLimiter
 from app.models.billing import BillingAccount, BillingTransaction
 from app.models.key import APIKey
 from app.models.org import Organization, OrganizationMember
@@ -136,9 +137,17 @@ async def register(payload: UserRegister, db: AsyncSession = Depends(get_db)):
 @router.post("/auth/login", response_model=Token)
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    request: Request = None,
 ):
     """Authenticate a dashboard user and return a JWT access token."""
+    # Section 4: per-IP login brute-force / DoS throttle (fail-open on Redis error).
+    if request is not None:
+        ip = request.client.host if request.client else "127.0.0.1"
+        if await RateLimiter.is_rate_limited(
+            f"ratelimit:login:ip:{ip}", 10, 60
+        ):
+            raise HTTPException(status_code=429, detail="Too many login attempts. Try again later.")
     result = await db.execute(select(User).filter(User.email == form_data.username))
     user = result.scalar_one_or_none()
 

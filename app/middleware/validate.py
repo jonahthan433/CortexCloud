@@ -116,6 +116,9 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
 
         # Body-based methods.
         ct = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
+        # OAuth2 login and any multipart routes use form encoding, not JSON.
+        if ct == "application/x-www-form-urlencoded" or ct.startswith("multipart/form-data"):
+            return await call_next(request)
         if ct != "application/json":
             return JSONResponse(status_code=415, content={"detail": "Content-Type must be application/json"})
 
