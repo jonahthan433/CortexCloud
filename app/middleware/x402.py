@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import json
 import logging
 import time
@@ -674,6 +675,23 @@ class X402Middleware(BaseHTTPMiddleware):
     
         # S1: remember this proof so retries within 60s skip CDP.
         await cache_proof(payment_signature)
+
+        # Record the settled payment so /usage and /receipts can report it.
+        # (audit_routes reads x402:rx:<sha256(payer)>. Without this write,
+        # every paid call is invisible to analytics — no usage, no repeats.)
+        try:
+            _payer = getattr(request.state, "x402_payer", None) or (_sig_payload.get("payload") or {}).get("authorization", {}).get("from", "")
+            if _payer:
+                _key = "x402:rx:" + hashlib.sha256(_payer.encode()).hexdigest()
+                await get_redis().rpush(_key, json.dumps({
+                    "endpoint": path,
+                    "payer": _payer,
+                    "payment_amount_atomic": int(required),
+                    "ts": int(time.time()),
+                }))
+        except Exception:
+            # telemetry never blocks a settled payment
+            pass
     
         # Payment verified and settled, proceed to request
         limited = await _rate_limit(request)
