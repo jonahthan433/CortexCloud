@@ -74,13 +74,21 @@ for path, methods in spec.get("paths", {}).items():
         # INPUT_SCHEMAS keys are like "/x402/v1/search" (no method). Try both:
         in_schema = INPUT_SCHEMAS.get(path)
         # ensure paid route declares security + 402
+        # idempotent: strip any stale security from previous runs, then re-apply
+        op.pop("security", None)
         if "x-payment-info" in op:
             op.setdefault("responses", {}).setdefault(
                 "402", {"description": "Payment Required — x402 PaymentRequirements challenge"}
             )
-            # x402 payment IS the auth
-            op["security"] = [{"x402": []}]
-            added["security"] += 1
+            _free = path in ("/x402/v1/models", "/x402/v1/mcp", "/v1/dashboard/api-keys")
+            if _free:
+                # genuinely free route: drop x-payment-info + mark security:[] so the
+                # scanner treats it as a plain public catalog, not a probed payable op.
+                op.pop("x-payment-info", None)
+                op["security"] = []
+            else:
+                op["security"] = [{"x402": []}]
+                added["security"] += 1
 
             # Input schema: POST -> requestBody, GET -> parameters
             if not op.get("parameters") and not op.get("requestBody") and in_schema:
@@ -120,6 +128,9 @@ for path, methods in spec.get("paths", {}).items():
         ):
             op["x-payment-info"]["price"]["amount"] = price.lstrip("$")
             synced += 1
+        # non-paid/legacy ops that didn't get a security key -> exclude from probing
+        if "security" not in op:
+            op["security"] = []
 
 with open(SPEC, "w") as f:
     json.dump(spec, f, indent=2)

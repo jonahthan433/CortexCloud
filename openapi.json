@@ -41,7 +41,6 @@
         "summary": "Chat Completions",
         "description": "OpenAI-compatible chat completion endpoint.\nSupports standard HTTP response and streaming SSE.",
         "operationId": "chat_completions_v1_responses_post",
-        "security": [],
         "parameters": [
           {
             "name": "x-correlation-id",
@@ -89,7 +88,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/v1/chat/completions": {
@@ -100,7 +100,6 @@
         "summary": "Chat Completions",
         "description": "OpenAI-compatible chat completion endpoint.\nSupports standard HTTP response and streaming SSE.",
         "operationId": "chat_completions_v1_chat_completions_post",
-        "security": [],
         "parameters": [
           {
             "name": "x-correlation-id",
@@ -148,7 +147,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/v1/embeddings": {
@@ -159,7 +159,6 @@
         "summary": "Embeddings",
         "description": "OpenAI-compatible text embeddings endpoint.",
         "operationId": "embeddings_v1_embeddings_post",
-        "security": [],
         "parameters": [
           {
             "name": "x-correlation-id",
@@ -209,7 +208,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/activity": {
@@ -408,11 +408,7 @@
             }
           }
         },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        "security": []
       },
       "post": {
         "tags": [
@@ -464,7 +460,6 @@
         "summary": "Revoke Key",
         "description": "Revoke (delete) a specific API Key.",
         "operationId": "revoke_key_v1_dashboard_api_keys__key_id__delete",
-        "security": [],
         "parameters": [
           {
             "name": "key_id",
@@ -496,7 +491,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/v1/dashboard/billing/balance": {
@@ -549,7 +545,6 @@
         "summary": "Simulated Deposit",
         "description": "Simulate a credit card deposit top-up (adds balance).",
         "operationId": "simulated_deposit_v1_dashboard_billing_deposit_post",
-        "security": [],
         "parameters": [
           {
             "name": "amount",
@@ -590,7 +585,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/v1/dashboard/analytics": {
@@ -622,7 +618,6 @@
         "summary": "Get Request History",
         "description": "View historical requests log for user's organization.",
         "operationId": "get_request_history_v1_dashboard_requests_get",
-        "security": [],
         "parameters": [
           {
             "name": "limit",
@@ -654,7 +649,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/v1/dashboard/models": {
@@ -729,7 +725,6 @@
         "summary": "Admin Toggle Model",
         "description": "Enable or disable a model by its registry ID. Requires Admin auth.",
         "operationId": "admin_toggle_model_v1_admin_models__model_id__toggle_patch",
-        "security": [],
         "parameters": [
           {
             "name": "model_id",
@@ -774,7 +769,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/v1/admin/users": {
@@ -839,7 +835,6 @@
         "summary": "Admin View Usage",
         "description": "View recent API request logs. Requires Admin auth.",
         "operationId": "admin_view_usage_v1_admin_usage_get",
-        "security": [],
         "parameters": [
           {
             "name": "limit",
@@ -871,7 +866,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/v1/admin/revenue": {
@@ -1175,23 +1171,7 @@
             "description": "x402 payment required"
           }
         },
-        "x-payment-info": {
-          "price": {
-            "mode": "fixed",
-            "currency": "USD",
-            "amount": "0.00"
-          },
-          "protocols": [
-            {
-              "x402": {}
-            }
-          ]
-        },
-        "security": [
-          {
-            "x402": []
-          }
-        ]
+        "security": []
       }
     },
     "/x402/v1/.well-known/bazaar": {
@@ -1232,7 +1212,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       },
       "post": {
         "tags": [
@@ -1783,12 +1764,12 @@
             }
           ]
         },
+        "parameters": [],
         "security": [
           {
             "x402": []
           }
-        ],
-        "parameters": []
+        ]
       }
     },
     "/x402/v1/defillama/protocols": {
@@ -1824,12 +1805,12 @@
             }
           ]
         },
+        "parameters": [],
         "security": [
           {
             "x402": []
           }
-        ],
-        "parameters": []
+        ]
       }
     },
     "/x402/v1/defillama/protocol": {
@@ -1991,12 +1972,12 @@
             }
           ]
         },
+        "parameters": [],
         "security": [
           {
             "x402": []
           }
-        ],
-        "parameters": []
+        ]
       }
     },
     "/x402/v1/crypto/list": {
@@ -2032,12 +2013,12 @@
             }
           ]
         },
+        "parameters": [],
         "security": [
           {
             "x402": []
           }
-        ],
-        "parameters": []
+        ]
       }
     },
     "/x402/v1/crypto/price": {
@@ -2235,12 +2216,12 @@
             }
           ]
         },
+        "parameters": [],
         "security": [
           {
             "x402": []
           }
-        ],
-        "parameters": []
+        ]
       }
     },
     "/x402/v1/fx/price": {
@@ -2760,11 +2741,6 @@
             }
           ]
         },
-        "security": [
-          {
-            "x402": []
-          }
-        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2792,7 +2768,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/videos/generations": {
@@ -3589,11 +3570,6 @@
             }
           ]
         },
-        "security": [
-          {
-            "x402": []
-          }
-        ],
         "parameters": [
           {
             "name": "chain",
@@ -3604,6 +3580,11 @@
               "default": "base",
               "description": "Chain id to fetch gas price for (base|ethereum|arbitrum|polygon)"
             }
+          }
+        ],
+        "security": [
+          {
+            "x402": []
           }
         ]
       }
