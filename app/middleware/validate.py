@@ -59,15 +59,23 @@ def _est_tokens(text) -> int:
     return max(1, len(s) // 4)  # ~4 chars/token
 
 
+# base58 alphabet (Bitcoin/Solana), no 0OIl.
+_BASE58 = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
+
+# ponytail: base58 branch is permissive (no checksum) — Solana addresses have no
+# EIP-55 equivalent to verify. Sufficient for a sanity guard; swap for an on-chain
+# lookup only if callers start depending on it as a hard filter.
 def _valid_addr(a) -> bool:
-    if not isinstance(a, str) or not re.fullmatch(r"0x[0-9a-fA-F]{40}", a):
+    if not isinstance(a, str):
         return False
-    if _web3 is None:
-        return True  # scope-format only when web3 unavailable
-    try:
-        return bool(_web3.is_checksum_address(a))
-    except Exception:
-        return False
+    if re.fullmatch(r"0x[0-9a-fA-F]{40}", a):
+        if _web3 is None:
+            return True  # scope-format only when web3 unavailable
+        try:
+            return bool(_web3.is_checksum_address(a))
+        except Exception:
+            return False
+    return bool(_BASE58.fullmatch(a))
 
 
 def _models():
