@@ -8,7 +8,8 @@
       "email": "team@cortexcloud.org",
       "name": "CortexCloud",
       "url": "https://api.cortexcloud.org"
-    }
+    },
+    "x-guidance": "CortexCloud is an agent-native AI + data gateway. Call any /x402/v1/* endpoint; your first call returns HTTP 402 with an x402 PaymentRequirements challenge (USDC on Base, chain 8453, fee to our operator). Sign the challenge with your wallet and resend with the X-PAYMENT header. Pay only for what you call \u2014 no API keys, no subscriptions. Examples: POST /x402/v1/chat/completions (OpenAI-compatible chat), GET /x402/v1/crypto/price escaped poll, POST /x402/v1/images/generations (image gen). All prices are fixed per call per USDC atomic units. Use the models endpoint to discover available models. See /openapi.json for schemas."
   },
   "paths": {
     "/health": {
@@ -986,7 +987,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/chat/completions": {
@@ -1060,7 +1065,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/embeddings": {
@@ -1136,7 +1145,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/models": {
@@ -1174,7 +1187,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/.well-known/bazaar": {
@@ -1326,7 +1343,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/data/coins/search": {
@@ -1385,7 +1406,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/data/dex/search": {
@@ -1444,7 +1469,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/data/dex/pairs": {
@@ -1514,7 +1543,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/data/base/balance": {
@@ -1573,7 +1606,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/data/base/token-balance": {
@@ -1643,7 +1680,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/data/base/nonce": {
@@ -1702,7 +1743,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/defillama/chains": {
@@ -1738,7 +1783,12 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "parameters": []
       }
     },
     "/x402/v1/defillama/protocols": {
@@ -1774,7 +1824,12 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "parameters": []
       }
     },
     "/x402/v1/defillama/protocol": {
@@ -1833,7 +1888,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/defillama/prices": {
@@ -1892,7 +1951,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/defillama/yields": {
@@ -1928,7 +1991,12 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "parameters": []
       }
     },
     "/x402/v1/crypto/list": {
@@ -1964,7 +2032,12 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "parameters": []
       }
     },
     "/x402/v1/crypto/price": {
@@ -2035,7 +2108,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/crypto/history": {
@@ -2118,7 +2195,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/fx/list": {
@@ -2154,7 +2235,12 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "parameters": []
       }
     },
     "/x402/v1/fx/price": {
@@ -2226,7 +2312,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/fx/history": {
@@ -2320,7 +2410,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/rpc/ethereum": {
@@ -2378,7 +2472,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/images/generations": {
@@ -2436,7 +2534,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/images/image2image": {
@@ -2494,7 +2596,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/audio/speech": {
@@ -2552,7 +2658,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/audio/transcriptions": {
@@ -2610,7 +2720,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/messages": {
@@ -2646,7 +2760,39 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "model": {
+                    "type": "string"
+                  },
+                  "messages": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  },
+                  "max_tokens": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "model",
+                  "messages"
+                ]
+              }
+            }
+          }
+        }
       }
     },
     "/x402/v1/videos/generations": {
@@ -2704,7 +2850,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/search": {
@@ -2761,7 +2911,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/search/contents": {
@@ -2818,7 +2972,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/webhook": {
@@ -3022,7 +3180,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/jobs/{job_id}": {
@@ -3131,7 +3293,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/data/news": {
@@ -3200,7 +3366,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/data/eth/balance": {
@@ -3257,7 +3427,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/data/solana/balance": {
@@ -3314,7 +3488,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/data/defi/yields": {
@@ -3371,7 +3549,11 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ]
       }
     },
     "/x402/v1/data/gas": {
@@ -3407,7 +3589,23 @@
             }
           ]
         },
-        "security": []
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "chain",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "base",
+              "description": "Chain id to fetch gas price for (base|ethereum|arbitrum|polygon)"
+            }
+          }
+        ]
       }
     },
     "/.well-known/x402.json": {
@@ -4528,6 +4726,11 @@
             "tokenUrl": "/v1/dashboard/auth/login"
           }
         }
+      },
+      "x402": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "x402-PAYMENT header. Obtain a PaymentRequestRequirements 402, answer with a wallet ERC-7715 authorization, pass it back in the X-PAYMENT header."
       }
     }
   },
