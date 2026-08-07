@@ -23,7 +23,7 @@ _SECURITY_HEADERS = {
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
-    "Content-Security-Policy": "default-src 'none'",
+    "Content-Security-Policy": "default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline'; connect-src 'self'",
     "Referrer-Policy": "no-referrer",
     "Cache-Control": "no-store",
 }
