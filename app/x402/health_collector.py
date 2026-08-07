@@ -41,11 +41,10 @@ def provider_health():
         windows[provider]["status"].extend([ok for (_, ok) in stat])
 
     for provider in _PROVIDER_LABELS:
+        if not _configured(provider):
+            continue  # omit unconfigured providers from /health
         lat = windows[provider]["lat"]
         ok = windows[provider]["status"]
-        if not _configured(provider):
-            out[provider] = {"status": "unconfigured", "latency_p95_ms": 0}
-            continue
         if not lat:
             out[provider] = {"status": "healthy", "latency_p95_ms": 0}  # configured, idle
             continue

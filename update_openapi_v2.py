@@ -130,7 +130,13 @@ for path, methods in spec.get("paths", {}).items():
             synced += 1
         # non-paid/legacy ops that didn't get a security key -> exclude from probing
         if "security" not in op:
-            op["security"] = []
+            # GET /v1/models requires a Bearer API key but carries no x402/x-payment
+            # marker. Declare the real (APIKeyHeader) scheme so scanners don't flag
+            # it "unprotected": it 401s without a key.
+            if method == "get" and path in ("/v1/models",):
+                op["security"] = [{"APIKeyHeader": []}]
+            else:
+                op["security"] = []
 
 with open(SPEC, "w") as f:
     json.dump(spec, f, indent=2)

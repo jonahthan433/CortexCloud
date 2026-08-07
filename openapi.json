@@ -272,7 +272,11 @@
             }
           }
         },
-        "security": []
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
       }
     },
     "/v1/dashboard/auth/register": {
