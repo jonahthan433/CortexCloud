@@ -35,7 +35,7 @@ _AUTH_TYPES = {
         {"name": "chainId", "type": "uint256"},
         {"name": "verifyingContract", "type": "address"},
     ],
-    "TransferAuthorization": [
+    "TransferWithAuthorization": [
         {"name": "from", "type": "address"},
         {"name": "to", "type": "address"},
         {"name": "value", "type": "uint256"},
@@ -107,6 +107,11 @@ def verify_proof(payment_signature: str, price_str: str, path: str) -> tuple[boo
 
     accepted = payload.get("accepted") or (payload.get("accepts") or [{}])[0] or {}
     auth = (payload.get("payload") or {}).get("authorization") or {}
+    # v2 client signs {x402Version, accepted, payload: {authorization, signature}}
+    # — the EIP-3009 signature is a SIBLING of authorization, not inside it.
+    # Attach it so _extract_sig can read it.
+    if not auth.get("signature") and (payload.get("payload") or {}).get("signature"):
+        auth["signature"] = (payload.get("payload") or {})["signature"]
 
     # 1. Amount: never trust the caller's stated price — compare against OUR
     #    price table (the same required the 402 challenge carried).
@@ -172,7 +177,7 @@ def verify_proof(payment_signature: str, price_str: str, path: str) -> tuple[boo
         }
         typed = {
             "types": _AUTH_TYPES,
-            "primaryType": "TransferAuthorization",
+            "primaryType": "TransferWithAuthorization",
             "domain": domain,
             "message": message,
         }
