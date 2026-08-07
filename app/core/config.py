@@ -66,6 +66,7 @@ class Settings(BaseSettings):
     # x402 Payment Configuration
     X402_ENABLED: bool = Field(default=True, env="X402_ENABLED")
     WALLET_ADDRESS: Optional[str] = Field(default=None, env="WALLET_ADDRESS")
+    WALLET_ADDRESS_2: Optional[str] = Field(default=None, env="WALLET_ADDRESS_2")
     CDP_WALLET_SECRET: Optional[str] = Field(default=None, env="CDP_WALLET_SECRET")
     X402_FACILITATOR_URL: str = Field(default="https://api.cdp.coinbase.com/platform/v2/x402", env="X402_FACILITATOR_URL")
     X402_FACILITATOR_API_KEY_ID: Optional[str] = Field(default=None, env="X402_FACILITATOR_API_KEY_ID")

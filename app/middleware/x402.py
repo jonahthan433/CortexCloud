@@ -463,6 +463,15 @@ class X402Middleware(BaseHTTPMiddleware):
                         # ponytail: hardcoded to Base USDC; make a per-asset map when
                         # more assets are accepted.
                         "extra": {"name": "USD Coin", "version": "2"},
+                    },
+                    {
+                        "scheme": "exact",
+                        "network": settings.X402_NETWORK,
+                        "asset": USDC_ON_BASE,
+                        "amount": required,
+                        "payTo": settings.WALLET_ADDRESS_2 or settings.WALLET_ADDRESS,
+                        "maxTimeoutSeconds": 60,
+                        "extra": {"name": "USD Coin", "version": "2"},
                     }
                 ],
                 "extensions": {

@@ -130,7 +130,10 @@ def verify_proof(payment_signature: str, price_str: str, path: str) -> tuple[boo
 
     # 4. Recipient: must be OUR wallet, checked before any RPC.
     pay_to = str(accepted.get("payTo") or auth.get("to") or "")
-    if not settings.WALLET_ADDRESS or not _ct_eq(pay_to, settings.WALLET_ADDRESS):
+    if not settings.WALLET_ADDRESS or not (
+        _ct_eq(pay_to, settings.WALLET_ADDRESS)
+        or (settings.WALLET_ADDRESS_2 and _ct_eq(pay_to, settings.WALLET_ADDRESS_2))
+    ):
         return False, "recipient mismatch", auth
 
     # 5. Expiry: reject past (30s skew) and >5min future (proof stockpiling).
