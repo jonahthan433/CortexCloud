@@ -6,7 +6,7 @@
     "version": "2.0.0",
     "x-guidance": "CortexCloud \u2014 optimization infrastructure for AI agents. Discover, pay for, and execute classical, hybrid, or quantum optimization through a single API. POST /v1/estimate is free. POST /v1/optimize returns HTTP 402 with an x402 PaymentRequirements challenge (USDC on Base, chain 8453). Sign the challenge with your wallet and resend with the payment-signature header. Poll GET /v1/jobs/{job_id}. No API keys, no subscriptions.",
     "x-apisguru-categories": [
-      "optimization"
+      "ai-ml"
     ],
     "contact": {
       "email": "team@cortexcloud.org"

@@ -41,7 +41,7 @@ spec["info"]["x-guidance"] = GUIDANCE
 # logo (apis.guru/Glama/mcp.so render x-logo), and listing category.
 spec["servers"] = [{"url": "https://api.cortexcloud.org"}]
 spec["x-logo"] = {"url": "https://api.cortexcloud.org/cortex-logo.png"}
-spec["info"]["x-apisguru-categories"] = ["optimization"]
+spec["info"]["x-apisguru-categories"] = ["ai-ml"]
 
 spec.setdefault("components", {}).setdefault("securitySchemes", {})
 spec["components"]["securitySchemes"]["x402"] = {
