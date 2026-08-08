@@ -37,6 +37,18 @@ async def estimate(problem: ProblemInput) -> dict:
             "problem": {"problem_type": problem.problem_type, "n": n},
             "recommendation": None,
             "alternatives": [],
+            "decision": {
+                "recommended": False,
+                "mode": None,
+                "provider": None,
+                "backend": None,
+                "algorithm": None,
+                "reason": sel["reason"],
+                "estimated_cost_usd": None,
+                "cortexcloud_price_usd": None,
+                "quantum_available": False,
+                "quantum_recommended": False,
+            },
             "evidence": {
                 "benchmark_rows": bench_count,
                 "basis": "measured" if bench_count else "model",
@@ -57,10 +69,25 @@ async def estimate(problem: ProblemInput) -> dict:
             "note": "provider cost is a model estimate until verified pricing/benchmarks exist",
         },
     }
+    quantum_available = any(
+        s.availability().available for s in registry.for_mode("quantum")
+    )
     return {
         "problem": {"problem_type": problem.problem_type, "n": n},
         "recommendation": recommended,
         "alternatives": alternatives,
+        "decision": {
+            "recommended": True,
+            "mode": best["mode"],
+            "provider": best["provider"],
+            "backend": best["backend"],
+            "algorithm": best["algorithm"],
+            "reason": sel["reason"],
+            "estimated_cost_usd": best["estimated_price_usd"],
+            "cortexcloud_price_usd": best["cortexcloud_price_usd"],
+            "quantum_available": quantum_available,
+            "quantum_recommended": best["mode"] == "quantum",
+        },
         "evidence": {
             "benchmark_rows": bench_count,
             "basis": "measured" if bench_count else "model",

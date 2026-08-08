@@ -42,6 +42,7 @@ def _endpoint_catalog() -> list[dict]:
         {"method": "GET", "path": "/v1/backends", "price": "free", "description": FREE_ROUTES["GET /v1/backends"]},
         {"method": "GET", "path": "/v1/capabilities", "price": "free", "description": FREE_ROUTES["GET /v1/capabilities"]},
         {"method": "GET", "path": "/v1/jobs/{job_id}", "price": "free", "description": FREE_ROUTES["GET /v1/jobs/{job_id}"]},
+        {"method": "GET", "path": "/v1/examples", "price": "free", "description": FREE_ROUTES["GET /v1/examples"]},
     ]
     return paid + free
 

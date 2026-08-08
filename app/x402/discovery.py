@@ -93,12 +93,37 @@ protocol — no API keys, no subscriptions. Settlement is permissionless.
 
 {{"problem_type": "qubo", "n": 3, "data": {{"linear": [1.0, 2.0, 3.0], "quadratic": {{"0,1": -2.0, "1,2": 1.5}}}}}}
 
+## Decision block (machine-friendly)
+
+POST /v1/estimate returns a top-level "decision" object agents can branch
+on directly: {{"recommended": true, "mode": "classical", "provider": "local",
+"backend": "brute-force", "algorithm": "...", "reason": "...",
+"estimated_cost_usd": 0.02, "cortexcloud_price_usd": 0.02,
+"quantum_available": false, "quantum_recommended": false}}.
+"recommended" is false only when no usable solver exists. Quantum is never
+recommended without benchmark evidence; if you explicitly need quantum,
+check /v1/backends for an available=true quantum backend first.
+
+## When NOT to use
+
+- n > 5000 variables (rejected with 422).
+- Problems that are not QUBO/Ising form — this is an optimization API, not a general MIP solver.
+- Guaranteed global optimum for n > 18 (classical exact enumeration caps at 18; annealing is a heuristic).
+- quantum mode when /v1/backends shows no available=true backend (job fails honestly; no fake hardware).
+
+## Examples
+
+Canonical portfolio / assignment / scheduling / routing / generic-QUBO
+examples (request JSON, expected schema, constraints, response, pricing):
+GET /v1/examples (free).
+
 ## Discovery
 
 - MCP server (stdio + Streamable HTTP): /x402/v1/mcp
 - Payment manifest: /.well-known/x402.json
 - Bazaar discovery: /.well-known/bazaar
 - OpenAPI: /openapi.json
+- Agent examples: /v1/examples
 
 ## Honesty
 

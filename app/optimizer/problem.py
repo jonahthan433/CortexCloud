@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 MAX_N = 5000  # hard cap at the trust boundary; solvers are smaller
 MAX_COEFF = 1e9
@@ -28,6 +28,18 @@ class ProblemInput(BaseModel):
     data: dict[str, Any] = Field(
         description="{\"linear\": [...], \"quadratic\": {\"i,j\": coeff}}"
     )
+
+    @model_validator(mode="after")
+    def _keys_in_range(self) -> "ProblemInput":
+        n = self.n
+        for key in list((self.data.get("quadratic") or {}).keys()) + list((self.data.get("J") or {}).keys()):
+            try:
+                i, j = (int(t) for t in key.split(","))
+            except (TypeError, ValueError):
+                raise ValueError(f"quadratic key must be 'i,j', got {key!r}")
+            if not (0 <= i < n and 0 <= j < n):
+                raise ValueError(f"quadratic key {key!r} out of range for n={n}")
+        return self
 
     @field_validator("data")
     @classmethod

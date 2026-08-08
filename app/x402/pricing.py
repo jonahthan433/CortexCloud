@@ -20,10 +20,11 @@ ROUTE_DESCRIPTIONS = {
 }
 
 FREE_ROUTES = {
-    "POST /v1/estimate": "Analyze a problem (free) — recommended mode/algorithm/backend, estimated runtime and USDC price.",
+    "POST /v1/estimate": "Analyze a problem (free) — recommended mode/algorithm/backend, decision block for agents, estimated runtime and USDC price.",
     "GET /v1/jobs/{job_id}": "Poll an optimization job by id (free).",
     "GET /v1/backends": "List solver backends and availability (free).",
     "GET /v1/capabilities": "Service capabilities, limits, payment terms (free).",
+    "GET /v1/examples": "Canonical portfolio/assignment/scheduling/routing/QUBO examples with schemas, constraints and pricing (free).",
 }
 
 

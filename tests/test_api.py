@@ -95,3 +95,52 @@ async def test_job_lifecycle(client, qb_small):
 async def test_job_404(client):
     r = await client.get("/v1/jobs/nonexistent-id")
     assert r.status_code == 404
+
+
+async def test_nonce_replay_rejected(client):
+    """EIP-3009 single-use nonce: second claim is a replay."""
+    from app.core.nonce import nonce_seen
+
+    n = "0x" + "deadbeef" * 4 + str(id(client))
+    assert await nonce_seen(n) is False
+    assert await nonce_seen(n) is True  # replayed
+
+
+# --- abuse controls -------------------------------------------------
+async def test_oversized_problem_rejected(client):
+    prob = {"problem_type": "qubo", "n": 5001, "data": {"linear": [0.0] * 5001}}
+    r = await client.post("/v1/estimate", json=prob)
+    assert r.status_code == 422, r.text
+
+
+async def test_invalid_mode_rejected(client, qb_small):
+    # Unpaid requests to the paid route get the 402 challenge first (x402
+    # contract); after payment the route itself rejects bad modes with 422.
+    r = await client.post("/v1/optimize", json={"mode": "neural", "problem": qb_small})
+    assert r.status_code in (402, 422), r.text
+
+
+async def test_invalid_quadratic_key_rejected(client):
+    prob = {"problem_type": "qubo", "n": 3,
+            "data": {"linear": [0.0, 0.0, 0.0], "quadratic": {"7,9": 1.0}}}  # keys out of range
+    r = await client.post("/v1/estimate", json=prob)
+    assert r.status_code == 422, r.text
+
+
+async def test_quantum_job_fails_honestly_without_backend(client, qb_small):
+    # quantum requested but no backend configured -> failed, never fake
+    import asyncio
+
+    from app.optimizer.problem import ProblemInput
+    from app.optimizer.runner import create_job, schedule
+
+    job_id = await create_job(ProblemInput(**qb_small), "quantum", 0.25)
+    schedule(job_id)
+    for _ in range(50):
+        r = await client.get(f"/v1/jobs/{job_id}")
+        if r.json()["status"] in ("succeeded", "failed"):
+            break
+        await asyncio.sleep(0.1)
+    body = r.json()
+    assert body["status"] == "failed", body
+    assert "no available solver" in body["error"].lower()

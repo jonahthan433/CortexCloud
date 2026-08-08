@@ -15,7 +15,7 @@ _TOOLS: dict[str, dict] = {
     "cortex_estimate_optimization": {
         "method": "POST",
         "path": "/v1/estimate",
-        "description": "Analyze an optimization problem for free — recommend mode, algorithm, backend, estimated runtime and USDC price. Mirrors POST /v1/estimate.",
+        "description": "Analyze an optimization problem for free — returns a machine-readable 'decision' block (recommended, mode, provider, backend, algorithm, reason, estimated_cost_usd, cortexcloud_price_usd, quantum_available) plus estimated runtime and USDC price. Mirrors POST /v1/estimate; see GET /v1/examples for canonical inputs.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -68,7 +68,7 @@ _TOOLS: dict[str, dict] = {
     "cortex_list_backends": {
         "method": "GET",
         "path": "/v1/backends",
-        "description": "List solver backends (classical/hybrid/quantum) and their availability.",
+        "description": "List solver backends (classical/hybrid/quantum), provider, verified flag and availability. available=true is required before requesting that mode; quantum backends are never marked available without credentials + a live capability check.",
         "input_schema": {"type": "object", "properties": {}},
         "example": {},
         "free": True,

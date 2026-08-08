@@ -74,6 +74,10 @@ class Settings(BaseSettings):
     AWS_ACCESS_KEY_ID: Optional[str] = Field(default=None, env="AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY: Optional[str] = Field(default=None, env="AWS_SECRET_ACCESS_KEY")
 
+    # Gate for /internal/metrics (revenue aggregates). Leave unset to
+    # disable the endpoint entirely — never expose money figures publicly.
+    INTERNAL_TOKEN: Optional[str] = Field(default=None, env="INTERNAL_TOKEN")
+
     @model_validator(mode="after")
     def enforce_secrets_in_production(self) -> "Settings":
         """Fail fast: never boot prod without real payment credentials."""

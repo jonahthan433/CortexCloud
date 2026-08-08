@@ -95,6 +95,21 @@ async def get_job(job_id: str) -> dict:
         }
 
 
+def _examples_payload() -> dict:
+    """Canonical agent examples (static file checked at boot; serves 404 only if missing)."""
+    import json as _json
+    import os
+
+    p = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "examples", "agents.json")
+    with open(p) as _f:
+        return _json.load(_f)
+
+
+@router.get("/examples", summary="Canonical examples for agents (portfolio/assignment/scheduling/routing/QUBO)")
+async def v1_examples() -> dict:
+    return _examples_payload()
+
+
 @router.get("/backends", summary="List solver backends and availability")
 async def list_backends() -> dict:
     backends = [registry.backend_dict(s) for s in registry.solvers()]

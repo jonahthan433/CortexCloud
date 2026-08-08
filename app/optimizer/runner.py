@@ -20,6 +20,7 @@ from app.database.session import AsyncSessionLocal
 from app.models import Benchmark, Execution, OptimizeJob
 from app.optimizer.problem import ProblemInput, to_qubo
 from app.solvers import registry
+from app.x402.pricing import MODE_PRICE_USD
 
 logger = logging.getLogger("cortexcloud.optimizer.runner")
 
@@ -131,14 +132,21 @@ async def run_job(job_id: str) -> None:
             job.result = result.to_dict()
             job.backend = solver.spec.id
             job.algorithm = solver.spec.name
+            p_cost, p_price = _cost_ledger(solver, qubo)
             db.add(
                 Benchmark(
                     problem_type=problem.problem_type,
                     n=job.n,
                     mode=solver.spec.mode,
                     solver_id=solver.spec.id,
+                    provider=getattr(solver, "provider", "local"),
+                    backend=solver.spec.id,
+                    quality_note=result.quality_note,
                     runtime_ms=int((time.time() - t0) * 1000),
                     objective=result.objective,
+                    provider_cost_usd=p_cost,
+                    price_usd=p_price,
+                    margin_usd=round(p_price - p_cost, 10),
                 )
             )
         else:
@@ -146,6 +154,15 @@ async def run_job(job_id: str) -> None:
             job.error = result.error
         job.finished_at = _now()
         await db.commit()
+
+
+def _cost_ledger(solver, qubo):
+    """provider cost vs CortexCloud x402 price used for benchmark rows."""
+    est = solver.estimate(qubo, qubo.get("n", 0))
+    return (
+        float(est.price_usd),
+        MODE_PRICE_USD.get(solver.spec.mode, MODE_PRICE_USD["classical"]),
+    )
 
 
 async def requeue_stale_jobs() -> int:

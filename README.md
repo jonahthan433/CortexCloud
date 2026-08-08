@@ -14,6 +14,7 @@ machine-payable via x402 (USDC on Base), fully discovered via
 | `/v1/jobs/{id}` | GET | free | poll job status + result |
 | `/v1/backends` | GET | free | list solvers/backends + availability |
 | `/v1/capabilities` | GET | free | what this service is and what it can run |
+| `/v1/examples` | GET | free | canonical portfolio/assignment/scheduling/routing/QUBO examples |
 | `/x402/v1/mcp` | POST | free* | MCP gateway: 4 tools (`cortex_optimize` paid) |
 | `/.well-known/x402.json` | GET | free | x402 discovery manifest |
 | `/.well-known/bazaar` | GET | free | bazaar/MCP discovery doc |
@@ -33,12 +34,14 @@ machine-payable via x402 (USDC on Base), fully discovered via
 
 - **classical**: `brute-force` (exact, n ≤ 20), `simulated-annealing` (n ≤ 5000). Pure stdlib.
 - **hybrid**: `qaoa-local` — QAOA with a classical outer loop, exact state-vector simulation.
-- **quantum**: `wukong` — Origin Quantum Wukong via Quafu cloud, isolated adapter
-  (`app/solvers/origin.py`), **never reachable from the public API**, enabled only
-  with `ORIGINQ_API_TOKEN`. The public API lies only behind `app.solvers.registry`.
-- `/v1/estimate` NEVER recommends a backend without evidence. Quantum is only
-  proposed when: (a) configured+available, AND (b) benchmark rows show it wins.
-  `estimator` falls back to classical when it is cheaper/faster — no marketing.
+- **quantum**: provider-neutral — Origin `wukong` (Quafu cloud) and AWS Braket
+  (`rigetti`/`ionq`/`iqm`/`quera`/`aqt`) behind `app/solvers/quantum/`, selected by
+  `app/solvers/quantum/router.py`. Live QPU execution is opt-in
+  (`QUANTUM_LIVE_EXECUTION=true`) and OFF in production; backends report
+  `available` only after their credential + capability check passes.
+- `/v1/estimate` NEVER recommends quantum without benchmark evidence; the
+  `decision` block (recommended/mode/provider/backend/reason/prices) is what
+  agents branch on, and classical is preferred whenever it is cheaper/faster.
 
 Benchmark rows (`benchmarks` table) accumulate on every solved job so estimates
 become measured, not modeled.

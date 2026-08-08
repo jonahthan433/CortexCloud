@@ -157,6 +157,31 @@
         "security": []
       }
     },
+    "/v1/examples": {
+      "get": {
+        "tags": [
+          "Optimization",
+          "optimization"
+        ],
+        "summary": "Canonical examples for agents (portfolio/assignment/scheduling/routing/QUBO)",
+        "operationId": "v1_examples_v1_examples_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response V1 Examples V1 Examples Get"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
     "/v1/backends": {
       "get": {
         "tags": [
