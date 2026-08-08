@@ -34,31 +34,41 @@ def _clean_mode(mode: str) -> str:
     return mode if mode in ("classical", "hybrid", "quantum") else "auto"
 
 
-def pick_solver(mode: str, n: int):
-    """auto: cheapest available per problem size (same rule as estimator)."""
-    if mode == "quantum":
-        return registry.for_mode("quantum")[0] if registry.for_mode("quantum") else None
+def _pick_classic(mode: str, n: int):
+    """Explicit classical/hybrid modes: same rule as before the router."""
     if mode == "hybrid":
         ordered = registry.for_mode("hybrid")
         return ordered[0] if ordered else None
-    if mode == "classical":
-        cls = registry.for_mode("classical")
-        # exact when cheap, else annealing
-        for s in cls:
-            if s.spec.id == "brute-force" and n <= s.spec.max_variables:
-                return s
-        for s in cls:
-            if s.spec.id != "brute-force":
-                return s
-        return cls[0] if cls else None
-    # auto: exact when it fits, else annealing
-    for s in registry.solvers():
-        if s.spec.id == "brute-force" and n <= min(s.spec.max_variables, 18):
+    cls = registry.for_mode("classical")
+    # exact when cheap, else annealing
+    for s in cls:
+        if s.spec.id == "brute-force" and n <= s.spec.max_variables:
             return s
-    for s in registry.solvers():
-        if s.spec.id == "simulated-annealing":
+    for s in cls:
+        if s.spec.id != "brute-force":
             return s
-    return None
+    return cls[0] if cls else None
+
+
+async def pick_solver(mode: str, problem, qubo):
+    """auto/quantum delegate to the backend router (single decision
+    point); explicit classical/hybrid keep their pre-router behavior."""
+    if mode in ("classical", "hybrid"):
+        return _pick_classic(mode, problem.n)
+    from app.optimizer.estimator import benchmark_evidence
+    from app.solvers.quantum import router
+
+    bench = 0 if mode == "quantum" else await benchmark_evidence(problem)
+    sel = router.select(
+        problem_type=problem.problem_type,
+        qubo=qubo,
+        n=problem.n,
+        bench_count=bench,
+        force_mode="quantum" if mode == "quantum" else None,
+    )
+    if sel["recommended"] is None:
+        return None
+    return registry.by_id(sel["recommended"]["solver_id"])
 
 
 async def create_job(problem: ProblemInput, mode: str, price_usd: float | None) -> str:
@@ -96,7 +106,7 @@ async def run_job(job_id: str) -> None:
 
         problem = ProblemInput(**job.request["problem"])
         qubo = to_qubo(problem)
-        solver = pick_solver(job.mode, job.n)
+        solver = await pick_solver(job.mode, problem, qubo)
         if solver is None or not solver.availability().available:
             job.status = "failed"
             job.error = "no available solver for requested mode"

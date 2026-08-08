@@ -11,6 +11,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from app.core.config import settings
 from app.database.session import AsyncSessionLocal
 from app.models import OptimizeJob
 from app.optimizer.estimator import estimate
@@ -28,7 +29,7 @@ class OptimizeRequest(BaseModel):
     problem: ProblemInput
     mode: str = Field(
         default="auto",
-        description="auto | classical | hybrid | quantum. auto picks the cheapest honest path; quantum requires a configured Origin backend.",
+        description="auto | classical | hybrid | quantum. auto picks the cheapest honest path; quantum requires an available configured backend (Origin or AWS Braket).",
     )
 
     class Config:
@@ -100,7 +101,7 @@ async def list_backends() -> dict:
     return {
         "backends": backends,
         "prices_usd": MODE_PRICE_USD,
-        "note": "Only backends with available=true can run jobs; quantum requires an Origin token."
+        "note": "available=true means the backend's credential + capability check passed (Origin token / AWS Braket get_devices); live QPU execution additionally requires QUANTUM_LIVE_EXECUTION=true.",
     }
 
 
@@ -113,6 +114,11 @@ async def capabilities() -> dict:
         "problem_types": ["qubo", "ising"],
         "modes": ["classical", "hybrid", "quantum"],
         "max_variables": 5000,
+        "algorithms": sorted({getattr(s, "algorithm", s.spec.name) for s in registry.solvers()}),
+        "providers": sorted({getattr(s, "provider", "local") for s in registry.solvers()}),
+        "backends": [registry.backend_dict(s) for s in registry.solvers()],
+        "constraints": {"quantum_live_execution": bool(settings.QUANTUM_LIVE_EXECUTION), "quantum_capacity_max_variables": max((s.spec.max_variables for s in registry.solvers() if s.spec.mode == "quantum"), default=0)},
+        "pricing": {"cortexcloud_price_usd": MODE_PRICE_USD, "note": "provider-side costs are model estimates (estimate_basis='model') until verified on live hardware; quantum is recommended only with benchmark evidence."},
         "payments": {
             "scheme": "x402",
             "network": "eip155:8453",

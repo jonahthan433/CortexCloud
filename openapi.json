@@ -463,7 +463,7 @@
           "mode": {
             "type": "string",
             "title": "Mode",
-            "description": "auto | classical | hybrid | quantum. auto picks the cheapest honest path; quantum requires a configured Origin backend.",
+            "description": "auto | classical | hybrid | quantum. auto picks the cheapest honest path; quantum requires an available configured backend (Origin or AWS Braket).",
             "default": "auto"
           }
         },

@@ -1,16 +1,17 @@
-"""Origin Quantum / Wukong adapter — the ONLY place a quantum provider
-is referenced.
+"""Origin Quantum / Wukong adapter — ONE quantum provider, fully isolated.
 
-Isolated behind the Solver protocol; the estimator, API and MCP tools
-never import this module. Uses the current official Origin Quantum cloud
-path: quafu-runtime (ScQ-Cloud), API-token auth, program upload -> run ->
-poll result. Wukong is Origin's superconducting processor on the Quafu
-cloud; the concrete backend id is configurable (ORIGINQ_BACKEND) since
-it is only meaningful with a live account.
+Behind the Solver protocol; the estimator, API and MCP tools never import
+this module directly (they go through the backend router). Uses the
+current official Origin Quantum cloud path: quafu-runtime (ScQ-Cloud),
+API-token auth, program upload -> run -> poll result. Wukong is Origin's
+superconducting processor on the Quafu cloud; the concrete backend id is
+configurable (ORIGINQ_BACKEND) since it is only meaningful with a live
+account.
 
 Honesty contract: availability() is False unless ORIGINQ_API_TOKEN is
 set AND the quafu-runtime SDK is importable. solve() never fabricates a
-hardware result — no token -> failed with a clear error. The client
+hardware result — no token -> failed with a clear error, and live QPU
+execution is blocked while QUANTUM_LIVE_EXECUTION=false. The client
 always recomputes the objective from the returned bitstring, so a
 misbehaving program can never fake a good energy.
 """
@@ -21,25 +22,29 @@ import time
 from typing import Any
 
 from app.solvers.base import Estimate, SolveResult, SolverAvailability, SolverSpec
+from app.solvers.quantum.base import QuantumBackend
 
 # Wukong's publicly documented capacity: 8 superconducting qubits. QAOA
 # on it must fit inside that, so this adapter caps n at 8.
 MAX_QBITS = 8
 
 
-class OriginWukongAdapter:
+class OriginWukongAdapter(QuantumBackend):
     """Submit a QUBO to Wukong via quafu-runtime."""
 
-    spec = SolverSpec(
-        id="wukong",
-        name="Origin Quantum Wukong (superconducting)",
-        mode="quantum",
-        description="QAOA execution on Origin Quantum's Wukong superconducting processor via the Quafu cloud (quafu-runtime).",
-        max_variables=MAX_QBITS,
-        requires_token=True,
-    )
-
     def __init__(self, api_token: str | None = None, backend: str | None = None):
+        super().__init__(
+            SolverSpec(
+                id="wukong",
+                name="Origin Quantum Wukong (superconducting)",
+                mode="quantum",
+                description="QAOA execution on Origin Quantum's Wukong superconducting processor via the Quafu cloud (quafu-runtime).",
+                max_variables=MAX_QBITS,
+                requires_token=True,
+            ),
+            provider="origin",
+            algorithm="QAOA",
+        )
         self._api_token = api_token
         self._backend = backend
         self._program_id: str | None = None
@@ -73,6 +78,9 @@ class OriginWukongAdapter:
 
     def solve(self, qubo, n: int, timeout_s: float = 300.0) -> SolveResult:
         t0 = time.time()
+        gate = self.live_gate()
+        if gate:
+            return SolveResult(status="failed", error=gate.reason)
         rt = self._sdk()
         if not rt or not self._api_token:
             return SolveResult(status="failed", error=self.availability().reason)
@@ -95,7 +103,7 @@ class OriginWukongAdapter:
                     error="wukong run returned no parseable assignment",
                 )
             # Objective ALWAYS recomputed locally from the returned bits.
-            energy = _qubo_energy(qubo, bits)
+            energy = self.qubo_energy(qubo, bits)
             return SolveResult(
                 status="succeeded",
                 solution=bits,
@@ -145,19 +153,6 @@ def _extract_bitstring(payload) -> list[int] | None:
 
 def _bit(v) -> int:
     return 1 if str(v).strip() in ("1", "true", "True") else 0
-
-
-def _qubo_energy(x: list[int], qubo: dict, n: int) -> float:
-    lin = list(qubo.get("linear") or [0.0] * n)
-    e = 0.0
-    for i, v in enumerate(x):
-        if v:
-            e += lin[i] if i < len(lin) else 0.0
-    for key, c in (qubo.get("quadratic") or {}).items():
-        i, j = (int(t) for t in key.split(","))
-        if i < len(x) and j < len(x) and x[i] and x[j]:
-            e += c
-    return e
 
 
 # QAOA p=1 hybrid program shipped to the Origin cloud runtime. Runs

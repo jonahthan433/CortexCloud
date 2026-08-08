@@ -61,7 +61,7 @@ def test_qaoa_local_runs_on_tiny(qb_small):
 
 
 def test_origin_adapter_unavailable_without_token():
-    from app.solvers.origin import OriginWukongAdapter
+    from app.solvers.quantum.origin import OriginWukongAdapter
 
     a = OriginWukongAdapter(api_token=None, backend=None)
     av = a.availability()

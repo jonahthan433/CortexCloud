@@ -66,6 +66,14 @@ class Settings(BaseSettings):
     ORIGINQ_API_TOKEN: Optional[str] = Field(default=None, env="ORIGINQ_API_TOKEN")
     ORIGINQ_BACKEND: Optional[str] = Field(default=None, env="ORIGINQ_BACKEND")
 
+    # Amazon Braket (optional multi-provider quantum). Live QPU execution
+    # is opt-in: solve() refuses while QUANTUM_LIVE_EXECUTION=false
+    # (credential + capability checks are still reported honestly).
+    QUANTUM_LIVE_EXECUTION: bool = Field(default=False, env="QUANTUM_LIVE_EXECUTION")
+    BRAKET_REGIONS: str = Field(default="us-east-1,us-west-1", env="BRAKET_REGIONS")
+    AWS_ACCESS_KEY_ID: Optional[str] = Field(default=None, env="AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY: Optional[str] = Field(default=None, env="AWS_SECRET_ACCESS_KEY")
+
     @model_validator(mode="after")
     def enforce_secrets_in_production(self) -> "Settings":
         """Fail fast: never boot prod without real payment credentials."""

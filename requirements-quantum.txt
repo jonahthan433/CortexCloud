@@ -1,4 +1,6 @@
-# Optional — only required to enable the Origin Quantum / Wukong adapter.
-# Install on a machine that holds ORIGIN_API_TOKEN. The public API and all
-# classical/hybrid solvers run without it.
+# Optional — only required to enable the quantum adapters.
+# Install on a machine that holds ORIGINQ_API_TOKEN / AWS credentials.
+# The public API and all classical/hybrid solvers run without any of this.
 quafu-runtime>=0.3.0
+boto3>=1.34
+amazon-braket-sdk>=1.60

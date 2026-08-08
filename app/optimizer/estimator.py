@@ -1,69 +1,62 @@
 """Estimation & auto mode selection.
 
-/ v1/estimate contract: analyze a QUBO/Ising, recommend the cheapest
-honest path. Routing rules (evidence, not marketing):
+/v1/estimate contract: analyze a QUBO/Ising, recommend the cheapest
+honest path (mode -> provider -> backend -> algorithm). The actual
+decision lives in app.solvers.quantum.router; this module formats the
+response and keeps the honesty ledger (benchmark evidence + caveats).
 
-1. Exact classical (brute-force) when n fits its window — never beat,
-   no price premium.
-2. Else heuristic classical (simulated annealing) by default.
-3. Hybrid (QAOA local) listed as an alternative — a hybrid algorithm
-   running on CPU; fine for small n, usually not the cheaper pick.
-4. Quantum (Wukong) is listed ONLY when the backend is actually
-   available AND (a) n fits the device AND (b) benchmark evidence for
-   this problem family shows it wins. Without benchmarks the estimate
-   explicitly says so — we never claim advantage we can't show.
-
-Benchmarks refine runtime/quality models per (problem_type, n, solver);
-until rows exist the basis is "model".
+Rules (evidence, not marketing):
+1. Exact classical (brute-force) when n fits its window — never beat.
+2. Else the cheapest available solver by (cost, runtime).
+3. Quantum is recommended ONLY when a backend is available AND n fits
+   the device AND benchmark evidence exists; without evidence it is
+   never promoted, and the caveat says why.
+4. Provider cost and CortexCloud's x402 price are reported separately;
+   provider figures are model estimates (basis="model") until verified.
 """
 from __future__ import annotations
 
 from app.optimizer.problem import ProblemInput, to_qubo
 from app.solvers import registry
-
-# Soft preferences (mode -> rank; lower is better). Brute-force exact
-# beats annealing when it fits; the grid is only populated after the
-# per-solver estimates.
-BRUTE_FORCE_CAP = 18  # brute-force window used by the estimator (2^18 evals)
+from app.solvers.quantum import router
 
 
 async def estimate(problem: ProblemInput) -> dict:
     n = problem.n
     qubo = to_qubo(problem)
-    bench_count = await _benchmark_evidence(problem)
-    candidates: list[dict] = []
-    for s in registry.solvers():
-        if not s.availability().available:
-            continue
-        if s.spec.mode == "quantum":
-            continue  # gated below, only with evidence
-        est = s.estimate(qubo, n)
-        candidates.append(
-            {
-                **est.to_dict(s.spec),
-                "solver_id": s.spec.id,
-                "_cost": est.price_usd + est.runtime_s * 1e-4,  # gentle latency tax
-            }
-        )
+    bench_count = await benchmark_evidence(problem)
+    sel = router.select(
+        problem_type=problem.problem_type,
+        qubo=qubo,
+        n=n,
+        bench_count=bench_count,
+    )
+    best = sel["recommended"]
+    if best is None:
+        return {
+            "problem": {"problem_type": problem.problem_type, "n": n},
+            "recommendation": None,
+            "alternatives": [],
+            "evidence": {
+                "benchmark_rows": bench_count,
+                "basis": "measured" if bench_count else "model",
+                "note": sel["reason"],
+            },
+            "caveats": _caveats(problem),
+        }
 
-    quantum = _quantum_candidate(problem, qubo, bench_count)
-    if quantum:
-        candidates.append(quantum)
-
-    candidates.sort(key=lambda c: c["_cost"])
-    best = candidates[0]
+    alternatives = [c for c in sel["ranked"] if c["solver_id"] != best["solver_id"]]
     recommended = {
-        "mode": best["mode"],
-        "algorithm": best["algorithm"],
-        "backend": best["backend"],
-        "solver_id": best["solver_id"],
-        "estimated_runtime_s": best["estimated_runtime_s"],
-        "estimated_price_usd": best["estimated_price_usd"],
+        **best,  # mode, algorithm, backend, provider, estimates, costs
+        "estimated_cost_usdc": best["cortexcloud_price_usd"],
+        "reason": sel["reason"],
+        "cost": {
+            "provider_cost_usd": best["provider_cost_usd"],
+            "cortexcloud_price_usd": best["cortexcloud_price_usd"],
+            "margin_usd": best["margin_usd"],
+            "note": "provider cost is a model estimate until verified pricing/benchmarks exist",
+        },
     }
-    alternatives = [c for c in candidates[1:] if c["solver_id"] != best["solver_id"]]
-    for c in alternatives:
-        c.pop("_cost", None)
-
     return {
         "problem": {"problem_type": problem.problem_type, "n": n},
         "recommendation": recommended,
@@ -71,33 +64,20 @@ async def estimate(problem: ProblemInput) -> dict:
         "evidence": {
             "benchmark_rows": bench_count,
             "basis": "measured" if bench_count else "model",
-            "note": "Quantum is recommended only when benchmark evidence supports it; none exists yet, so it is never promoted.",
+            "note": "Quantum is recommended only when benchmark evidence supports it."
+            if bench_count
+            else "No benchmark rows exist yet; quantum backends are never promoted without evidence.",
         },
-        "caveats": _caveats(problem, best["solver_id"], quantum),
+        "caveats": _caveats(problem),
     }
 
 
-def _quantum_candidate(problem: ProblemInput, qubo: dict, bench_count: int) -> dict | None:
-    """Quantum appears ONLY with availability + n fits + benchmark evidence."""
-    wk = registry.by_id("wukong")
-    if wk is None:
-        return None
-    if not wk.availability().available:
-        return None
-    if problem.n > wk.spec.max_variables:
-        return None
-    if bench_count == 0:
-        return None  # no evidence -> no quantum claim (see caveat)
-    est = wk.estimate(qubo, problem.n)
-    return {
-        **est.to_dict(wk.spec),
-        "solver_id": "wukong",
-        "_cost": est.price_usd + est.runtime_s * 1e-4,
-    }
+async def benchmark_evidence(problem: ProblemInput) -> int:
+    """Rows in the benchmarks ledger for this problem family.
 
-
-async def _benchmark_evidence(problem: Problem) -> int:
-    """Rows in the benchmarks ledger for this (type, solver) combination."""
+    This is the ONLY input that can promote a quantum backend; it is
+    populated by real runs (runner.py), never by synthetic data.
+    """
     try:
         from sqlalchemy import func, select
 
@@ -117,11 +97,19 @@ async def _benchmark_evidence(problem: Problem) -> int:
         return 0
 
 
-def _caveats(problem, chosen_solver_id: str, quantum_present: bool) -> list[str]:
-    out = []
-    if chosen_solver_id == "simulated-annealing":
+def _caveats(problem: ProblemInput) -> list[str]:
+    out: list[str] = []
+    quantum = registry.for_mode("quantum")
+    if not any(q.availability().available for q in quantum):
+        out.append(
+            "Quantum execution not offered: no provider credentials configured "
+            "(ORIGINQ_API_TOKEN / AWS_ACCESS_KEY_ID+SECRET)."
+        )
+    else:
+        out.append(
+            "Quantum backends are available but only recommended with benchmark evidence; "
+            "none exists yet, so quantum is never promoted."
+        )
+    if problem.n > 18:
         out.append("Heuristic result — verify optimality for small n with the brute-force solver.")
-    if quantum_present is None:
-        out.append("Quantum execution not offered: no Origin Quantum token/back-end configured yet.")
-        return out
     return out
