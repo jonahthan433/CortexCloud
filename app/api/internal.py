@@ -50,6 +50,19 @@ async def metrics_summary(x_internal_token: str | None = Header(default=None, al
                 func.coalesce(func.sum(Benchmark.margin_usd), 0.0),
             ).where(Benchmark.provider_cost_usd.is_not(None))
         )).one()
+        mode_rev = (await db.execute(
+            select(Payment.mode, func.count(), func.coalesce(func.sum(Payment.amount_usd), 0.0))
+            .where(Payment.status == "settled")
+            .group_by(Payment.mode)
+        )).all()
+        rev_24h = (
+            await db.execute(
+                select(func.coalesce(func.sum(Payment.amount_usd), 0.0)).where(
+                    Payment.status == "settled",
+                    Payment.occurred_at >= func.now() - func.interval("24 hours"),
+                )
+            )
+        ).scalar() or 0.0
 
         return {
             "optimization_requests": int(jobs),
@@ -63,4 +76,6 @@ async def metrics_summary(x_internal_token: str | None = Header(default=None, al
             "cortexcloud_revenue_usd": round(float(revenue), 6),
             "cortexcloud_margin_usd": round(float(cost_rows[2]), 6),
             "from_benchmarks": round(float(cost_rows[1]), 6),
+            "revenue_by_mode": {m: {"count": int(n), "usd": round(float(v), 6)} for m, n, v in mode_rev},
+            "revenue_last_24h_usd": round(float(rev_24h), 6),
         }

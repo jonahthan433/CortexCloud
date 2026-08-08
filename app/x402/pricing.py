@@ -24,6 +24,11 @@ MODE_PRICE_USD = {"classical": 0.05, "hybrid": 0.10, "quantum": 0.85}
 # table is the documented default the margin guard reasons about.
 PROVIDER_COST_USD = {"classical": 0.0, "hybrid": 0.0, "quantum": 0.35}
 
+# Margin policy: the charged price for a mode is never below the list
+# price, and never below provider_cost x MARKUP — prices move with
+# provider cost automatically. List prices are the published floor.
+MARKUP = 2.0
+
 ROUTE_PRICING = {
     "POST /v1/optimize": "$0.05",  # base; middleware overrides per mode
 }
@@ -42,10 +47,25 @@ FREE_ROUTES = {
 
 
 def price_for_mode(mode: str) -> str:
+    return f"${effective_price_usd(mode):.6f}"
+
+
+def effective_price_usd(mode: str, provider_cost: float | None = None) -> float:
+    """Charged price for a mode: max(list price, provider cost x MARKUP).
+    provider_cost defaults to the mode's estimated provider cost, so the
+    price rises automatically if provider costs climb."""
     m = (mode or "auto").lower()
-    if m in MODE_PRICE_USD:
-        return f"${MODE_PRICE_USD[m]:.6f}"
-    return f"${MODE_PRICE_USD['classical']:.6f}"  # auto defaults to classical
+    cost = PROVIDER_COST_USD.get(m, 0.0) if provider_cost is None else float(provider_cost)
+    return max(MODE_PRICE_USD.get(m, MODE_PRICE_USD["classical"]), cost * MARKUP)
+
+
+def sellable_at_mode_price(mode: str, provider_cost: float) -> bool:
+    """True when a provider's estimated cost fits under the charged price
+    (margin >= 0 at current prices)."""
+    try:
+        return float(provider_cost) <= effective_price_usd(mode)
+    except (TypeError, ValueError):
+        return False
 
 
 def gross_margin_usd(mode: str) -> float:

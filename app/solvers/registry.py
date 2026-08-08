@@ -91,6 +91,19 @@ def backend_dict(s: Solver) -> dict:
     }
     if not a.available:
         base["note"] = a.reason
+    # Provider-cost-aware pricing surface for quantum backends: agents see
+    # the real estimated provider cost, the effective (markup) price, and
+    # whether the backend is sellable at the current charged mode price.
+    if s.spec.mode == "quantum":
+        from app.x402.pricing import effective_price_usd, sellable_at_mode_price
+
+        try:
+            cost = float(s.estimate({"linear": [0.0, 0.0], "quadratic": {}, "n": 2}, 2).price_usd)
+        except Exception:
+            cost = 0.0
+        base["estimated_provider_cost_usd"] = cost
+        base["effective_price_usd"] = effective_price_usd("quantum", cost)
+        base["sellable_at_mode_price"] = sellable_at_mode_price("quantum", cost)
     return base
 
 

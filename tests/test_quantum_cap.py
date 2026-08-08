@@ -71,6 +71,25 @@ def test_margin_guard():
     print("quantum margin guard: OK")
 
 
+def test_effective_pricing():
+    """Provider-cost-aware dynamic pricing: price = max(list, cost x MARKUP);
+    sellable flag at the charged mode price."""
+    from app.x402.pricing import MARKUP, effective_price_usd, price_for_mode, sellable_at_mode_price
+
+    # list floor holds while cost x markup is below it
+    assert effective_price_usd("quantum") == 0.85  # 0.35 x 2.0 < 0.85 -> floor
+    assert price_for_mode("quantum") == "$0.850000"
+    assert price_for_mode("auto") == "$0.050000"
+    # expensive provider pushes the effective price up automatically
+    assert effective_price_usd("quantum", 3.40) == round(3.40 * MARKUP, 6)
+    assert effective_price_usd("quantum", 3.40) == 6.80
+    # sellability at the charged (mode-level) price
+    assert sellable_at_mode_price("quantum", 0.35) is True
+    assert sellable_at_mode_price("quantum", 3.40) is False
+    assert sellable_at_mode_price("quantum", float("nan")) is False
+    print("effective pricing: OK")
+
+
 def test_braket_preflight():
     """Adapter-level preflight: refuse unless cost known, positive, within cap."""
     from app.solvers.base import Estimate
@@ -112,4 +131,5 @@ def test_braket_preflight():
 if __name__ == "__main__":
     test_cap()
     test_margin_guard()
+    test_effective_pricing()
     test_braket_preflight()

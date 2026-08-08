@@ -18,7 +18,7 @@ from app.optimizer.estimator import estimate
 from app.optimizer.problem import ProblemInput
 from app.optimizer.runner import create_job, schedule
 from app.solvers import registry
-from app.x402.pricing import FREE_ROUTES, MODE_PRICE_USD
+from app.x402.pricing import FREE_ROUTES, MARKUP, MODE_PRICE_USD, effective_price_usd
 
 logger = logging.getLogger("cortexcloud.api")
 
@@ -133,7 +133,12 @@ async def capabilities() -> dict:
         "providers": sorted({getattr(s, "provider", "local") for s in registry.solvers()}),
         "backends": [registry.backend_dict(s) for s in registry.solvers()],
         "constraints": {"quantum_live_execution": bool(settings.QUANTUM_LIVE_EXECUTION), "quantum_capacity_max_variables": max((s.spec.max_variables for s in registry.solvers() if s.spec.mode == "quantum"), default=0)},
-        "pricing": {"cortexcloud_price_usd": MODE_PRICE_USD, "note": "provider-side costs are model estimates (estimate_basis='model') until verified on live hardware; quantum is recommended only with benchmark evidence."},
+        "pricing": {
+            "cortexcloud_price_usd": MODE_PRICE_USD,
+            "effective_prices_usd": {m: effective_price_usd(m) for m in MODE_PRICE_USD},
+            "markup": MARKUP,
+            "note": "charged price = max(list price, provider cost x markup); provider-side costs are model estimates until verified on live hardware; quantum is recommended only with benchmark evidence.",
+        },
         "payments": {
             "scheme": "x402",
             "network": "eip155:8453",

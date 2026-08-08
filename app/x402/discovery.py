@@ -10,7 +10,7 @@ from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
 
 from app.core.config import settings
-from app.x402.pricing import FREE_ROUTES, ROUTE_DESCRIPTIONS, ROUTE_PRICING
+from app.x402.pricing import FREE_ROUTES, MODE_PRICE_USD, ROUTE_DESCRIPTIONS, ROUTE_PRICING, effective_price_usd
 
 router = APIRouter()
 
@@ -57,6 +57,26 @@ def build_manifest(active: bool = True) -> dict:
 @router.get("/.well-known/x402.json", tags=["x402 Discovery"])
 async def well_known_x402():
     return build_manifest()
+
+
+@router.get("/.well-known/agentsearch.txt", tags=["x402 Discovery"])
+async def agentsearch_txt():
+    """Agent-search discovery file (agentsearch.txt convention): what this
+    service is, how agents call it, and where the machine-readable docs live."""
+    prices = " / ".join(f"{m} ${effective_price_usd(m):.2f}" for m in MODE_PRICE_USD)
+    text = "\n".join([
+        "Name: CortexCloud Optimization Network",
+        "Description: Pay-per-call QUBO/Ising optimization API over x402 (USDC on Base, eip155:8453). Estimate is free; optimize is paid per run. Prices: " + prices + ". Quantum QPU execution is opt-in and only recommended with benchmark evidence.",
+        "Human URL: https://api.cortexcloud.org/",
+        "Commands:",
+        "- POST /v1/estimate with {mode, n, data} for a free recommendation (decision block) and price.",
+        "- POST /v1/optimize with {mode: auto|classical|hybrid|quantum, n, data} to solve; a 402 x402 challenge is returned, settle USDC on Base, then poll the job.",
+        "- GET /v1/jobs/{job_id} to poll job status (succeeded/failed + solution).",
+        "- GET /v1/backends for backends, availability, and per-backend provider cost.",
+        "Discovery: https://api.cortexcloud.org/llms.txt, https://api.cortexcloud.org/.well-known/x402.json, https://api.cortexcloud.org/.well-known/bazaar, https://api.cortexcloud.org/.well-known/agentsearch.txt, https://api.cortexcloud.org/openapi.json",
+        "Pricing: https://api.cortexcloud.org/v1/capabilities",
+    ])
+    return PlainTextResponse(text + "\n", media_type="text/plain; charset=utf-8")
 
 
 @router.get("/llms.txt", tags=["x402 Discovery"])
