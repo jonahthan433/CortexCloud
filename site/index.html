@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CortexCloud — Optimization Infrastructure for AI Agents</title>
-<meta name="description" content="Agents discover, pay for, and execute classical, hybrid, or quantum optimization through a single API. USDC via x402. No API keys, no subscriptions.">
-<meta property="og:title" content="CortexCloud — Optimization Network">
-<meta property="og:description" content="Discover, pay for, and execute classical, hybrid, or quantum optimization through a single API.">
+<title>CortexCloud — Optimization infrastructure for AI agents</title>
+<meta name="description" content="Automatically solve suitable optimization problems using classical or quantum backends and pay per optimization with x402 (USDC on Base). No API keys, no subscriptions. Estimate free, solve from $0.05.">
+<meta property="og:title" content="CortexCloud — Optimization infrastructure for AI agents">
+<meta property="og:description" content="Automatically solve suitable problems on classical or quantum backends. Pay per optimization with x402. Estimate free, solve from $0.05.">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: #0a0e1a; color: #e8eaf2; line-height: 1.6; }
@@ -14,6 +14,8 @@
   h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.02em; }
   h2 { font-size: 1.3rem; margin: 2rem 0 0.75rem; font-weight: 700; }
   .sub { color: #9aa5c0; font-size: 1.1rem; margin: 0.75rem 0 2rem; }
+  .cta { display: inline-block; background: #2563eb; color: #fff !important; padding: 0.7rem 1.4rem; border-radius: 10px; font-weight: 700; text-decoration: none; margin: 0.5rem 0.25rem 0.5rem 0; }
+  .cta:hover { background: #1d4ed8; text-decoration: none; }
   code { background: #16203a; border: 1px solid #243150; border-radius: 6px; padding: 0.15em 0.45em; font-size: 0.92em; }
   pre { background: #0d1428; border: 1px solid #22304f; border-radius: 10px; padding: 1rem; overflow-x: auto; margin: 0.75rem 0; }
   pre code { background: none; border: none; padding: 0; }
@@ -30,17 +32,40 @@
 <body>
 <div class="wrap">
   <h1>CortexCloud</h1>
-  <p class="sub">Optimization infrastructure for AI agents — discover, pay for, and execute <strong>classical, hybrid, or quantum</strong> optimization through a single API.</p>
+  <p class="sub"><strong>Optimization infrastructure for AI agents.</strong> Automatically solve suitable problems using classical or quantum backends — and pay per optimization with x402. No API keys. No subscriptions. Estimate free, solve from $0.05.</p>
+
+  <p>
+    <a class="cta" href="/v1/examples">Try a demo problem</a>
+    <a class="cta" style="background:#0f3d2e;" href="/mcp">Connect via MCP</a>
+    <a class="cta" style="background:#312e81;" href="/llms.txt">llms.txt for agents</a>
+  </p>
 
   <h2>How an agent uses it</h2>
   <ol style="padding-left:1.3rem; margin:0.75rem 0;">
-    <li><strong>Discover</strong> — <code>/.well-known/x402.json</code>, <code>/.well-known/bazaar</code>, <code>/llms.txt</code>, <code>/openapi.json</code>, or the MCP gateway at <code>/x402/v1/mcp</code>.</li>
-    <li><strong>Estimate (free)</strong> — <code>POST /v1/estimate</code> returns the recommended mode, algorithm, backend, runtime, and price for your QUBO/Ising.</li>
+    <li><strong>Discover</strong> — <code>/.well-known/x402.json</code>, <code>/.well-known/bazaar</code>, <code>/llms.txt</code>, <code>/openapi.json</code>, or the MCP server at <code>/mcp</code> (Streamable HTTP, 4 tools).</li>
+    <li><strong>Estimate (free)</strong> — <code>POST /v1/estimate</code> returns the recommended mode, algorithm, backend, runtime, and price for your QUBO/Ising problem.</li>
     <li><strong>Pay &amp; execute</strong> — <code>POST /v1/optimize</code> returns an x402 challenge (USDC on Base). Pay, then poll <code>GET /v1/jobs/{job_id}</code>.</li>
   </ol>
+
+  <h2>Copy-paste demos (each is a free estimate)</h2>
+  <p style="color:#9aa5c0;font-size:0.9rem;">Scheduling — 4 jobs, pairwise conflicts:</p>
   <pre><code>curl -s https://api.cortexcloud.org/v1/estimate \
   -H 'content-type: application/json' \
-  -d '{"problem_type":"qubo","n":4,"data":{"linear":[1,-2,3,-4],"quadratic":{"0,1":-1.5}}}'</code></pre>
+  -d '{"problem_type":"qubo","n":4,"data":{"linear":[1,-2,3,-4],"quadratic":{"0,1":-1.5,"1,2":2.0,"2,3":-0.5}}}'</code></pre>
+  <p style="color:#9aa5c0;font-size:0.9rem;">Portfolio allocation — pick 5 of 8 assets with pairwise correlation penalties:</p>
+  <pre><code>curl -s https://api.cortexcloud.org/v1/estimate \
+  -H 'content-type: application/json' \
+  -d '{"problem_type":"qubo","n":8,"data":{"linear":[0.9,-0.7,1.2,-1.1,0.6,-0.4,1.0,-0.8],"quadratic":{"0,1":0.3,"2,3":-0.6,"4,5":0.2,"6,7":-0.4}}}'</code></pre>
+  <p style="color:#9aa5c0;font-size:0.9rem;">Delivery routing — 6 stops, pairwise travel costs:</p>
+  <pre><code>curl -s https://api.cortexcloud.org/v1/estimate \
+  -H 'content-type: application/json' \
+  -d '{"problem_type":"qubo","n":6,"data":{"linear":[0,0,0,0,0,0],"quadratic":{"0,1":4.2,"0,2":2.1,"1,3":3.8,"2,4":1.9,"3,5":2.7,"4,5":3.3}}}'</code></pre>
+
+  <h2>Connect from Claude, Cursor or Codex (MCP)</h2>
+  <pre><code># Remote Streamable HTTP server — 4 tools, x402 payments built in
+claude mcp add cortexcloud --transport http https://api.cortexcloud.org/mcp</code></pre>
+  <p style="color:#9aa5c0;font-size:0.9rem;">Agents call <code>cortex_estimate_optimization</code> free, then
+  <code>cortex_optimize</code> pays per run (USDC on Base) automatically.</p>
 
   <h2>Surface</h2>
   <table>
@@ -49,7 +74,7 @@
     <tr><td><code>POST /v1/optimize</code></td><td><span class="tag paid">x402 USDC</span> solve, returns job_id</td><td></td></tr>
     <tr><td><code>GET /v1/jobs/{id}</code></td><td><span class="tag free">FREE</span> poll result</td><td></td></tr>
     <tr><td><code>GET /v1/backends</code>, <code>GET /v1/capabilities</code></td><td><span class="tag free">FREE</span> capability discovery</td><td></td></tr>
-    <tr><td><code>/x402/v1/mcp</code></td><td><span class="tag free">FREE*</span> 4 MCP tools (<code>cortex_optimize</code> is paid)</td><td></td></tr>
+    <tr><td><code>/mcp</code></td><td><span class="tag free">FREE*</span> 4 MCP tools (<code>cortex_optimize</code> is paid)</td><td></td></tr>
   </table>
 
   <h2>Pricing</h2>
@@ -57,12 +82,19 @@
     <tr><th>Mode</th><th>Solver</th><th>Price</th></tr>
     <tr><td>classical</td><td><code>brute-force</code> (exact, n&le;20) / <code>simulated-annealing</code></td><td>$0.05</td></tr>
     <tr><td>hybrid</td><td><code>qaoa-local</code> (QAOA + classical outer loop)</td><td>$0.10</td></tr>
-    <tr><td>quantum</td><td><code>wukong</code> (Origin Quantum Wukong, Quafu cloud)</td><td>$0.85</td></tr>
+    <tr><td>quantum</td><td><code>rigetti</code> (Rigetti Cepheus QPU via AWS Braket)</td><td>$0.85</td></tr>
   </table>
   <p style="color:#9aa5c0; font-size:0.9rem;">No API keys. No subscriptions. Pay exactly per call. Quantum is only recommended with benchmark evidence — never on marketing.</p>
 
   <h2>Links</h2>
   <p><a href="/openapi.json">OpenAPI</a> · <a href="/.well-known/x402.json">x402 manifest</a> · <a href="/.well-known/bazaar">Bazaar doc</a> · <a href="/llms.txt">llms.txt</a> · <a href="/health">health</a></p>
 </div>
+<script>
+// GTM tracking beacon — anonymous visit/referrer capture
+fetch('/v1/track?ref=' + encodeURIComponent(document.referrer)
+  + '&src=' + encodeURIComponent(new URLSearchParams(location.search).get('utm_source') || '')
+  + '&med=' + encodeURIComponent(new URLSearchParams(location.search).get('utm_medium') || '')
+  + '&cmp=' + encodeURIComponent(new URLSearchParams(location.search).get('utm_campaign') || ''), {keepalive: true});
+</script>
 </body>
 </html>

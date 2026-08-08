@@ -78,6 +78,10 @@ def create_app(override_openapi: bool = True) -> FastAPI:
     from app.x402.discovery import router as discovery_router
 
     application.include_router(optimization_router, tags=["Optimization"])
+    from app.api.track import router as track_router
+    from app.models.referral import Referral  # noqa: F401 (table auto-create)
+    application.include_router(track_router, tags=["Tracking"])
+
     application.include_router(discovery_router, tags=["Discovery"])
     application.include_router(bazaar_router, tags=["Bazaar / MCP"])
 
