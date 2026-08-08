@@ -29,7 +29,7 @@ as submissions land.
 | 3 | mcp.so | 🧰 PREPARED | mcp.so/servers/cortexcloud (est.) | — | Jonathan: submit form |
 | 4 | PulseMCP | 🧰 PREPARED | pulsemcp.com (est.) | — | Jonathan: submit form |
 | 5 | awesome-mcp-servers | 🧰 PREPARED | PR to punkpeye/awesome-mcp-servers | — | Jonathan: approve/`gh pr create` |
-| 6 | apis.guru | 🧰 PREPARED | PR to APIs-guru/openapi-directory | — | Jonathan: approve/`gh pr create` |
+| 6 | apis.guru | 🚀 SUBMITTED | issue https://github.com/APIs-guru/openapi-directory/issues/2992 | 2026-08-08 | awaiting maintainer review/PR |
 | 7 | Official MCP Registry | ⛔ BLOCKED | registry.modelcontextprotocol.io | — | npm passkey publish (Lenovo/iPhone) + registry GitHub auth |
 
 ## Kit 1 — Smithery
