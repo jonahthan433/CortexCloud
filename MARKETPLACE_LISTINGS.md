@@ -20,7 +20,7 @@ as submissions land.
 
 | # | Platform | Status | Listing URL | Date | Needs |
 |---|---|---|---|---|---|
-| 0a | x402scan | ✅ LIVE | x402scan.com → search `api.cortexcloud.org` (14 resources) | 2026-07 | none |
+| 0a | x402scan | ✅ LIVE | x402scan.com → resources?origin=api.cortexcloud.org (HTTP 200) | 2026-07 | price refresh: register page is JS-only; needs x402scan-MCP or browser (see below) |
 | 0b | mppscan | ✅ LIVE | mppscan.com → search `api.cortexcloud.org` | 2026-07 | none |
 | 0c | Poncho AI | ✅ LIVE | https://tryponcho.com/m/api.cortexcloud.org | 2026-07 | none (HTTP 200 verified 08-08) |
 | 0d | AgentCash dir | ⚠️ AUTO | agentcash.dev/apis (fed by x402scan/mppscan) | — | verify presence |
@@ -100,9 +100,21 @@ the registry website. Verify: registry.modelcontextprotocol.io → search "corte
 ## Already-live verification (08-08)
 - tryponcho.com/m/api.cortexcloud.org → HTTP 200, title "CortexCloud API • Poncho" ✅
 - api.cortexcloud.org/mcp, /openapi.json, /.well-known/agentsearch.txt → HTTP 200 ✅
-- x402scan.com / mppscan.com: registered 2026-07; entry URLs discoverable via their search —
-  re-verify price fields ($0.85 quantum) next pass.
+- x402scan.com/resources?origin=api.cortexcloud.org → HTTP 200 (client-rendered explorer; per-resource
+  price display not extractable headlessly). Registration flow: public page
+  x402scan.com/resources/register accepts a URL and auto-validates; the page is JS-only, so
+  refreshing the scanned prices needs either a browser or the x402scan-MCP server
+  (`npx -y x402scan-mcp@latest`). The served manifest (/.well-known/x402.json) is dynamic and
+  already carries $0.85 — agents pay the correct amount regardless of the scan's cached display.
+- mppscan: registered 2026-07 (entry via mppscan.com search).
 - agentcash.dev/apis: fed automatically from the scans; verify "CortexCloud" appears.
+
+## Paid-call watchdog (live 08-08)
+- `cc-paid-call-watch` cron (every 30m, silent unless a new settled payment lands) reads
+  `scripts/paid_metrics.py` (read-only settled-payment counters) on CT105 → alerts with
+  total/10 + revenue + per-mode breakdown. Target: first 10 real paid optimization calls.
+- Note: `INTERNAL_TOKEN` is unset in prod → `/internal/metrics` returns 503. The watchdog uses
+  the DB read path instead; enable INTERNAL_TOKEN later if the revenue endpoint is wanted.
 
 ## Next actions (Jonathan only)
 1. Smithery publish (2 min) → highest-value MCP listing
