@@ -24,7 +24,7 @@ as submissions land.
 | 0b | mppscan | ✅ LIVE | mppscan.com → search `api.cortexcloud.org` | 2026-07 | none |
 | 0c | Poncho AI | ✅ LIVE | https://tryponcho.com/m/api.cortexcloud.org | 2026-07 | none (HTTP 200 verified 08-08) |
 | 0d | AgentCash dir | ⚠️ AUTO | agentcash.dev/apis (fed by x402scan/mppscan) | — | verify presence |
-| 1 | Smithery | 🧰 PREPARED | smithery.ai/server/cortexcloud/cortexcloud (est.) | — | Jonathan: login + `smithery mcp publish` |
+| 1 | Smithery | ✅ LIVE | https://smithery.ai/servers/ampwerajonathan50/cortexcloud-mcp | 2026-08-08 | none (hosted proxy responding; v0.4.0) |
 | 2 | Glama | 🧰 PREPARED | glama.ai/mcp/servers/… (est.) | — | Jonathan: account + submit URL |
 | 3 | mcp.so | 🧰 PREPARED | mcp.so/servers/cortexcloud (est.) | — | Jonathan: submit form |
 | 4 | PulseMCP | 🧰 PREPARED | pulsemcp.com (est.) | — | Jonathan: submit form |
