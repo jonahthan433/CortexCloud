@@ -3,7 +3,7 @@
   "note": "Canonical agent examples. Every example: request JSON -> expected schema -> constraints -> response -> pricing. POST /v1/optimize is the only paid route (x402 USDC on Base); everything else is free.",
   "pricing": {
     "POST /v1/optimize": {
-      "classical": 0.02,
+      "classical": 0.05,
       "hybrid": 0.1,
       "quantum": 0.25,
       "unit": "USD per job",
@@ -42,14 +42,14 @@
         "recommendation": {
           "mode": "classical",
           "solver_id": "brute-force",
-          "estimated_price_usd": 0.02
+          "estimated_price_usd": 0.05
         },
         "decision": {
           "recommended": true,
           "mode": "classical"
         }
       },
-      "pricing_behavior": "estimate free; optimize $0.02 (classical) -> 402 challenge -> pay USDC -> poll /v1/jobs/{id}"
+      "pricing_behavior": "estimate free; optimize $0.05 (classical) -> 402 challenge -> pay USDC -> poll /v1/jobs/{id}"
     },
     {
       "id": "assignment",
@@ -87,7 +87,7 @@
           "estimated_runtime_s": 0.02
         }
       },
-      "pricing_behavior": "n=9 -> brute-force exact, $0.02."
+      "pricing_behavior": "n=9 -> brute-force exact, $0.05."
     },
     {
       "id": "scheduling",
@@ -123,7 +123,7 @@
           "basis": "model"
         }
       },
-      "pricing_behavior": "estimate free; optimize $0.02 classical / $0.10 hybrid."
+      "pricing_behavior": "estimate free; optimize $0.05 classical / $0.10 hybrid."
     },
     {
       "id": "routing",
@@ -166,7 +166,7 @@
           "solver_id": "brute-force"
         }
       },
-      "pricing_behavior": "estimate free; optimize $0.02."
+      "pricing_behavior": "estimate free; optimize $0.05."
     },
     {
       "id": "generic-qubo",
@@ -202,7 +202,7 @@
           "solver_id": "brute-force"
         }
       },
-      "pricing_behavior": "estimate free; optimize $0.02 classical, $0.10 hybrid, $0.25 quantum (only when a quantum backend shows available=true; otherwise an honest error)."
+      "pricing_behavior": "estimate free; optimize $0.05 classical, $0.10 hybrid, $0.25 quantum (only when a quantum backend shows available=true; otherwise an honest error)."
     }
   ],
   "when_not_to_use": [

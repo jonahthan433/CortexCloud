@@ -49,7 +49,7 @@ become measured, not modeled.
 ## Payments (x402)
 
 `POST /v1/optimize` price follows the requested mode:
-classical `$0.02`, hybrid `$0.10`, quantum `$0.25` (fixed per call). Free routes
+classical `$0.05`, hybrid `$0.10`, quantum `$0.25` (fixed per call). Free routes
 never return 402. ECDSA-signed responses (`X-Cortex-Signature`), public key at
 `/x402/v1/pubkey`. Nonces are replay-protected in PostgreSQL; proof cache +
 per-payer + per-IP rates are in-process (single uvicorn worker).

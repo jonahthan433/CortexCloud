@@ -19,8 +19,10 @@ BRUTE_FORCE_MAX = 20
 SA_MAX_ITER = 8_000
 SA_RESTARTS = 3
 
-# Flat per-run classical price (USD): fixed fee per optimization job.
-CLASSICAL_PRICE_USD = 0.02
+# Flat per-run classical price (USD): the solver's provider cost side.
+# Local solvers cost nothing to run — 0.0 so benchmark margin = customer
+# price (MODE_PRICE_USD.classical) minus real provider cost.
+CLASSICAL_PRICE_USD = 0.0
 
 
 def price_classical(n: int) -> float:

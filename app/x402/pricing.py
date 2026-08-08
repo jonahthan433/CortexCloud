@@ -9,10 +9,10 @@ bazaar) renders.
 from __future__ import annotations
 
 # mode -> USD per optimization run
-MODE_PRICE_USD = {"classical": 0.02, "hybrid": 0.10, "quantum": 0.25}
+MODE_PRICE_USD = {"classical": 0.05, "hybrid": 0.10, "quantum": 0.25}
 
 ROUTE_PRICING = {
-    "POST /v1/optimize": "$0.02",  # base; middleware overrides per mode
+    "POST /v1/optimize": "$0.05",  # base; middleware overrides per mode
 }
 
 ROUTE_DESCRIPTIONS = {

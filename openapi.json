@@ -60,7 +60,7 @@
           "price": {
             "mode": "fixed",
             "currency": "USD",
-            "amount": "0.020000"
+            "amount": "0.050000"
           },
           "protocols": [
             {
@@ -77,7 +77,7 @@
           "scheme": "x402",
           "network": "eip155:8453",
           "asset": "USDC",
-          "price_atomic_usdc": "20000",
+          "price_atomic_usdc": "50000",
           "decimals": 6
         }
       }

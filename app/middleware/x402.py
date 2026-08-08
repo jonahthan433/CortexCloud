@@ -236,7 +236,7 @@ OUTPUT_EXAMPLES = {
         "job_id": "3f5c2e6a-9a0b-4c8d-9e7f-1a2b3c4d5e6f",
         "status": "queued",
         "mode": "auto",
-        "price_usd": 0.02,
+        "price_usd": 0.05,
         "poll": "/v1/jobs/3f5c2e6a-9a0b-4c8d-9e7f-1a2b3c4d5e6f",
     },
 }
@@ -261,7 +261,7 @@ class X402Middleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Dynamic pricing for /v1/optimize: price follows the requested
-        # mode (classical 0.02 / hybrid 0.10 / quantum 0.25). Body is read
+        # mode (classical 0.05 / hybrid 0.10 / quantum 0.25). Body is read
         # once and cached on the request — downstream routes reuse it.
         # Do NOT re-inject request._receive here (starlette 1.x state
         # machine rejects a second http.request; see SSE comment below).

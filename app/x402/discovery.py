@@ -98,7 +98,7 @@ protocol — no API keys, no subscriptions. Settlement is permissionless.
 POST /v1/estimate returns a top-level "decision" object agents can branch
 on directly: {{"recommended": true, "mode": "classical", "provider": "local",
 "backend": "brute-force", "algorithm": "...", "reason": "...",
-"estimated_cost_usd": 0.02, "cortexcloud_price_usd": 0.02,
+"estimated_cost_usd": 0.0, "cortexcloud_price_usd": 0.05,
 "quantum_available": false, "quantum_recommended": false}}.
 "recommended" is false only when no usable solver exists. Quantum is never
 recommended without benchmark evidence; if you explicitly need quantum,
