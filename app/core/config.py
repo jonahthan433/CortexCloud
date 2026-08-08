@@ -77,7 +77,11 @@ class Settings(BaseSettings):
     # Amazon Braket (optional multi-provider quantum). Live QPU execution
     # is opt-in: solve() refuses while QUANTUM_LIVE_EXECUTION=false
     # (credential + capability checks are still reported honestly).
+    # QUANTUM_MAX_COST_USD is a hard per-job provider-cost cap enforced in
+    # the runner before ANY QPU submission — an autonomous agent can never
+    # trigger uncontrolled quantum-cloud charges.
     QUANTUM_LIVE_EXECUTION: bool = Field(default=False, env="QUANTUM_LIVE_EXECUTION")
+    QUANTUM_MAX_COST_USD: float = Field(default=5.0, env="QUANTUM_MAX_COST_USD")
     BRAKET_REGIONS: str = Field(default="us-east-1,us-west-1", env="BRAKET_REGIONS")
     AWS_ACCESS_KEY_ID: Optional[str] = Field(default=None, env="AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY: Optional[str] = Field(default=None, env="AWS_SECRET_ACCESS_KEY")

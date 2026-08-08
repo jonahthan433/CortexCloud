@@ -18,6 +18,7 @@ from sqlalchemy import select
 
 from app.database.session import AsyncSessionLocal
 from app.models import Benchmark, Execution, OptimizeJob
+from app.core.config import settings
 from app.optimizer.problem import ProblemInput, to_qubo
 from app.solvers import registry
 from app.x402.pricing import MODE_PRICE_USD
@@ -115,6 +116,18 @@ async def run_job(job_id: str) -> None:
             await db.commit()
             return
 
+        # Hard quantum spending cap: an autonomous agent must never be able
+        # to trigger uncontrolled quantum-cloud charges. Enforced here, at
+        # the single dispatch point, BEFORE any QPU submission. The
+        # QUANTUM_LIVE_EXECUTION gate is enforced inside solve() as well.
+        cap_error = quantum_cost_cap_error(solver, qubo, job.n)
+        if cap_error:
+            job.status = "failed"
+            job.error = cap_error
+            job.finished_at = _now()
+            await db.commit()
+            return
+
         result = await asyncio.to_thread(solver.solve, qubo, job.n)
         exec_row = Execution(
             job_id=job_id,
@@ -154,6 +167,20 @@ async def run_job(job_id: str) -> None:
             job.error = result.error
         job.finished_at = _now()
         await db.commit()
+
+
+def quantum_cost_cap_error(solver, qubo, n: int) -> str | None:
+    """Blocking reason when a quantum run would exceed QUANTUM_MAX_COST_USD,
+    else None. Pure + testable; called before ANY QPU submission."""
+    if solver.spec.mode != "quantum" or settings.QUANTUM_MAX_COST_USD <= 0:
+        return None
+    est = solver.estimate(qubo, n)
+    if float(est.price_usd) > settings.QUANTUM_MAX_COST_USD:
+        return (
+            f"quantum cost cap exceeded: est ${float(est.price_usd):.2f} "
+            f"> QUANTUM_MAX_COST_USD ${settings.QUANTUM_MAX_COST_USD:.2f}"
+        )
+    return None
 
 
 def _cost_ledger(solver, qubo):
