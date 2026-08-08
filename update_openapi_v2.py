@@ -37,6 +37,12 @@ GUIDANCE = (
 )
 spec["info"]["x-guidance"] = GUIDANCE
 
+# Directory-friendly metadata: absolute server URL (apis.guru requires it),
+# logo (apis.guru/Glama/mcp.so render x-logo), and listing category.
+spec["servers"] = [{"url": "https://api.cortexcloud.org"}]
+spec["x-logo"] = {"url": "https://api.cortexcloud.org/cortex-logo.png"}
+spec["info"]["x-apisguru-categories"] = ["optimization"]
+
 spec.setdefault("components", {}).setdefault("securitySchemes", {})
 spec["components"]["securitySchemes"]["x402"] = {
     "type": "http",
