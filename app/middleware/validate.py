@@ -1,21 +1,11 @@
-"""Section 2: input validation at the trust boundary.
+"""Trust-boundary input validation: content-type, size, JSON depth.
 
-One pass, outermost. Read-only on the body (starlette buffers it, so the
-downstream x402 middleware can re-read safely — no _receive re-injection,
-which is exactly what breaks SSE on this stack).
-
-Guards (fail closed, never forward malformed input):
-  POST/PUT/PATCH -> 415 unless Content-Type application/json
-                 -> 413 if body > 1MB
-                 -> 400 if invalid JSON or nesting depth > 10
-  /x402/v1/chat/completions + /x402/v1/responses ->
-                 400 if messages > 500 items
-                 400 if any single message > 100KB serialized
-                 400 if model not in allowlist
-                 400 if token estimate > model context window
-  GET /data/* -> 400 if any query param has unsafe chars
-              -> 400 if an address param is not a valid checksummed ERC-55
+Generic guards for the whole surface; the optimization schemas
+(ProblemInput) do domain validation in the API layer. Audit every
+rejection (security log), fail fast with a 4xx, never touch the body
+semantics beyond what's needed to size-limit it.
 """
+
 import json
 import re
 import time
@@ -25,46 +15,22 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.middleware.audit import audit
 
-try:
-    from web3 import Web3
-    _web3 = Web3()
-except Exception:  # pragma: no cover
-    _web3 = None
-
-MAX_BODY = 1_000_000          # 1MB
-MAX_DEPTH = 10
-MAX_MESSAGES = 500
-MAX_MSG_JSON = 100_000        # per-message serialized budget (chars)
-
-# allowlist for /data/* query params: alnum, comma, dot, slash, dash, under-score, colon, space
-_SAFE_PARAM = re.compile(r"^[0-9A-Za-z_,./:\-\s]{1,300}$")
-_ADDR_PARAMS = {"address", "addr", "pair", "token"}  # ERC-55 checked names
-_DATA_SUFFIX = "/data/"  # matches any /data/ under any prefix
-
-_model_cache = {"t": 0.0, "ids": None, "win": {}}
-
-
-def _depth(o, d=0):
-    if d > MAX_DEPTH:
-        raise ValueError("depth")
-    if isinstance(o, dict):
-        return max((_depth(v, d + 1) for v in o.values()), default=d)
-    if isinstance(o, list):
-        return max((_depth(v, d + 1) for v in o), default=d)
-    return d
-
-
-def _est_tokens(text) -> int:
-    s = text if isinstance(text, str) else json.dumps(text)
-    return max(1, len(s) // 4)  # ~4 chars/token
-
-
-# base58 alphabet (Bitcoin/Solana), no 0OIl.
+MAX_BODY = 1_000_000   # 1MB max JSON body
+MAX_DEPTH = 24         # nested JSON depth
+# base58 alphabet (Bitcoin/Solana), no 0OIl — kept for address-param guards
 _BASE58 = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 
+try:
+    from web3 import Web3
+
+    _web3 = Web3()
+except Exception:  # noqa: BLE001
+    _web3 = None
+
+
 # ponytail: base58 branch is permissive (no checksum) — Solana addresses have no
-# EIP-55 equivalent to verify. Sufficient for a sanity guard; swap for an on-chain
-# lookup only if callers start depending on it as a hard filter.
+# EIP-55 equivalent. Sufficient for a sanity guard; swap for on-chain lookup only
+# if callers start depending on it as a hard filter.
 def _valid_addr(a) -> bool:
     if not isinstance(a, str):
         return False
@@ -78,114 +44,50 @@ def _valid_addr(a) -> bool:
     return bool(_BASE58.fullmatch(a))
 
 
-def _models():
-    """Reusable cache accessor (ids, windows, capabilities)."""
-    c = _model_cache
-    return c["ids"], c["win"], c.get("cap", {})
-
-
-async def _refresh_models():
-    cache = _model_cache
-    now = time.time()
-    if cache["ids"] and now - cache["t"] < 60:
-        return cache["ids"], cache["win"], cache.get("cap", {})
-    try:
-        from sqlalchemy import select
-        from app.database.session import AsyncSessionLocal
-        from app.models.registry import ModelRegistry
-        async with AsyncSessionLocal() as db:
-            rows = (await db.execute(
-                select(ModelRegistry).where(ModelRegistry.is_active == True)
-            )).scalars().all()
-        ids, win, cap = set(), {}, {}
-        for m in rows:
-            ids.add(m.name)          # client-facing alias, e.g. "gpt-4o"
-            win[m.name] = int(m.context_length or 0)
-            cap[m.name] = (m.capabilities or {}) if isinstance(m.capabilities, dict) else {}
-        cache.update({"t": now, "ids": ids, "win": win, "cap": cap})
-    except Exception:
-        return None, {}, {}
-    return cache["ids"], cache["win"], cache.get("cap", {})
-
-
-CHAT_PATHS = ("/x402/v1/chat/completions", "/x402/v1/responses")
+def _depth(v, d=0) -> None:
+    if d > MAX_DEPTH:
+        raise ValueError("too deep")
+    if isinstance(v, dict):
+        for x in v.values():
+            _depth(x, d + 1)
+    elif isinstance(v, list):
+        for x in v:
+            _depth(x, d + 1)
 
 
 class InputValidationMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
-        # GET /data/* -> query-param sanitization only.
-        if request.method == "GET":
-            if _DATA_SUFFIX in request.url.path:
-                for k, v in request.query_params.multi_items():
-                    if k in _ADDR_PARAMS:
-                        if not _valid_addr(v):
-                            audit("rejected", kind="bad_addr", ip=(request.client.host if request.client else "?"), param=k)
-                            return JSONResponse(status_code=400, content={"detail": f"invalid address param: {k}"})
-                    elif not _SAFE_PARAM.match(v):
-                        audit("rejected", kind="unsafe_query", ip=(request.client.host if request.client else "?"), param=k)
-                        return JSONResponse(status_code=400, content={"detail": f"unsafe query param: {k}"})
-            return await call_next(request)
+        ip = (request.client.host if request.client else "?")
 
-        # Body-based methods only. GET/HEAD/OPTIONS carry no body.
         if request.method not in ("POST", "PUT", "PATCH", "DELETE"):
             return await call_next(request)
+
         ct = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
-        # OAuth2 login and any multipart routes use form encoding, not JSON.
         if ct == "application/x-www-form-urlencoded" or ct.startswith("multipart/form-data"):
             return await call_next(request)
         if ct != "application/json":
-            audit("rejected", kind="bad_content_type", ip=(request.client.host if request.client else "?"), path=request.url.path)
+            audit("rejected", kind="bad_content_type", ip=ip, path=request.url.path)
             return JSONResponse(status_code=415, content={"detail": "Content-Type must be application/json"})
 
         raw = await request.body()
         if len(raw) > MAX_BODY:
-            audit("rejected", kind="oversize", ip=(request.client.host if request.client else "?"), path=request.url.path, bytes=len(raw))
+            audit("rejected", kind="oversize", ip=ip, path=request.url.path, bytes=len(raw))
             return JSONResponse(status_code=413, content={"detail": "Request body too large (max 1MB)"})
 
         try:
             data = json.loads(raw)
             _depth(data)
         except json.JSONDecodeError:
-            audit("rejected", kind="bad_json", ip=(request.client.host if request.client else "?"), path=request.url.path)
+            audit("rejected", kind="bad_json", ip=ip, path=request.url.path)
             return JSONResponse(status_code=400, content={"detail": "Invalid JSON"})
         except (ValueError, RecursionError):
-            audit("rejected", kind="json_depth", ip=(request.client.host if request.client else "?"), path=request.url.path)
+            audit("rejected", kind="json_depth", ip=ip, path=request.url.path)
             return JSONResponse(status_code=400, content={"detail": "JSON too deeply nested"})
 
-        path = request.url.path
-        if path in CHAT_PATHS:
-            msgs = data.get("messages") if isinstance(data, dict) else None
-            if msgs is not None:
-                if not isinstance(msgs, list) or len(msgs) > MAX_MESSAGES:
-                    return JSONResponse(status_code=400, content={"detail": f"messages exceeds {MAX_MESSAGES} items"})
-                for m in msgs:
-                    if len(json.dumps(m, separators=(",", ":"))) > MAX_MSG_JSON:
-                        return JSONResponse(status_code=400, content={"detail": "message content too large"})
-            model = data.get("model") if isinstance(data, dict) else None
-            if model is not None and not isinstance(model, str):
-                return JSONResponse(status_code=400, content={"detail": "model must be a string"})
-            ids, win, cap = await _refresh_models()
-            if model and ids and model not in ids:
-                return JSONResponse(status_code=400, content={"detail": f"unknown model: {model}"})
-            if msgs and model and win.get(model):
-                est = sum(_est_tokens(m.get("content", "")) for m in msgs if isinstance(m, dict))
-                if est > win[model]:
-                    return JSONResponse(status_code=400, content={"detail": "token estimate exceeds model context window"})
-
-            # Section 3: AI/agent abuse hardening — capability-consistent payload.
-            if isinstance(data, dict):
-                tools = data.get("tools") or []
-                if tools:
-                    if not isinstance(tools, list) or len(tools) > 64:
-                        return JSONResponse(status_code=400, content={"detail": "tools exceeds 64 items"})
-                    if model and cap and not cap.get(model, {}).get("tool_calling"):
-                        return JSONResponse(status_code=400, content={"detail": f"model '{model}' does not support tool calling"})
-                mt = data.get("max_tokens") or data.get("max_completion_tokens")
-                if model and cap and isinstance(mt, int) and mt > win.get(model, 0):
-                    return JSONResponse(status_code=400, content={"detail": "max_tokens exceeds model context window"})
-
+        # /v1/optimize: the middleware re-checks content freshness, Pydantic
+        # validates the domain model. Nothing else to gate at this layer.
         return await call_next(request)
 
 
-# fixup: the earlier scratch file used a different module name; keep _valid_addr importable
+# module-level alias for tests/legacy callers
 valid_addr = _valid_addr

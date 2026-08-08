@@ -1,212 +1,92 @@
-"""Bazaar discovery metadata for CortexCloud x402 routes.
+"""Bazaar extension builders + MCP tool registry.
 
-Builds per-route discovery extensions (input/output schemas + descriptions)
-using the official x402 Python SDK's declare_discovery_extension, and an MCP
-discovery extension so agent frameworks can consume the gateway directly.
-
-No on-chain transaction is performed by this module — it only advertises
-how agents should call the routes (payment happens client-side via x402).
+x402's bazaar extension lets agents discover what a paid endpoint does:
+input schema, output example, pricing — all derived from the x402
+pricing table. The MCP tools here wrap the /v1/* REST surface 1:1 and
+are the ONLY way the network is consumed from MCP clients.
 """
+from __future__ import annotations
 
-from typing import Any, Dict
+from app.x402.pricing import FREE_ROUTES, ROUTE_DESCRIPTIONS, ROUTE_PRICING
 
-from x402.extensions.bazaar import (
-    OutputConfig,
-    declare_discovery_extension,
-    declare_mcp_discovery_extension,
-    DeclareMcpDiscoveryConfig,
-)
-
-from app.core.config import settings
-
-BASE = settings.X402_RESOURCE_BASE  # https://cortexcloud.org
-
-
-# ---------------------------------------------------------------------------
-# Chat completions route discovery
-# ---------------------------------------------------------------------------
-def chat_completions_discovery() -> Dict[str, Any]:
-    return declare_discovery_extension(
-        input={
-            "model": "openai/gpt-4o-mini",
-            "messages": [{"role": "user", "content": "Hello"}],
-        },
-        input_schema={
+# Tool name -> (method, path, description, input_schema, example_input)
+# MCP tools: exactly the 4 the spec requires, plus nothing speculative.
+_TOOLS: dict[str, dict] = {
+    "cortex_estimate_optimization": {
+        "method": "POST",
+        "path": "/v1/estimate",
+        "description": "Analyze an optimization problem for free — recommend mode, algorithm, backend, estimated runtime and USDC price. Mirrors POST /v1/estimate.",
+        "input_schema": {
             "type": "object",
             "properties": {
-                "model": {
-                    "type": "string",
-                    "description": "Model ID (gateway alias), e.g. 'gemini/gemini-1.5-pro', 'groq/llama-3.1-8b', 'nvidia/llama-3.1-8b-instruct', or any OpenRouter model.",
-                },
-                "messages": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "role": {"type": "string", "enum": ["system", "user", "assistant"]},
-                            "content": {"type": "string"},
-                        },
-                        "required": ["role", "content"],
+                "problem_type": {"type": "string", "enum": ["qubo", "ising"], "default": "qubo"},
+                "n": {"type": "integer", "minimum": 2, "maximum": 5000},
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "linear": {"type": "array", "items": {"type": "number"}},
+                        "quadratic": {"type": "object", "additionalProperties": {"type": "number"}},
                     },
-                    "description": "Conversation messages.",
                 },
-                "stream": {"type": "boolean", "description": "Stream SSE chunks."},
-                "temperature": {"type": "number"},
-                "max_tokens": {"type": "integer"},
             },
-            "required": ["model", "messages"],
+            "required": ["n", "data"],
         },
-        body_type="json",
-        output=OutputConfig(
-            example={
-                "id": "chatcmpl-xxx",
-                "object": "chat.completion",
-                "model": "openai/gpt-4o-mini",
-                "choices": [
-                    {
-                        "index": 0,
-                        "message": {"role": "assistant", "content": "Hello! How can I help?"},
-                        "finish_reason": "stop",
-                    }
-                ],
-                "usage": {"prompt_tokens": 9, "completion_tokens": 10, "total_tokens": 19},
-            }
-        ),
-    )
-
-
-def embeddings_discovery() -> Dict[str, Any]:
-    return declare_discovery_extension(
-        input={"input": "Text to embed", "model": "text-embedding-3-small"},
-        input_schema={
+        "example": {"name": "qubo", "n": 40, "data": {"linear": [1.0, -2.0, 3.0], "quadratic": {"0,1": -1.5}}},
+        "free": True,
+    },
+    "cortex_optimize": {
+        "method": "POST",
+        "path": "/v1/optimize",
+        "description": "Solve a QUBO/Ising optimization problem (x402-paid, USDC on Base). Returns a job_id to poll. The MCP gateway forwards the signed payment challenge.",
+        "input_schema": {
             "type": "object",
             "properties": {
-                "input": {
-                    "type": "string",
-                    "description": "Text (or list of strings) to embed.",
+                "mode": {"type": "string", "enum": ["auto", "classical", "hybrid", "quantum"], "default": "auto"},
+                "problem": {
+                    "type": "object",
+                    "properties": {
+                        "problem_type": {"type": "string", "enum": ["qubo", "ising"], "default": "qubo"},
+                        "n": {"type": "integer", "minimum": 2, "maximum": 5000},
+                        "data": {"type": "object"},
+                    },
+                    "required": ["n", "data"],
                 },
-                "model": {"type": "string", "description": "Embedding model ID."},
             },
-            "required": ["input"],
+            "required": ["problem"],
         },
-        body_type="json",
-        output=OutputConfig(
-            example={
-                "object": "list",
-                "data": [{"object": "embedding", "index": 0, "embedding": [0.01, -0.02, 0.03]}],
-                "model": "text-embedding-3-small",
-                "usage": {"prompt_tokens": 4, "total_tokens": 4},
-            }
-        ),
-    )
+        "example": {"mode": "auto", "problem": {"problem_type": "qubo", "n": 40, "data": {"linear": [1.0], "quadratic": {"0,1": -1.5}}}},
+        "free": False,
+    },
+    "cortex_get_job": {
+        "method": "GET",
+        "path": "/v1/jobs/{job_id}",
+        "description": "Poll an optimization job by id. Free — returns status, solution, objective, error.",
+        "input_schema": {"type": "object", "properties": {"job_id": {"type": "string"}}, "required": ["job_id"]},
+        "example": {"name": "job_id", "value": "3f5c2e6a-9a0b-4c8d-9e7f-1a2b3c4d5e6f"},
+        "free": True,
+    },
+    "cortex_list_backends": {
+        "method": "GET",
+        "path": "/v1/backends",
+        "description": "List solver backends (classical/hybrid/quantum) and their availability.",
+        "input_schema": {"type": "object", "properties": {}},
+        "example": {},
+        "free": True,
+    },
+}
 
 
-def models_discovery() -> Dict[str, Any]:
-    return declare_discovery_extension(
-        input={},
-        input_schema={"type": "object", "properties": {}},
-        output=OutputConfig(
-            example={
-                "object": "list",
-                "data": [
-                    {"id": "gemini/gemini-1.5-pro", "created": 1718000000, "owned_by": "gemini"}
-                ],
-            }
-        ),
-    )
+def list_tools() -> list[dict]:
+    """MCP tools/list entries."""
+    return [
+        {
+            "name": name,
+            "description": t["description"],
+            "inputSchema": t["input_schema"],
+        }
+        for name, t in _TOOLS.items()
+    ]
 
 
-# ---------------------------------------------------------------------------
-# MCP discovery (so MCP-capable agent frameworks can list + call tools)
-# ---------------------------------------------------------------------------
-def chat_mcp_discovery() -> Dict[str, Any]:
-    return declare_mcp_discovery_extension(
-        DeclareMcpDiscoveryConfig(
-            tool_name="chat_completions",
-            description="OpenAI-compatible chat completion via CortexCloud x402 gateway. Client pays per call in USDC on Base via x402.",
-            input_schema={
-                "type": "object",
-                "properties": {
-                    "model": {"type": "string"},
-                    "messages": {"type": "array", "items": {"type": "object"}},
-                    "stream": {"type": "boolean"},
-                },
-                "required": ["model", "messages"],
-            },
-            transport="sse",
-            example={
-                "endpoint": f"{BASE}/x402/v1/chat/completions",
-                "method": "POST",
-                "payment": "x402 USDC on Base (eip155:8453)",
-            },
-        )
-    )
-
-
-def embeddings_mcp_discovery() -> Dict[str, Any]:
-    return declare_mcp_discovery_extension(
-        DeclareMcpDiscoveryConfig(
-            tool_name="embeddings",
-            description="OpenAI-compatible text embeddings via CortexCloud x402 gateway. Client pays per call in USDC on Base via x402.",
-            input_schema={
-                "type": "object",
-                "properties": {
-                    "input": {"type": "string"},
-                    "model": {"type": "string"},
-                },
-                "required": ["input"],
-            },
-            transport="sse",
-            example={
-                "endpoint": f"{BASE}/x402/v1/embeddings",
-                "method": "POST",
-                "payment": "x402 USDC on Base (eip155:8453)",
-            },
-        )
-    )
-
-
-def build_discovery_doc() -> Dict[str, Any]:
-    """Consolidated Bazaar discovery document for all routes."""
-    return {
-        "version": "1.0",
-        "gateway": "CortexCloud",
-        "description": "Pay-per-call AI inference gateway for autonomous agents. No signup, no API key. Pay per request in USDC on Base via x402.",
-        "payment": {
-            "scheme": "exact",
-            "network": settings.X402_NETWORK,
-            "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-            "payTo": settings.WALLET_ADDRESS,
-            "facilitator": settings.X402_FACILITATOR_URL,
-        },
-        "routes": {
-            "POST /x402/v1/chat/completions": {
-                "description": "OpenAI-compatible chat completions.",
-                "price_usd": "0.005",
-                "extensions": chat_completions_discovery(),
-            },
-            "POST /x402/v1/responses": {
-                "description": "OpenAI-compatible chat completions (alias).",
-                "price_usd": "0.005",
-                "extensions": chat_completions_discovery(),
-            },
-            "POST /x402/v1/embeddings": {
-                "description": "OpenAI-compatible text embeddings.",
-                "price_usd": "0.001",
-                "extensions": embeddings_discovery(),
-            },
-            "GET /x402/v1/models": {
-                "description": "List available models (free).",
-                "price_usd": "0.00",
-                "extensions": models_discovery(),
-            },
-        },
-        "mcp": {
-            "transport": "sse",
-            "endpoint": f"{BASE}/x402/v1/mcp",
-            "tools": [
-                {"tool_name": "chat_completions", "extensions": chat_mcp_discovery()},
-                {"tool_name": "embeddings", "extensions": embeddings_mcp_discovery()},
-            ],
-        },
-    }
+def tool_entry(tool_name: str) -> dict | None:
+    return _TOOLS.get(tool_name)

@@ -1,111 +1,142 @@
-"""Stateless Streamable HTTP MCP gateway backed by existing x402 REST routes."""
-import base64
-import json
-from typing import Any
+"""Bazaar discovery root + MCP gateway (x402-wrapped /v1/* surface).
 
-import httpx
+- /.well-known/bazaar   — human/agent index of what this service offers
+- /x402/v1/mcp          — MCP (Streamable HTTP style) gateway: tools/list,
+                          tools/call; paid tools forward the signed payment
+                          challenge/verification to the REST layer.
+
+The MCP layer never implements payment logic — it relays HTTP + payment
+headers to /v1/* and returns whatever the gateway says, 402 included.
+"""
+from __future__ import annotations
+
+import json
+import logging
+
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-from app.x402.bazaar import build_discovery_doc
+from app.core.http import shared_client
+from app.x402.bazaar import list_tools, tool_entry
+from app.x402.pricing import FREE_ROUTES, ROUTE_DESCRIPTIONS, ROUTE_PRICING
+
+logger = logging.getLogger("cortexcloud.x402.bazaar")
 
 router = APIRouter()
-BASE = settings.X402_RESOURCE_BASE.rstrip("/")
-
-# ponytail: explicit finite catalog; add a route only when the REST capability is live.
-_TOOL_ROUTES = (
-    ("chat_completions", "POST", "/x402/v1/chat/completions", "OpenAI-compatible chat and vision completion."),
-    ("embeddings", "POST", "/x402/v1/embeddings", "Generate text embeddings."),
-    ("image_generation", "POST", "/x402/v1/images/generations", "Generate an image from a prompt."),
-    ("image_edit", "POST", "/x402/v1/images/image2image", "Edit a base64 PNG with a prompt."),
-    ("text_to_speech", "POST", "/x402/v1/audio/speech", "Generate speech audio."),
-    ("transcription", "POST", "/x402/v1/audio/transcriptions", "Transcribe base64 audio."),
-    ("messages", "POST", "/x402/v1/messages", "Anthropic Messages API passthrough."),
-    ("base_balance", "GET", "/x402/v1/data/base/balance", "Get a Base native-token balance."),
-    ("base_token_balance", "GET", "/x402/v1/data/base/token-balance", "Get a Base ERC-20 balance."),
-    ("base_nonce", "GET", "/x402/v1/data/base/nonce", "Get a Base transaction nonce."),
-    ("token_prices", "GET", "/x402/v1/data/prices", "Get token prices."),
-    ("coin_search", "GET", "/x402/v1/data/coins/search", "Search coins."),
-    ("dex_search", "GET", "/x402/v1/data/dex/search", "Search DEX pairs."),
-    ("dex_pairs", "GET", "/x402/v1/data/dex/pairs", "Get DEX pairs."),
-)
 
 
-def mcp_tools() -> list[dict[str, Any]]:
-    return [
+def _endpoint_catalog() -> list[dict]:
+    paid = [
         {
-            "name": name,
-            "description": description,
-            "inputSchema": {"type": "object", "additionalProperties": True},
-            "_route": (method, path),
+            "method": path.split(" ", 1)[0],
+            "path": path.split(" ", 1)[1],
+            "price": price,
+            "description": ROUTE_DESCRIPTIONS.get(path, ""),
         }
-        for name, method, path, description in _TOOL_ROUTES
+        for path, price in ROUTE_PRICING.items()
+        if float(price.lstrip("$")) > 0.0
     ]
+    free = [
+        {"method": "POST", "path": "/v1/estimate", "price": "free", "description": FREE_ROUTES["POST /v1/estimate"]},
+        {"method": "GET", "path": "/v1/backends", "price": "free", "description": FREE_ROUTES["GET /v1/backends"]},
+        {"method": "GET", "path": "/v1/capabilities", "price": "free", "description": FREE_ROUTES["GET /v1/capabilities"]},
+        {"method": "GET", "path": "/v1/jobs/{job_id}", "price": "free", "description": FREE_ROUTES["GET /v1/jobs/{job_id}"]},
+    ]
+    return paid + free
 
 
-def _result(message_id: Any, content: list[dict[str, Any]], is_error: bool = False) -> JSONResponse:
-    return JSONResponse({"jsonrpc": "2.0", "id": message_id, "result": {"content": content, "isError": is_error}})
+@router.get("/.well-known/bazaar", tags=["x402 Discovery"])
+async def bazaar_root():
+    return {
+        "name": "CortexCloud Optimization Network",
+        "description": "Optimization infrastructure for AI agents — discover, pay for, and execute classical, hybrid, or quantum optimization through a single API.",
+        "endpoints": _endpoint_catalog(),
+        "mcp": {
+            "transport": "streamable-http",
+            "endpoint": "/x402/v1/mcp",
+            "tools": list_tools(),
+        },
+        "payment": {
+            "scheme": "x402",
+            "network": settings.X402_NETWORK,
+            "asset": "USDC",
+            "facilitator": settings.X402_FACILITATOR_URL,
+            "merchant_wallet": settings.WALLET_ADDRESS,
+        },
+        "discovery": ["/.well-known/x402.json", "/llms.txt", "/openapi.json"],
+    }
 
 
-@router.get("/.well-known/bazaar", tags=["Bazaar Discovery"])
-async def bazaar_discovery() -> JSONResponse:
-    return JSONResponse(content=build_discovery_doc())
+# ---------------------------------------------------------------- MCP ----
+_MCP_VERSION = "2025-03-26"
+_DEFAULT_TIMEOUT = 60.0
 
 
-@router.get("/mcp", tags=["MCP"])
-async def mcp_info() -> JSONResponse:
-    return JSONResponse({"name": "CortexCloud MCP", "transport": "streamable-http", "endpoint": "/x402/v1/mcp"})
-
-
-@router.post("/mcp", tags=["MCP"])
-async def mcp_http(request: Request) -> JSONResponse:
+async def _relay(request: Request, method: str, path: str, payload: dict) -> dict | JSONResponse:
+    """Forward to the inner REST surface, carrying x402 payment headers."""
+    url = f"http://127.0.0.1:{request.url.port or 8000}{path}"
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        **{k: v for k, v in request.headers.items()
+           if k.lower() in ("payment-signature", "x-payment", "x-correlation-id")},
+    }
+    client = shared_client("mcp", _DEFAULT_TIMEOUT)
+    resp = await client.request(method, url, json=payload if payload else None, headers=headers)
+    if resp.status_code == 402:
+        # Return the challenge verbatim so the MCP client can pay.
+        try:
+            return JSONResponse(status_code=402, content=resp.json(), headers={"payment-required": resp.headers.get("payment-required", "")})
+        except Exception:
+            return JSONResponse(status_code=402, content={"error": "payment required"})
     try:
-        message = await request.json()
-    except json.JSONDecodeError:
-        return JSONResponse({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Parse error"}}, status_code=400)
+        body = resp.json()
+    except Exception:
+        body = {"raw": resp.text}
+    if resp.status_code >= 400:
+        return JSONResponse(status_code=resp.status_code, content=body)
+    return body
 
-    message_id = message.get("id")
-    method = message.get("method")
+
+@router.post("/x402/v1/mcp", tags=["MCP"])
+async def mcp_gateway(request: Request):
+    try:
+        msg = await request.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": None})
+    method = msg.get("method")
+    params = msg.get("params") or {}
+    rpc_id = msg.get("id")
+
     if method == "initialize":
-        return JSONResponse({"jsonrpc": "2.0", "id": message_id, "result": {"protocolVersion": "2025-03-26", "capabilities": {"tools": {}}, "serverInfo": {"name": "CortexCloud", "version": "1.0"}}})
+        return {
+            "jsonrpc": "2.0",
+            "id": rpc_id,
+            "result": {
+                "protocolVersion": _MCP_VERSION,
+                "capabilities": {"tools": {}},
+                "serverInfo": {"name": "cortexcloud-optimization-mcp", "version": "0.3.0"},
+            },
+        }
     if method == "tools/list":
-        return JSONResponse({"jsonrpc": "2.0", "id": message_id, "result": {"tools": [{k: v for k, v in tool.items() if k != "_route"} for tool in mcp_tools()]}})
-    if method != "tools/call":
-        return JSONResponse({"jsonrpc": "2.0", "id": message_id, "error": {"code": -32601, "message": "Method not found"}}, status_code=404)
-
-    params = message.get("params") or {}
-    tool = next((tool for tool in mcp_tools() if tool["name"] == params.get("name")), None)
-    if not tool:
-        return _result(message_id, [{"type": "text", "text": "Unknown tool."}], True)
-    arguments = params.get("arguments") or {}
-    if not isinstance(arguments, dict):
-        return _result(message_id, [{"type": "text", "text": "arguments must be an object."}], True)
-
-    route_method, route_path = tool["_route"]
-    headers = {"content-type": "application/json"}
-    for header in ("payment-signature", "x-payment", "x-correlation-id"):
-        if value := request.headers.get(header):
-            headers[header] = value
-    async with httpx.AsyncClient(timeout=180.0) as client:
-        upstream = await client.request(
-            route_method, f"{BASE}{route_path}", headers=headers,
-            params=arguments if route_method == "GET" else None,
-            json=arguments if route_method != "GET" else None,
-        )
-
-    if upstream.status_code == 402:
-        response = JSONResponse(upstream.json(), status_code=402)
-        for header in ("payment-required", "payment-response"):
-            if value := upstream.headers.get(header):
-                response.headers[header] = value
-        return response
-    if not upstream.is_success:
-        return _result(message_id, [{"type": "text", "text": upstream.text[:4000]}], True)
-    if upstream.headers.get("content-type", "").startswith("audio/"):
-        return _result(message_id, [{"type": "audio", "mimeType": upstream.headers["content-type"].split(";", 1)[0], "data": base64.b64encode(upstream.content).decode()}])
-    try:
-        body: Any = upstream.json()
-    except ValueError:
-        body = upstream.text
-    return _result(message_id, [{"type": "text", "text": json.dumps(body)}])
+        return {"jsonrpc": "2.0", "id": rpc_id, "result": {"tools": list_tools()}}
+    if method == "tools/call":
+        tool_name = (params or {}).get("name")
+        args = (params or {}).get("arguments") or {}
+        tool = tool_entry(tool_name)
+        if tool is None:
+            return {"jsonrpc": "2.0", "id": rpc_id, "error": {"code": -32602, "message": f"Unknown tool: {tool_name}"}}
+        path = tool["path"].replace("{job_id}", str(args.get("job_id", "")))
+        payload = None if tool["method"] == "GET" else args
+        if tool["method"] == "GET":
+            payload = None
+        result = await _relay(request, tool["method"], path, payload)
+        if isinstance(result, JSONResponse):
+            return result  # 402 challenge or error, untouched
+        return {
+            "jsonrpc": "2.0",
+            "id": rpc_id,
+            "result": {"content": [{"type": "text", "text": json.dumps(result, default=str)}]},
+        }
+    return {"jsonrpc": "2.0", "id": rpc_id, "error": {"code": -32601, "message": f"Method not found: {method}"}}

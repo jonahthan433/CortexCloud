@@ -1,191 +1,82 @@
-# CortexCloud API Gateway
+# CortexCloud Optimization Network
 
-> Agent-native, OpenAI-compatible AI gateway with **x402 crypto payments** (USDC on Base). Pay per call — no API key, no subscription.
+**Optimization infrastructure for AI agents.** Agents discover, pay for, and
+execute classical, hybrid, or quantum optimization through a single API:
+machine-payable via x402 (USDC on Base), fully discovered via
+`/.well-known/`, `llms.txt`, `/openapi.json` and MCP.
 
-CortexCloud is a production-grade AI inference + data gateway. It unifies multiple AI
-providers (OpenAI, Anthropic, Gemini, Groq, NVIDIA) behind a single OpenAI-compatible API
-surface, and exposes a growing set of **x402 payment-gated endpoints** so agents can pay
-per-call in USDC on Base mainnet — no account, no credit card, no API key required.
+## The surface
 
----
+| Endpoint | Method | Cost | Purpose |
+|---|---|---|---|
+| `/v1/estimate` | POST | free | analyze a QUBO/Ising, get mode/algorithm/backend/runtime/price |
+| `/v1/optimize` | POST | x402 USDC | solve (classical/hybrid/quantum), returns `job_id` |
+| `/v1/jobs/{id}` | GET | free | poll job status + result |
+| `/v1/backends` | GET | free | list solvers/backends + availability |
+| `/v1/capabilities` | GET | free | what this service is and what it can run |
+| `/x402/v1/mcp` | POST | free* | MCP gateway: 4 tools (`cortex_optimize` paid) |
+| `/.well-known/x402.json` | GET | free | x402 discovery manifest |
+| `/.well-known/bazaar` | GET | free | bazaar/MCP discovery doc |
+| `/llms.txt` | GET | free | agent-readable index |
+| `/openapi.json` | GET | free | full OpenAPI (x402 security declared) |
+| `/health` `/metrics` | GET | free | ops |
 
-## Features
+## Problem format
 
-- **OpenAI-compatible gateway** — `/v1/chat/completions`, `/v1/models`, embeddings, and more.
-- **Multi-provider routing** — OpenAI, Anthropic, Gemini, Groq, NVIDIA with automatic
-  fallback chains and cost/latency-aware model resolution.
-- **x402 payment rails** — payment-gated AI + data endpoints. Agents pay in USDC on Base
-  via the `402 Payment Required` → sign → settle handshake (CDP v2 / EIP-712).
-- **On-chain & market data marketplace** — keyless Base data routes (token prices, DEX
-  pools, wallet balances) and structured on-chain tools, all payable per call.
-- **Activity & pricing feeds** — public `/x402/v1/activity` (live settlement feed) and
-  `/x402/v1/pricing` (per-model + per-tool USDC pricing) for discovery and dashboards.
-- **Bazaar / x402scan discovery** — self-describing OpenAPI + resource registry so agents
-  and explorers (x402scan, AgentCash) can enumerate payable endpoints and verify ownership.
-- **Enterprise controls** — API-key auth (HMAC-SHA256), RBAC orgs, Redis-backed sliding
-  window rate limiting, precision billing ledger, audit logging, correlation-ID tracing.
-- **Observability** — structured logging, health checks, retries with fallback, and a
-  Dockerized, Alembic-migrated deployment.
-
----
-
-## Architecture
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Agent as Agent / Client
-    participant GW as FastAPI Gateway
-    participant Redis as Redis
-    participant DB as Postgres
-    participant Prov as Upstream Provider
-    participant Chain as Base (USDC)
-
-    Agent->>GW: POST /x402/v1/chat/completions
-    alt x402-gated route
-        GW-->>Agent: 402 Payment Required (price + payTo)
-        Agent->>Chain: Sign & settle USDC (EIP-712)
-        Agent->>GW: Retry with X-Payment header
-    end
-    GW->>DB: Resolve model + billing
-    GW->>Redis: Rate-limit check
-    GW->>Prov: Forward completion (streaming + tool calls)
-    Prov-->>GW: Tokens
-    GW-->>Agent: Streamed response
+```json
+{"problem_type": "qubo", "n": 4,
+ "data": {"linear": [1.0, -2.0, 3.0, -4.0], "quadratic": {"0,1": -1.5, "2,3": 2.0}}}
 ```
+`ising` uses `{"h": [...], "J": {"i,j": c}}`. Ising is converted to QUBO for execution.
 
----
+## Solvers & honesty
 
-## Repository Layout
+- **classical**: `brute-force` (exact, n ≤ 20), `simulated-annealing` (n ≤ 5000). Pure stdlib.
+- **hybrid**: `qaoa-local` — QAOA with a classical outer loop, exact state-vector simulation.
+- **quantum**: `wukong` — Origin Quantum Wukong via Quafu cloud, isolated adapter
+  (`app/solvers/origin.py`), **never reachable from the public API**, enabled only
+  with `ORIGINQ_API_TOKEN`. The public API lies only behind `app.solvers.registry`.
+- `/v1/estimate` NEVER recommends a backend without evidence. Quantum is only
+  proposed when: (a) configured+available, AND (b) benchmark rows show it wins.
+  `estimator` falls back to classical when it is cheaper/faster — no marketing.
 
-```
-app/
-  main.py                 # FastAPI app, router mounting, static landing page
-  core/                   # config, logging, redis, security
-  auth/                   # API-key (HMAC) + dependency injection
-  billing/                # Plugin-based billing ledger (base + mock)
-  providers/              # openai, anthropic, gemini, groq, nvidia (translation)
-  routing/router.py       # model resolution + fallback chains
-  middleware/             # rate_limit, trace, x402 payment, x402_rate_limit
-  models/                 # registry, usage, key, org, user, billing (SQLAlchemy)
-  services/               # model + usage services
-  api/v1/                 # /v1 chat completions + models
-  x402/                   # payment routes, data marketplace, on-chain tools,
-                          #   bazaar discovery, status, pricing
-  activity.py             # live settlement activity feed
-  pricing.py              # per-model / per-tool USDC pricing table
-static/                   # branded landing page (index.html, favicon)
-tests/                    # pytest integration suite
-docs/x402-testing-guide.md
-```
+Benchmark rows (`benchmarks` table) accumulate on every solved job so estimates
+become measured, not modeled.
 
----
+## Payments (x402)
 
-## Quickstart
+`POST /v1/optimize` price follows the requested mode:
+classical `$0.02`, hybrid `$0.10`, quantum `$0.25` (fixed per call). Free routes
+never return 402. ECDSA-signed responses (`X-Cortex-Signature`), public key at
+`/x402/v1/pubkey`. Nonces are replay-protected in PostgreSQL; proof cache +
+per-payer + per-IP rates are in-process (single uvicorn worker).
 
-### 1. Install
+## Local development
+
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 2. Configure
-```bash
-cp .env.example .env   # fill in provider keys + WALLET_ADDRESS
-```
-
-### 3. Databases
-```bash
-docker-compose up -d
+pip install -r requirements.txt          # base deps
+pip install -r requirements-quantum.txt  # ONLY for the Wukong adapter
+cp .env.example .env                     # fill DB + wallet values
 alembic upgrade head
-python -m app.scratch.seed_dev
+uvicorn app.main:app --reload
+python update_openapi_v2.py              # regenerate /openapi.json
 ```
 
-### 4. Run
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-# Docs: http://localhost:8000/docs
-```
-
----
-
-## API Examples
-
-### Standard (API key)
-```bash
-curl -X POST http://localhost:8000/v1/chat/completions \
-  -H "Authorization: Bearer cx-liv...7890" \
-  -H "Content-Type: application/json" \
-  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Explain quantum computing."}]}'
-```
-
-### x402 (pay per call, no key)
-Agents send the request, receive a `402` with the price, settle USDC on Base, and retry
-with the `X-Payment` header. The easiest path is a client that does this automatically:
+## Tests
 
 ```bash
-# Local OpenAI-compatible proxy that auto-pays x402 (our ClawRouter equivalent)
-npx -y @cortexcloud.org/proxy
-# then point any OpenAI SDK at http://localhost:8402/v1
+pytest -q            # needs the real DB (new tables only; truncated per run)
 ```
 
-Public, keyless discovery endpoints:
-- `GET  /x402/v1/models`     — payable model list
-- `GET  /x402/v1/pricing`    — USDC pricing per model/tool
-- `GET  /x402/v1/activity`   — live settlement feed
-- `POST /x402/v1/chat/completions` — pay-per-call inference
-- `POST /x402/v1/data/*`     — payable Base market/data tools
+## Origin Quantum (Wukong)
 
----
+Adapter: `app/solvers/origin.py` — uses the current official Origin Quantum
+cloud path (Quafu/ScQ-Cloud: API-token auth, program upload, submit, poll).
+Config:
+- `ORIGINQ_API_TOKEN` — from Origin Q Cloud console.
+- `ORIGIN_BACKEND` — target device (default: picked from account listing at
+  connect time, falls back to the env value).
 
-## SDKs & Clients
-
-| Package | Purpose |
-|---------|---------|
-| `@cortexcloud.org/mcp`   | MCP server (Claude Code / MCP agents) — paid x402 tools |
-| `@cortexcloud.org/proxy` | Local OpenAI-compatible proxy that auto-pays x402 per call |
-
----
-
-## Testing
-```bash
-pytest tests/test_gateway.py -p no:warnings
-```
-
-See `docs/x402-testing-guide.md` for the x402 payment-flow test plan.
-
----
-
-## Deployment
-```bash
-docker build -t cortexcloud-api:latest .
-docker-compose up -d
-```
-The branded landing page is served at `/` and the x402 discovery surface at `/x402/v1/*`.
-
----
-
-## Security
-
-- Secrets live only in `.env` (gitignored). Never commit keys.
-- x402 payments use EIP-712 typed-data signatures settled on Base mainnet.
-- API keys are HMAC-SHA256 authenticated; rate limits are Redis-backed with DB fallback.
-
-See [SECURITY.md](SECURITY.md).
-
----
-
-## Roadmap
-
-- [ ] Redis model-registry caching (TTL) to cut DB reads
-- [ ] Multi-chain settlement (Solana CAIP-22, Polygon/Arbitrum/Optimism via Circle Gateway)
-- [ ] Response caching + `/metrics` (Prometheus)
-- [ ] Image generation + speech (TTS/STT) endpoints
-- [ ] Python + TypeScript SDKs with built-in x402 clients
-- [ ] Expanded test coverage (providers, routing, billing)
-
----
-
-## License
-
-MIT — see [LICENSE](LICENSE).
+Until a real token is configured the backend advertises `available: false` and
+`/v1/estimate` will not recommend quantum mode. Real-device calibration is the
+only remaining step (see SECURITY.md road-map).

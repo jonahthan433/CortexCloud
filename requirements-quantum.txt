@@ -1,0 +1,4 @@
+# Optional — only required to enable the Origin Quantum / Wukong adapter.
+# Install on a machine that holds ORIGIN_API_TOKEN. The public API and all
+# classical/hybrid solvers run without it.
+quafu-runtime>=0.3.0

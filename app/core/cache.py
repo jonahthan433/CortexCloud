@@ -1,113 +1,100 @@
-"""Redis-backed performance helpers: shared client, payment-proof cache,
-nonce dedup, and coalesced JSON caching. All helpers FAIL OPEN — a Redis
-outage must never block or break real payments."""
-import asyncio
-import hashlib
-import json
-import secrets
+"""In-process caches — Redis is gone.
+
+Everything here is single-worker safe; the service runs one uvicorn
+worker. If we ever scale to N workers these move to PostgreSQL (nonce
+dedup already lives there — see middleware/x402.py).
+
+ponytail: single-process TTL dicts; if multi-worker is ever needed,
+swap `PROOF_CACHE`/`RATE_WINDOWS` for a PG-backed store.
+"""
+from __future__ import annotations
+
+import threading
 import time
+from collections import defaultdict, deque
+from typing import Callable, Optional
 
-from app.core.config import settings
+_lock = threading.Lock()
 
-_redis = None
+PROOF_CACHE: dict[str, tuple[float, str]] = {}        # proof hash -> (expiry, result)
+PROOF_TTL_S = 60.0
 
-
-def get_redis():
-    """Shared redis.asyncio client (lazy singleton)."""
-    global _redis
-    if _redis is None:
-        import redis.asyncio as aioredis
-
-        url = settings.REDIS_URL or f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}"
-        _redis = aioredis.from_url(url, decode_responses=True)
-    return _redis
+RATE_WINDOWS: dict[str, deque[float]] = defaultdict(deque)  # payer -> timestamps
+RATE_LOCK = threading.Lock()
 
 
-# ---------------- S1: payment proof cache + nonce dedup ----------------
+def proof_get(proof_hash: str) -> Optional[str]:
+    with _lock:
+        hit = PROOF_CACHE.get(proof_hash)
+        if hit is None:
+            return None
+        expiry, result = hit
+        if time.time() > expiry:
+            PROOF_CACHE.pop(proof_hash, None)
+            return None
+        return result
 
-def _proof_key(payment_signature: str) -> str:
-    return f"x402:proof:{hashlib.sha256(payment_signature.encode()).hexdigest()}"
+
+def proof_set(proof_hash: str, result: str) -> None:
+    with _lock:
+        PROOF_CACHE[proof_hash] = (time.time() + PROOF_TTL_S, result)
+        if len(PROOF_CACHE) > 5000:  # ponytail: cap, evict oldest when big
+            oldest = min(PROOF_CACHE, key=lambda k: PROOF_CACHE[k][0])
+            PROOF_CACHE.pop(oldest, None)
+
+
+def rate_check(payer_key: str, limit: int, window_s: float = 60.0) -> bool:
+    """True if within limit, False if over. Sliding window per key."""
+    with RATE_LOCK:
+        dq = RATE_WINDOWS[payer_key]
+        now = time.time()
+        while dq and now - dq[0] > window_s:
+            dq.popleft()
+        if len(dq) >= limit:
+            return False
+        dq.append(now)
+        return True
+
+
+# -- async compat wrappers (same names the x402 middleware imports) --------
+async def cache_proof(payment_signature: str) -> None:
+    proof_set(payment_signature, "settled")
 
 
 async def proof_is_cached(payment_signature: str) -> bool:
-    try:
-        return bool(await get_redis().get(_proof_key(payment_signature)))
-    except Exception:
-        return False
+    return proof_get(payment_signature) is not None
 
 
-async def cache_proof(payment_signature: str, ttl: int = 60) -> None:
-    try:
-        await get_redis().set(_proof_key(payment_signature), "1", ex=ttl)
-    except Exception:
-        pass
-
-
-async def nonce_seen(nonce: str, valid_before: int | None = None) -> bool:
-    """Claim a payment nonce. Returns True if it was ALREADY seen (reject)."""
-    try:
-        r = get_redis()
-        ttl = 60
-        if valid_before:
-            ttl = max(1, min(3600, valid_before - int(time.time())))
-        return not bool(await r.set(f"x402:nonce:{nonce}", "1", ex=ttl, nx=True))
-    except Exception:
-        return False
-
-
-# ---------------- S5: sliding-window rate limit ----------------
-
-async def rate_allow(payer: str, limit: int = 60, window: int = 60) -> int:
-    """Sliding-window counter for a payer wallet. Returns current window count.
-    Fail-open: a Redis outage must never block payments."""
-    try:
-        r = get_redis()
+async def rate_allow(payer_key: str) -> int:
+    """Increment the window counter for this payer and return the count."""
+    with RATE_LOCK:
+        dq = RATE_WINDOWS[payer_key]
         now = time.time()
-        key = f"x402:rl:{payer}"
-        member = f"{now:.6f}:{secrets.token_hex(3)}"
-        pipe = r.pipeline()
-        pipe.zremrangebyscore(key, 0, now - window)
-        pipe.zadd(key, {member: now})
-        pipe.zcard(key)
-        pipe.expire(key, window)
-        _, _, count, _ = await pipe.execute()
-        return count
-    except Exception:
-        return 0
+        while dq and now - dq[0] > 60.0:
+            dq.popleft()
+        dq.append(now)
+        return len(dq)
 
 
-# ---------------- S4: coalesced JSON response cache ----------------
+class TTLCache:
+    """Minimal TTL dict (used by /v1/backends availability caching etc.)."""
 
-_inflight: dict[str, asyncio.Future] = {}
+    def __init__(self, ttl_s: float = 30.0):
+        self._ttl = ttl_s
+        self._data: dict[str, tuple[float, object]] = {}
+        self._lock = threading.Lock()
 
+    def get(self, key: str):
+        with self._lock:
+            hit = self._data.get(key)
+            if hit is None:
+                return None
+            expiry, val = hit
+            if time.time() > expiry:
+                self._data.pop(key, None)
+                return None
+            return val
 
-async def cached_json(key: str, ttl: int, fetch) -> tuple:
-    """Get(key) or fetch+set, with request coalescing: concurrent callers for
-    the same key share ONE upstream fetch and all get the result.
-    Returns (value, from_cache). Raises the fetch exception to ALL waiters."""
-    r = get_redis()
-    try:
-        hit = await r.get(key)
-        if hit is not None:
-            return json.loads(hit), True
-    except Exception:
-        pass
-    fut = _inflight.get(key)
-    if fut is not None:
-        return await fut, False
-    loop = asyncio.get_running_loop()
-    fut = loop.create_future()
-    _inflight[key] = fut
-    try:
-        value = await fetch()
-        try:
-            await r.set(key, json.dumps(value), ex=ttl)
-        except Exception:
-            pass
-        fut.set_result(value)
-        return value, False
-    except Exception as e:
-        fut.set_exception(e)
-        raise
-    finally:
-        _inflight.pop(key, None)
+    def set(self, key: str, value) -> None:
+        with self._lock:
+            self._data[key] = (time.time() + self._ttl, value)
