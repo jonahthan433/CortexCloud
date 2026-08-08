@@ -11,11 +11,12 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.responses import Response
 
 from app.core.config import settings
-from app.core.cache import cache_proof, nonce_seen, proof_is_cached, rate_allow, get_redis
+from app.core.cache import cache_proof, proof_is_cached, rate_allow
 from app.core.http import shared_client
+from app.core.nonce import nonce_seen
 from app.middleware.audit import audit, alert
 from app.core.reqlog import CACHE_HITS, LATENCY, get_req
-from app.x402.pricing import ROUTE_PRICING, ROUTE_DESCRIPTIONS, usd_to_usdc_atomic
+from app.x402.pricing import ROUTE_PRICING, ROUTE_DESCRIPTIONS, usd_to_usdc_atomic, price_for_mode
 
 logger = logging.getLogger("cortexcloud.middleware.x402")
 
@@ -52,7 +53,7 @@ async def _rate_limit(request) -> JSONResponse | None:
     if count > settings.X402_RATE_LIMIT:
         log = json.dumps({"event": "rate_limited", "payer": payer, "count": count})
         audit("rate_limited", payer=payer, count=count)
-        await alert(get_redis(), "rate_limit", 300, 200, "rate_limit_dos", payer=payer)
+        await alert("rate_limit", 300, 200, "rate_limit_dos", payer=payer)
         logger.warning(log)
         return JSONResponse(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -97,219 +98,41 @@ _PATH_DESCRIPTIONS = {
 USDC_ON_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
 
 # GET routes take query params instead of a JSON body.
-QUERY_ROUTES = {
-    "/x402/v1/data/prices",
-    "/x402/v1/data/coins/search",
-    "/x402/v1/data/dex/search",
-    "/x402/v1/data/dex/pairs",
-    "/x402/v1/data/base/balance",
-    "/x402/v1/data/base/token-balance",
-    "/x402/v1/data/base/nonce",
-    "/x402/v1/defillama/chains",
-    "/x402/v1/defillama/protocols",
-    "/x402/v1/defillama/protocol",
-    "/x402/v1/defillama/prices",
-    "/x402/v1/defillama/yields",
-    "/x402/v1/crypto/list",
-    "/x402/v1/crypto/price",
-    "/x402/v1/crypto/history",
-    "/x402/v1/fx/list",
-    "/x402/v1/fx/price",
-    "/x402/v1/fx/history",
-    "/x402/v1/data/news",
-    "/x402/v1/data/eth/balance",
-    "/x402/v1/data/solana/balance",
-    "/x402/v1/data/defi/yields",
-    "/x402/v1/data/gas",
-}
+# The only paid route is POST /v1/optimize (body), so this stays empty.
+QUERY_ROUTES: set[str] = set()
 
 # Per-route request schemas, surfaced in the 402 challenge via the bazaar
 # extension. x402scan's validator hard-errors SCHEMA_INPUT_MISSING without one.
 INPUT_SCHEMAS = {
-    "/x402/v1/chat/completions": {
+    "/v1/optimize": {
         "type": "object",
         "properties": {
-            "model": {"type": "string", "description": "Model id, e.g. gemini/gemini-2.0-flash"},
-            "messages": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "role": {"type": "string", "enum": ["system", "user", "assistant", "tool"]},
-                        "content": {"type": "string"},
-                    },
-                    "required": ["role", "content"],
-                },
+            "mode": {
+                "type": "string",
+                "enum": ["auto", "classical", "hybrid", "quantum"],
+                "default": "auto",
             },
-            "stream": {"type": "boolean"},
-            "temperature": {"type": "number"},
-            "max_tokens": {"type": "integer"},
+            "problem": {
+                "type": "object",
+                "properties": {
+                    "problem_type": {"type": "string", "enum": ["qubo", "ising"], "default": "qubo"},
+                    "n": {"type": "integer", "minimum": 2, "maximum": 5000},
+                    "data": {
+                        "type": "object",
+                        "properties": {
+                            "linear": {"type": "array", "items": {"type": "number"}},
+                            "quadratic": {
+                                "type": "object",
+                                "additionalProperties": {"type": "number"},
+                                "description": "\"i,j\" -> coefficient",
+                            },
+                        },
+                    },
+                },
+                "required": ["n", "data"],
+            },
         },
-        "required": ["model", "messages"],
-    },
-    "/x402/v1/responses": {
-        "type": "object",
-        "properties": {
-            "model": {"type": "string"},
-            "input": {"type": "string"},
-            "instructions": {"type": "string"},
-            "stream": {"type": "boolean"},
-        },
-        "required": ["model", "input"],
-    },
-    "/x402/v1/embeddings": {
-        "type": "object",
-        "properties": {
-            "input": {"type": "string", "description": "Text to embed"},
-            "model": {"type": "string", "description": "Embedding model id, e.g. gemini/text-embedding-004"},
-        },
-        "required": ["input", "model"],
-    },
-    "/x402/v1/images/generations": {
-        "type": "object",
-        "properties": {
-            "model": {"type": "string"},
-            "prompt": {"type": "string"},
-            "n": {"type": "integer"},
-            "size": {"type": "string"},
-            "response_format": {"type": "string"},
-        },
-        "required": ["prompt"],
-    },
-    "/x402/v1/images/image2image": {
-        "type": "object",
-        "properties": {"model": {"type": "string"}, "image": {"type": "string"}, "prompt": {"type": "string"}},
-        "required": ["image", "prompt"],
-    },
-    "/x402/v1/audio/speech": {
-        "type": "object",
-        "properties": {"model": {"type": "string"}, "input": {"type": "string"}, "voice": {"type": "string"}},
-        "required": ["model", "input"],
-    },
-    "/x402/v1/audio/transcriptions": {
-        "type": "object",
-        "properties": {"model": {"type": "string"}, "audio_b64": {"type": "string"}, "mime": {"type": "string"}},
-        "required": ["audio_b64"],
-    },
-    "/x402/v1/messages": {
-        "type": "object",
-        "properties": {
-            "model": {"type": "string"},
-            "messages": {"type": "array", "items": {"type": "object"}},
-            "max_tokens": {"type": "integer"},
-        },
-        "required": ["model", "messages"],
-    },
-    "/x402/v1/videos/generations": {
-        "type": "object",
-        "properties": {"model": {"type": "string"}, "prompt": {"type": "string"}},
-        "required": ["model", "prompt"],
-    },
-    "/x402/v1/rpc/ethereum": {
-        "type": "object",
-        "properties": {"method": {"type": "string"}, "params": {"type": "array"}, "id": {"type": "integer"}},
-        "required": ["method"],
-    },
-    "/x402/v1/search": {
-        "type": "object",
-        "properties": {
-            "query": {"type": "string", "description": "Search query"},
-            "numResults": {"type": "integer", "default": 10},
-            "useAutoprompt": {"type": "boolean"},
-            "type": {"type": "string", "enum": ["neural", "keyword"]},
-            "includeDomains": {"type": "array", "items": {"type": "string"}},
-            "excludeDomains": {"type": "array", "items": {"type": "string"}},
-            "startPublishedDate": {"type": "string"},
-            "endPublishedDate": {"type": "string"},
-        },
-        "required": ["query"],
-    },
-    "/x402/v1/search/contents": {
-        "type": "object",
-        "properties": {"ids": {"type": "array", "items": {"type": "string"}}, "text": {"type": "boolean"}},
-        "required": ["ids"],
-    },
-    # ---- GET routes (query params) ----
-    "/x402/v1/data/prices": {
-        "type": "object",
-        "properties": {"ids": {"type": "string", "description": "Comma-separated coin ids, e.g. bitcoin,ethereum"}, "vs": {"type": "string", "default": "usd"}},
-        "required": ["ids"],
-    },
-    "/x402/v1/data/coins/search": {"type": "object", "properties": {"q": {"type": "string"}}, "required": ["q"]},
-    "/x402/v1/data/dex/search": {"type": "object", "properties": {"q": {"type": "string"}}, "required": ["q"]},
-    "/x402/v1/data/dex/pairs": {
-        "type": "object",
-        "properties": {"chain": {"type": "string"}, "pair": {"type": "string"}},
-        "required": ["chain", "pair"],
-    },
-    "/x402/v1/data/base/balance": {"type": "object", "properties": {"address": {"type": "string"}}, "required": ["address"]},
-    "/x402/v1/data/base/token-balance": {
-        "type": "object",
-        "properties": {"address": {"type": "string"}, "token": {"type": "string", "description": "Token address or symbol (usdc, weth, dai, usdt)"}},
-        "required": ["address", "token"],
-    },
-    "/x402/v1/data/base/nonce": {"type": "object", "properties": {"address": {"type": "string"}}, "required": ["address"]},
-    "/x402/v1/defillama/chains": {"type": "object", "properties": {}},
-    "/x402/v1/defillama/protocols": {"type": "object", "properties": {}},
-    "/x402/v1/defillama/protocol": {"type": "object", "properties": {"slug": {"type": "string"}}, "required": ["slug"]},
-    "/x402/v1/defillama/prices": {"type": "object", "properties": {"coins": {"type": "string"}}, "required": ["coins"]},
-    "/x402/v1/defillama/yields": {"type": "object", "properties": {}},
-    "/x402/v1/crypto/list": {"type": "object", "properties": {}},
-    "/x402/v1/crypto/price": {
-        "type": "object",
-        "properties": {"id": {"type": "string"}, "vs": {"type": "string", "default": "usd"}},
-        "required": ["id"],
-    },
-    "/x402/v1/crypto/history": {
-        "type": "object",
-        "properties": {"id": {"type": "string"}, "vs": {"type": "string", "default": "usd"}, "days": {"type": "string", "default": "30"}},
-        "required": ["id"],
-    },
-    "/x402/v1/fx/list": {"type": "object", "properties": {}},
-    "/x402/v1/fx/price": {
-        "type": "object",
-        "properties": {"base": {"type": "string", "default": "EUR"}, "quote": {"type": "string", "default": "USD"}},
-    },
-    "/x402/v1/fx/history": {
-        "type": "object",
-        "properties": {"base": {"type": "string", "default": "EUR"}, "quote": {"type": "string", "default": "USD"}, "start": {"type": "string"}, "end": {"type": "string"}},
-        "required": ["start", "end"],
-    },
-    # ---- S4: data marketplace (query params) ----
-    "/x402/v1/data/news": {
-        "type": "object",
-        "properties": {"q": {"type": "string", "description": "Search/news query, e.g. AI funding"}, "limit": {"type": "integer", "default": 5, "description": "Max articles to return"}},
-        "required": ["q"],
-    },
-    "/x402/v1/data/eth/balance": {
-        "type": "object",
-        "properties": {"address": {"type": "string", "description": "Ethereum address to query balance for"}},
-        "required": ["address"],
-    },
-    "/x402/v1/data/solana/balance": {
-        "type": "object",
-        "properties": {"address": {"type": "string", "description": "Solana address to query balance for"}},
-        "required": ["address"],
-    },
-    "/x402/v1/data/defi/yields": {"type": "object", "properties": {}},
-    "/x402/v1/data/gas": {
-        "type": "object",
-        "properties": {"chain": {"type": "string", "default": "base", "description": "Chain id to fetch gas price for (base|ethereum|arbitrum|polygon)"}},
-    },
-    # ---- S5: agent-native ----
-    "/x402/v1/jobs": {
-        "type": "object",
-        "properties": {
-            "endpoint": {"type": "string", "description": "Relative x402 endpoint to call asynchronously, e.g. /x402/v1/search"},
-            "method": {"type": "string", "default": "POST"},
-            "payload": {"type": "object", "description": "Request body to send to the endpoint"},
-        },
-        "required": ["endpoint"],
-    },
-    "/x402/v1/embeddings/batch": {
-        "type": "object",
-        "properties": {"input": {"type": "array", "items": {"type": "string"}, "description": "List of texts (max 100) to embed"}, "model": {"type": "string", "description": "Embedding model id"}},
-        "required": ["input", "model"],
+        "required": ["problem"],
     },
 }
 
@@ -317,70 +140,31 @@ INPUT_SCHEMAS = {
 # S1: per-route example request bodies so the facilitator's discovery-extension
 # validation (example must satisfy the input schema) passes for every route.
 INPUT_EXAMPLES = {
-    "/x402/v1/chat/completions": {"model": "gemini-2.0-flash", "messages": [{"role": "user", "content": "Hello"}]},
-    "/x402/v1/responses": {"model": "gemini-2.0-flash", "input": "Hello"},
-    "/x402/v1/embeddings": {"model": "gemini-text-embedding-004", "input": "Hello world"},
-    "/x402/v1/images/generations": {"prompt": "a red cube on a white background"},
-    "/x402/v1/images/image2image": {"image": "<base64>", "prompt": "make it blue"},
-    "/x402/v1/audio/speech": {"model": "gpt-4o-mini-tts", "input": "Hello from CortexCloud", "voice": "alloy"},
-    "/x402/v1/audio/transcriptions": {"audio_b64": "<base64>", "mime": "audio/wav"},
-    "/x402/v1/messages": {"model": "claude-sonnet-4-6", "messages": [{"role": "user", "content": "Hello"}]},
-    "/x402/v1/videos/generations": {"model": "grok-video-2", "prompt": "a cat walking"},
-    "/x402/v1/rpc/ethereum": {"method": "eth_blockNumber", "params": [], "id": 1},
-    "/x402/v1/search": {"query": "latest AI news"},
-    "/x402/v1/search/contents": {"ids": ["https://example.com/article"]},
-    "/x402/v1/data/news": {"q": "AI funding"},
-    "/x402/v1/data/eth/balance": {"address": "0x..."},
-    "/x402/v1/data/solana/balance": {"address": "..."},
-    "/x402/v1/data/gas": {"chain": "base"},
-    "/x402/v1/jobs": {"endpoint": "/x402/v1/search", "payload": {"query": "latest AI news"}},
-    "/x402/v1/embeddings/batch": {"model": "gemini-text-embedding-004", "input": ["Hello", "world"]},
+    "/v1/optimize": {
+        "mode": "auto",
+        "problem": {
+            "problem_type": "qubo",
+            "n": 4,
+            "data": {
+                "linear": [1.0, -2.0, 3.0, -4.0],
+                "quadratic": {"0,1": -1.5, "1,2": 0.5, "2,3": -2.0},
+            },
+        },
+    },
 }
 OUTPUT_EXAMPLES = {
-    "/x402/v1/chat/completions": {"id": "chatcmpl-abc", "object": "chat.completion", "choices": [], "usage": {"prompt_tokens": 0, "completion_tokens": 0}},
-    "/x402/v1/responses": {"id": "resp_abc", "object": "response", "output": []},
-    "/x402/v1/embeddings": {"id": "emb_abc", "object": "list", "data": [{"object": "embedding", "embedding": [], "index": 0}], "usage": {"prompt_tokens": 0, "total_tokens": 0}},
-    "/x402/v1/data/prices": {"bitcoin": {"usd": 67000.0}},
-    "/x402/v1/data/coins/search": {"coins": []},
-    "/x402/v1/data/dex/search": {"pairs": []},
-    "/x402/v1/data/dex/pairs": {"pairs": []},
-    "/x402/v1/data/base/balance": {"address": "0x...", "balance": "0", "network": "base"},
-    "/x402/v1/data/base/token-balance": {"address": "0x...", "token": "0x...", "network": "base", "raw": "0"},
-    "/x402/v1/data/base/nonce": {"address": "0x...", "nonce": 0},
-    "/x402/v1/search": {"results": []},
-    "/x402/v1/search/contents": {"results": []},
-    "/x402/v1/data/news": {"articles": [{"title": "CortexCloud raises", "url": "https://example.com/news"}]},
-    "/x402/v1/data/eth/balance": {"address": "0x...", "balance": "1.234", "network": "ethereum"},
-    "/x402/v1/data/solana/balance": {"address": "...", "balance": "1.5", "network": "solana"},
-    "/x402/v1/data/gas": {"base": {"standard": "0.001", "fast": "0.002"}},
-    "/x402/v1/jobs": {"id": "job_abc", "status": "queued"},
-    "/x402/v1/embeddings/batch": {"data": [{"index": 0, "object": "embedding", "embedding": []}], "usage": {"prompt_tokens": 0, "total_tokens": 0}},
+    "/v1/optimize": {
+        "job_id": "3f5c2e6a-9a0b-4c8d-9e7f-1a2b3c4d5e6f",
+        "status": "queued",
+        "mode": "auto",
+        "price_usd": 0.02,
+        "poll": "/v1/jobs/3f5c2e6a-9a0b-4c8d-9e7f-1a2b3c4d5e6f",
+    },
 }
 
 
 def _input_schema(path: str) -> dict:
     return INPUT_SCHEMAS.get(path, {"type": "object", "properties": {}})
-
-
-# Cache for model pricing to avoid hitting the database on every request
-from functools import lru_cache
-
-@lru_cache(maxsize=1)
-def get_model_pricing():
-    """Fetch model pricing from the database and return a dict keyed by model ID."""
-    try:
-        from app.services.models import get_models
-        models = get_models()  # Returns list of model objects
-        pricing = {}
-        for model in models:
-            pricing[model.id] = {
-                "input_cost_per_1k_tokens": float(model.input_cost_per_1k_tokens),
-                "output_cost_per_1k_tokens": float(model.output_cost_per_1k_tokens),
-            }
-        return pricing
-    except Exception as e:
-        logger.warning(f"Failed to load model pricing: {e}")
-        return {}
 
 
 class X402Middleware(BaseHTTPMiddleware):
@@ -397,38 +181,18 @@ class X402Middleware(BaseHTTPMiddleware):
         if price_str is None or price_str == "$0.00":
             return await call_next(request)
 
-        # Dynamic pricing for token/image endpoints (POST only; else static).
-        if method == "POST" and path in ["/x402/v1/chat/completions", "/x402/v1/responses"]:
+        # Dynamic pricing for /v1/optimize: price follows the requested
+        # mode (classical 0.02 / hybrid 0.10 / quantum 0.25). Body is read
+        # once and cached on the request — downstream routes reuse it.
+        # Do NOT re-inject request._receive here (starlette 1.x state
+        # machine rejects a second http.request; see SSE comment below).
+        if method == "POST" and path == "/v1/optimize":
             try:
                 body = await request.body()
-                data = json.loads(body)
-                model_id = data.get("model")
-                if model_id:
-                    model_pricing = get_model_pricing()
-                    if model_id in model_pricing:
-                        info = model_pricing[model_id]
-                        base_cost = info['input_cost_per_1k_tokens'] + info['output_cost_per_1k_tokens']
-                        marked_up_cost = base_cost * 1.275
-                        price_str = f"${max(marked_up_cost, 0.000001):.6f}"
-                    else:
-                        price_str = price_str
-                # Body is cached on the request (Request.body() sets _body);
-                # downstream reads it via the _CachedRequest state-3 branch.
-                # Do NOT re-inject request._receive here: the closure returns
-                # http.request forever, which starlette's wrapped_receive state-1
-                # branch rejects, killing SSE streams with
-                # "RuntimeError: Unexpected message received: http.request".
-            except (json.JSONDecodeError, KeyError, AttributeError, TypeError) as e:
+                data = json.loads(body) if body else {}
+                price_str = price_for_mode((data.get("mode") or "auto"))
+            except (json.JSONDecodeError, AttributeError, TypeError) as e:
                 logger.warning(f"Failed to parse request body for dynamic pricing: {e}")
-        elif method == "POST" and path == "/x402/v1/images/generations":
-            try:
-                body = await request.body()
-                data = json.loads(body)
-                n = data.get("n", 1)
-                # S1: spec price $0.02 per image (was $0.04).
-                price_str = f"${n * 0.02:.6f}"
-            except (json.JSONDecodeError, KeyError, AttributeError, TypeError) as e:
-                logger.warning(f"Failed to parse request body for image generation pricing: {e}")
 
         required = usd_to_usdc_atomic(price_str)
 
@@ -483,7 +247,7 @@ class X402Middleware(BaseHTTPMiddleware):
                                 "type": "http",
                                 "method": method,
                                 "bodyType": "json",
-                                "body": INPUT_EXAMPLES.get(path, {"model": "gemini-2.0-flash", "messages": [{"role": "user", "content": "Hello"}]}),
+                                "body": INPUT_EXAMPLES.get(path, {"mode": "auto", "problem": {"problem_type": "qubo", "n": 2, "data": {"linear": [0.0, 0.0]}}}),
                             },
                             "output": {
                                 "type": "object",
@@ -602,7 +366,7 @@ class X402Middleware(BaseHTTPMiddleware):
         if not ok:
             ip = request.client.host if request.client else "?"
             audit("proof_rejected", payer=_auth0.get("from") or "?", reason=reason, ip=ip)
-            await alert(get_redis(), "proof_reject", 60, 10, "proof_rejected_alert",
+            await alert("proof_reject", 60, 10, "proof_rejected_alert",
                         payer=_auth0.get("from") or "", reason=reason, ip=ip)
             logger.warning(json.dumps({"event": "proof_rejected", "payer": _auth0.get("from"), "reason": reason}))
             return JSONResponse(
@@ -676,21 +440,37 @@ class X402Middleware(BaseHTTPMiddleware):
         # S1: remember this proof so retries within 60s skip CDP.
         await cache_proof(payment_signature)
 
-        # Record the settled payment so /usage and /receipts can report it.
-        # (audit_routes reads x402:rx:<sha256(payer)>. Without this write,
-        # every paid call is invisible to analytics — no usage, no repeats.)
+        # Record the settled payment in PostgreSQL (jobs/payments ledger).
+        # Telemetry never blocks a settled payment.
         try:
             _payer = getattr(request.state, "x402_payer", None) or (_sig_payload.get("payload") or {}).get("authorization", {}).get("from", "")
             if _payer:
-                _key = "x402:rx:" + hashlib.sha256(_payer.encode()).hexdigest()
-                await get_redis().rpush(_key, json.dumps({
-                    "endpoint": path,
-                    "payer": _payer,
-                    "payment_amount_atomic": int(required),
-                    "ts": int(time.time()),
-                }))
+                from app.database.session import AsyncSessionLocal
+                from app.models import Payment
+
+                mode = None
+                n_vars = None
+                try:
+                    _b = json.loads(request.state.x402_body or "{}")
+                    mode = _b.get("mode")
+                    n_vars = (_b.get("problem") or {}).get("n")
+                except Exception:
+                    pass
+                async with AsyncSessionLocal() as _db:
+                    _db.add(
+                        Payment(
+                            endpoint=path,
+                            payer=_payer,
+                            amount_atomic=int(required),
+                            amount_usd=int(required) / 1_000_000,
+                            mode=mode,
+                            n_vars=n_vars,
+                            nonce=_auth0.get("nonce"),
+                            status="settled",
+                        )
+                    )
+                    await _db.commit()
         except Exception:
-            # telemetry never blocks a settled payment
             pass
     
         # Payment verified and settled, proceed to request

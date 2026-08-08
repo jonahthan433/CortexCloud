@@ -2,10 +2,11 @@
 
 - audit(): appends one JSON line to /var/log/cortexcloud/security.log
   (append-only, separate from request logs). Never logs secrets/bodies.
-- alert(): sliding time-window counters in Redis with alert threshold.
-  Emits an ERROR log line (consumable by log-watchers/journald) when breached.
+- alert(): sliding time-window counters (in-process; PostgreSQL/Redis
+  not needed for alerting) with a threshold. Emits an ERROR log line
+  when breached.
 
-fail-open: Redis/fs errors never break the request path.
+fail-open: fs errors never break the request path.
 """
 import json
 import logging
@@ -15,6 +16,10 @@ import time
 logger = logging.getLogger("cortexcloud.security")
 
 _AUDIT_PATH = os.environ.get("CORTEXCLOUD_AUDIT_LOG", "/var/log/cortexcloud/security.log")
+
+# ponytail: in-process alert windows; across N workers each keeps its own
+# counter (acceptable — alerts are advisory).
+_ALERTS: dict[tuple, list] = {}
 
 
 def audit(event: str, **fields) -> None:
@@ -35,20 +40,21 @@ def audit(event: str, **fields) -> None:
         logger.debug("audit write failed", exc_info=True)
 
 
-async def alert(client, bucket: str, window: int, threshold: int, event: str, **fields) -> bool:
-    """Increment a per-bucket counter in Redis; alert (log ERROR) when threshold
-    crossed within window seconds. Returns True when it just fired."""
+async def alert(bucket: str, window: int, threshold: int, event: str, **fields) -> bool:
+    """Counter within `window` seconds; ERROR-log when >= threshold once,
+    then reset. Returns True when the alert just fired."""
     try:
-        key = f"secalert:{bucket}"
-        n = await client.incr(key)
-        if n == 1:
-            await client.expire(key, window)
-        if n >= threshold:
-            rec = {"t": time.time(), "event": event, "bucket": bucket, "count": int(n)}
+        key = (bucket, int(time.time() // window))
+        _ALERTS.setdefault(key, []).append(time.time())
+        hits = [t for t in _ALERTS[key] if t > time.time() - window]
+        _ALERTS[key] = hits
+        if len(_ALERTS) > 5000:  # ponytail: cap the map, keys old windows die naturally
+            _ALERTS.pop(next(iter(_ALERTS)), None)
+        if len(hits) >= threshold:
+            rec = {"t": time.time(), "event": event, "bucket": bucket, "count": len(hits)}
             rec.update(fields)
             logger.error(json.dumps(rec, default=str))
-            # reset so repeated breaches re-alert in fresh windows
-            await client.delete(key)
+            _ALERTS[key] = []  # reset so fresh breaches re-alert
             return True
     except Exception:  # noqa: BLE001
         logger.debug("alert check failed", exc_info=True)

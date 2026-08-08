@@ -1,0 +1,214 @@
+{
+  "$schema": "https://api.cortexcloud.org/v1/examples",
+  "note": "Canonical agent examples. Every example: request JSON -> expected schema -> constraints -> response -> pricing. POST /v1/optimize is the only paid route (x402 USDC on Base); everything else is free.",
+  "pricing": {
+    "POST /v1/optimize": {
+      "classical": 0.02,
+      "hybrid": 0.1,
+      "quantum": 0.25,
+      "unit": "USD per job",
+      "settlement": "USDC on Base (eip155:8453) via x402"
+    },
+    "POST /v1/estimate": 0.0,
+    "GET /v1/backends": 0.0,
+    "GET /v1/capabilities": 0.0,
+    "GET /v1/jobs/{id}": 0.0
+  },
+  "examples": [
+    {
+      "id": "portfolio",
+      "problem_type": "qubo",
+      "description": "Mean-variance portfolio selection over n assets (x_i=1 -> hold asset i). Linear = -expected return, quadratic = covariance penalty.",
+      "constraints": "n <= 5000 (SA); exact enumeration only for n <= 18. QUBO form: linear[i] float, quadratic[\"i,j\"] float.",
+      "request": {
+        "problem_type": "qubo",
+        "n": 4,
+        "data": {
+          "linear": [
+            1.0,
+            -2.0,
+            3.0,
+            -4.0
+          ],
+          "quadratic": {
+            "0,1": -1.5,
+            "1,2": 0.5,
+            "2,3": -2.0
+          }
+        }
+      },
+      "expected_schema": "ProblemInput {problem_type: 'qubo'|'ising', n: 1..5000, data: {linear: number[], quadratic?: {string: number}}}",
+      "response_example": {
+        "recommendation": {
+          "mode": "classical",
+          "solver_id": "brute-force",
+          "estimated_price_usd": 0.02
+        },
+        "decision": {
+          "recommended": true,
+          "mode": "classical"
+        }
+      },
+      "pricing_behavior": "estimate free; optimize $0.02 (classical) -> 402 challenge -> pay USDC -> poll /v1/jobs/{id}"
+    },
+    {
+      "id": "assignment",
+      "problem_type": "qubo",
+      "description": "Quadratic assignment: n^2 binary variables (task,worker one-hot via quadratic penalties). Example is 3x3 = 9 variables.",
+      "constraints": "One-hot rows/cols must be encoded as quadratic penalties by the caller; the API validates structure, not problem feasibility.",
+      "request": {
+        "problem_type": "qubo",
+        "n": 9,
+        "data": {
+          "linear": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "quadratic": {
+            "0,1": -2.0,
+            "0,3": -2.0,
+            "1,2": -2.0,
+            "4,5": 1.0
+          }
+        }
+      },
+      "expected_schema": "Same ProblemInput; n = grid_x * grid_y.",
+      "response_example": {
+        "recommendation": {
+          "mode": "classical",
+          "solver_id": "brute-force",
+          "estimated_runtime_s": 0.02
+        }
+      },
+      "pricing_behavior": "n=9 -> brute-force exact, $0.02."
+    },
+    {
+      "id": "scheduling",
+      "problem_type": "qubo",
+      "description": "Single-machine job scheduling: binary x_{j,t} = job j at slot t; quadratic penalties for conflicts and setup costs.",
+      "constraints": "Time-indexed encoding grows as jobs x slots; keep n <= 18 for exact solvers.",
+      "request": {
+        "problem_type": "qubo",
+        "n": 6,
+        "data": {
+          "linear": [
+            0.5,
+            -1.0,
+            0.75,
+            -0.25,
+            1.0,
+            -0.5
+          ],
+          "quadratic": {
+            "0,1": 2.0,
+            "2,3": 2.0,
+            "4,5": 2.0
+          }
+        }
+      },
+      "expected_schema": "Same ProblemInput schema.",
+      "response_example": {
+        "recommendation": {
+          "mode": "classical",
+          "solver_id": "brute-force"
+        },
+        "evidence": {
+          "basis": "model"
+        }
+      },
+      "pricing_behavior": "estimate free; optimize $0.02 classical / $0.10 hybrid."
+    },
+    {
+      "id": "routing",
+      "problem_type": "qubo",
+      "description": "Tiny TSP/VRP as QUBO: x_{i,t} = visit city i at position t, quadratic edge-cost penalties; n = cities^2.",
+      "constraints": "cities^2 variables; 4 cities -> 16 vars (exact), 5+ cities -> annealing (heuristic).",
+      "request": {
+        "problem_type": "qubo",
+        "n": 16,
+        "data": {
+          "linear": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "quadratic": {
+            "0,1": -1.0,
+            "1,4": -1.0,
+            "4,5": -1.0
+          }
+        }
+      },
+      "expected_schema": "Same ProblemInput schema.",
+      "response_example": {
+        "recommendation": {
+          "mode": "classical",
+          "solver_id": "brute-force"
+        }
+      },
+      "pricing_behavior": "estimate free; optimize $0.02."
+    },
+    {
+      "id": "generic-qubo",
+      "problem_type": "qubo",
+      "description": "Any QUBO: minimize x^T Q x with x in {0,1}^n. Largest supported n = 5000 (SA).",
+      "constraints": "n <= 5000; quadratic keys must be 'i,j' with 0 <= i < j < n.",
+      "request": {
+        "problem_type": "qubo",
+        "n": 8,
+        "data": {
+          "linear": [
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0,
+            -1.0
+          ],
+          "quadratic": {
+            "0,1": 2.0,
+            "0,2": 2.0,
+            "1,3": 2.0,
+            "2,3": 2.0
+          }
+        }
+      },
+      "expected_schema": "Same ProblemInput schema.",
+      "response_example": {
+        "recommendation": {
+          "mode": "classical",
+          "solver_id": "brute-force"
+        }
+      },
+      "pricing_behavior": "estimate free; optimize $0.02 classical, $0.10 hybrid, $0.25 quantum (only when a quantum backend shows available=true; otherwise an honest error)."
+    }
+  ],
+  "when_not_to_use": [
+    "n > 5000 variables",
+    "Problems that are not QUBO/Ising (this is not a general MIP solver)",
+    "Guaranteed global optimum for n > 18 (classical exact only fits small instances; annealing is a heuristic)",
+    "quantum mode when /v1/backends shows no available=true quantum backend"
+  ]
+}

@@ -1,311 +1,68 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<meta name="color-scheme" content="light dark"/>
-<title>CortexCloud — The agent-native AI gateway</title>
-<meta name="description" content="OpenAI-compatible AI and data API for agents. Pay per call in USDC on Base via x402 — no API keys, no subscriptions, no lock-in."/>
-<meta name="robots" content="index, follow"/>
-<link rel="icon" href="/favicon.ico"/>
-<script>
-  /* theme before paint: stored pref, else system */
-  (function () {
-    try {
-      var t = localStorage.getItem("cc-theme");
-      if (t !== "dark" && t !== "light") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-      document.documentElement.dataset.theme = t;
-    } catch (e) {}
-  })();
-</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CortexCloud — Optimization Infrastructure for AI Agents</title>
+<meta name="description" content="Agents discover, pay for, and execute classical, hybrid, or quantum optimization through a single API. USDC via x402. No API keys, no subscriptions.">
+<meta property="og:title" content="CortexCloud — Optimization Network">
+<meta property="og:description" content="Discover, pay for, and execute classical, hybrid, or quantum optimization through a single API.">
 <style>
-  :root { color-scheme: light dark; }
-  :root[data-theme="light"] { color-scheme: light; }
-  :root[data-theme="dark"] { color-scheme: dark; }
-  :root[data-theme="light"] {
-    --bg: #ffffff; --bg-soft: #f8fafc; --fg: #0f172a; --muted: #64748b; --dim: #94a3b8;
-    --border: #e2e8f0; --border-strong: #cbd5e1; --card: #ffffff; --chip: #f1f5f9;
-    --accent: #2563eb; --accent-hover: #1d4ed8; --accent-soft: #dbeafe; --accent-border: #bfdbfe;
-    --hero: linear-gradient(180deg, #eff6ff 0%, #f8fafc 55%, #ffffff 100%);
-    --term-bg: #0b1220; --term-border: #1e293b; --term-fg: #cbd5e1; --term-dim: #64748b; --term-acc: #93c5fd; --term-ok: #34d399;
-    --nav-bg: rgba(255,255,255,.85); --shadow: 0 20px 50px -20px rgba(15,23,42,.45);
-  }
-  :root[data-theme="dark"] {
-    --bg: #0b1220; --bg-soft: #0f172a; --fg: #e2e8f0; --muted: #94a3b8; --dim: #64748b;
-    --border: #1e293b; --border-strong: #334155; --card: #0f172a; --chip: #1e293b;
-    --accent: #60a5fa; --accent-hover: #93c5fd; --accent-soft: rgba(37,99,235,.18); --accent-border: rgba(96,165,250,.35);
-    --hero: linear-gradient(180deg, #0d1526 0%, #0b1220 55%, #0b1220 100%);
-    --term-bg: #05080f; --term-border: #1e293b; --term-fg: #cbd5e1; --term-dim: #64748b; --term-acc: #93c5fd; --term-ok: #34d399;
-    --nav-bg: rgba(11,18,32,.85); --shadow: 0 20px 50px -20px rgba(0,0,0,.7);
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  body {
-    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    color: var(--fg); background: var(--bg); transition: background .2s, color .2s;
-  }
-  .wrap { max-width: 72rem; margin: 0 auto; padding: 0 1.5rem; }
-  a { color: var(--accent); text-decoration: none; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: #0a0e1a; color: #e8eaf2; line-height: 1.6; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 3rem 1.5rem; }
+  h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.02em; }
+  h2 { font-size: 1.3rem; margin: 2rem 0 0.75rem; font-weight: 700; }
+  .sub { color: #9aa5c0; font-size: 1.1rem; margin: 0.75rem 0 2rem; }
+  code { background: #16203a; border: 1px solid #243150; border-radius: 6px; padding: 0.15em 0.45em; font-size: 0.92em; }
+  pre { background: #0d1428; border: 1px solid #22304f; border-radius: 10px; padding: 1rem; overflow-x: auto; margin: 0.75rem 0; }
+  pre code { background: none; border: none; padding: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; }
+  th, td { text-align: left; padding: 0.6rem 0.8rem; border-bottom: 1px solid #1c2743; font-size: 0.95rem; }
+  th { color: #9aa5c0; font-weight: 600; }
+  a { color: #6ea8fe; text-decoration: none; }
   a:hover { text-decoration: underline; }
-  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-
-  /* Nav */
-  header { position: sticky; top: 0; z-index: 10; background: var(--nav-bg); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
-  nav { display: flex; align-items: center; gap: 1.5rem; height: 3.75rem; }
-  nav .brand { display: flex; align-items: center; gap: .5rem; font-weight: 700; color: var(--fg); }
-  nav .brand img { width: 26px; height: 26px; border-radius: .4rem; }
-  nav .links { display: flex; gap: 1.25rem; font-size: .92rem; }
-  nav .links a { color: var(--muted); }
-  nav .links a:hover { color: var(--fg); }
-  nav .right { margin-left: auto; display: flex; align-items: center; gap: .75rem; }
-  .btn { display: inline-block; background: var(--accent); color: #fff; font-weight: 600; font-size: .92rem; padding: .55rem 1.1rem; border-radius: .55rem; }
-  .btn:hover { background: var(--accent-hover); text-decoration: none; }
-  .btn.ghost { background: var(--card); color: var(--fg); border: 1px solid var(--border-strong); }
-  .btn.ghost:hover { border-color: var(--dim); }
-  .iconbtn { width: 2.25rem; height: 2.25rem; display: inline-flex; align-items: center; justify-content: center; border-radius: .55rem; border: 1px solid var(--border-strong); background: var(--card); color: var(--muted); font-size: 1rem; cursor: pointer; }
-  .iconbtn:hover { color: var(--fg); border-color: var(--dim); }
-  .iconbtn .moon { display: none; }
-  :root[data-theme="dark"] .iconbtn .sun { display: none; }
-  :root[data-theme="dark"] .iconbtn .moon { display: inline; }
-  #burger { display: none; }
-
-  /* Hero */
-  .hero { background: var(--hero); border-bottom: 1px solid var(--border); }
-  .hero .grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 3rem; align-items: center; padding: 5rem 0 5.5rem; }
-  .badge { display: inline-block; font-size: .78rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-border); padding: .3rem .8rem; border-radius: 999px; }
-  h1 { font-size: clamp(2.25rem, 5.5vw, 3.1rem); line-height: 1.08; letter-spacing: -0.02em; margin: 0 0 1rem; font-weight: 700; }
-  h1 .accent { background: linear-gradient(90deg, #d97706, #b45309); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .sub { color: var(--muted); font-size: 1.1rem; max-width: 34rem; }
-  .ctas { display: flex; gap: .75rem; margin: 1.75rem 0 2rem; flex-wrap: wrap; }
-  .pills { display: flex; gap: .5rem; flex-wrap: wrap; }
-  .pills span { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .78rem; color: var(--muted); background: var(--card); border: 1px solid var(--border); padding: .3rem .7rem; border-radius: 999px; }
-  .pills .lbl { font-family: inherit; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); border: 0; background: none; padding-right: 0; }
-
-  /* Terminal mock */
-  .term { background: var(--term-bg); border: 1px solid var(--term-border); border-radius: .9rem; box-shadow: var(--shadow); overflow: hidden; }
-  .term .bar { display: flex; align-items: center; gap: .4rem; padding: .7rem 1rem; border-bottom: 1px solid var(--term-border); }
-  .term .dot { width: .6rem; height: .6rem; border-radius: 50%; }
-  .term .bar .ttl { margin-left: .5rem; font-size: .78rem; color: var(--term-dim); font-family: ui-monospace, Menlo, Consolas, monospace; }
-  .term pre { padding: 1.1rem 1.2rem; font-size: .8rem; line-height: 1.7; color: var(--term-fg); overflow-x: auto; }
-  .term .dim { color: var(--term-dim); }
-  .term .ok { color: var(--term-ok); }
-  .term .acc { color: var(--term-acc); }
-
-  /* Sections */
-  section { padding: 4.5rem 0; }
-  section h2 { font-size: 1.7rem; letter-spacing: -0.01em; margin-bottom: .5rem; }
-  section .lead { color: var(--muted); max-width: 40rem; margin-bottom: 2.25rem; }
-
-  /* Pipeline */
-  .pipe { display: flex; align-items: stretch; }
-  .pipe .step { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: .9rem; padding: 1.25rem; position: relative; }
-  .pipe .step + .step { margin-left: 1.5rem; }
-  .pipe .step + .step::before { content: "→"; position: absolute; left: -1.35rem; top: 50%; transform: translateY(-50%); color: var(--accent); font-weight: 700; }
-  .pipe .num { font-size: .75rem; font-weight: 700; color: var(--accent); }
-  .pipe h3 { font-size: .98rem; margin: .35rem 0 .2rem; }
-  .pipe p { font-size: .82rem; color: var(--muted); }
-  .pipe .tag { display: inline-block; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .7rem; color: var(--muted); background: var(--chip); border: 1px solid var(--border); border-radius: 999px; padding: .15rem .55rem; margin-top: .6rem; }
-
-  /* Category grid */
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: .9rem; }
-  .card { border: 1px solid var(--border); border-radius: .9rem; padding: 1.15rem; transition: box-shadow .15s, border-color .15s; background: var(--card); }
-  .card:hover { border-color: var(--accent-border); box-shadow: 0 8px 24px -12px rgba(37,99,235,.25); }
-  .card .ic { font-size: 1.3rem; }
-  .card h3 { font-size: .95rem; margin: .5rem 0 .15rem; }
-  .card p { font-size: .8rem; color: var(--muted); }
-
-  /* Getting started */
-  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: .9rem; counter-reset: step; }
-  .stepcard { border: 1px solid var(--border); border-radius: .9rem; padding: 1.4rem; background: var(--card); }
-  .stepcard::before { counter-increment: step; content: "0" counter(step); font-size: .75rem; font-weight: 700; color: var(--accent); }
-  .stepcard h3 { font-size: 1rem; margin: .5rem 0 .35rem; }
-  .stepcard p { font-size: .88rem; color: var(--muted); }
-  .stepcard code { font-size: .8rem; color: var(--fg); background: var(--chip); border: 1px solid var(--border); border-radius: .4rem; padding: .1rem .4rem; word-break: break-all; }
-
-  footer { border-top: 1px solid var(--border); background: var(--bg-soft); padding: 3rem 0 2.5rem; }
-  .fcols { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 2rem; }
-  .fcols h4 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); margin-bottom: .8rem; }
-  .fcols ul { list-style: none; }
-  .fcols li { margin-bottom: .5rem; font-size: .9rem; }
-  .fcols li a { color: var(--muted); }
-  .fcols .bio { font-size: .9rem; color: var(--muted); max-width: 20rem; margin-top: .75rem; }
-  .fbot { margin-top: 2.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; color: var(--dim); font-size: .85rem; flex-wrap: wrap; gap: .5rem; }
-
-  /* Mobile */
-  @media (max-width: 900px) {
-    .hero .grid { grid-template-columns: 1fr; padding: 2.5rem 0 3.5rem; gap: 2rem; }
-    .pipe { flex-direction: column; gap: .75rem; }
-    .pipe .step + .step { margin-left: 0; }
-    .pipe .step + .step::before { content: "↓"; left: 50%; top: -1.05rem; transform: translateX(-50%); }
-    .steps { grid-template-columns: 1fr; }
-    .fcols { grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-    .fcols > div:first-child { grid-column: 1 / -1; }
-    .term pre { font-size: .72rem; padding: 1rem; }
-    #burger { display: inline-flex; }
-    nav .right .btn { display: none; }
-    nav .links {
-      display: none; position: absolute; top: 3.75rem; left: 0; right: 0;
-      flex-direction: column; gap: 0; background: var(--nav-bg); backdrop-filter: blur(8px);
-      border-bottom: 1px solid var(--border); padding: .5rem 0;
-    }
-    nav .links.open { display: flex; }
-    nav .links a { padding: .8rem 1.5rem; }
-  }
-  @media (max-width: 480px) {
-    .wrap { padding: 0 1rem; }
-    section { padding: 3rem 0; }
-    h1 { font-size: 2.25rem; }
-    .grid { grid-template-columns: 1fr 1fr; gap: .7rem; }
-    .card { padding: 1rem; }
-    .ctas .btn { flex: 1; text-align: center; }
-  }
+  .tag { display: inline-block; border-radius: 999px; padding: 0.15rem 0.7rem; font-size: 0.78rem; font-weight: 600; margin-right: 0.4rem; }
+  .free { background: #123524; color: #5fe08b; }
+  .paid { background: #3a2a10; color: #ffd166; }
 </style>
 </head>
 <body>
+<div class="wrap">
+  <h1>CortexCloud</h1>
+  <p class="sub">Optimization infrastructure for AI agents — discover, pay for, and execute <strong>classical, hybrid, or quantum</strong> optimization through a single API.</p>
 
-<header>
-  <nav class="wrap">
-    <a class="brand" href="/"><img src="/cortex-logo.png" alt="CortexCloud logo"/>CortexCloud</a>
-    <div class="links" id="navlinks">
-      <a href="#pipeline">How it works</a>
-      <a href="#apis">APIs</a>
-      <a href="#start">Get started</a>
-      <a href="/docs">Docs</a>
-      <a href="https://www.npmjs.com/package/@cortexcloud/mcp">MCP</a>
-    </div>
-    <div class="right">
-      <button class="iconbtn" id="theme-btn" aria-label="Toggle theme">
-        <span class="sun">☀️</span><span class="moon">🌙</span>
-      </button>
-      <button class="iconbtn" id="burger" aria-label="Menu" aria-expanded="false">☰</button>
-      <a class="btn" href="#start">Get Started</a>
-    </div>
-  </nav>
-</header>
+  <h2>How an agent uses it</h2>
+  <ol style="padding-left:1.3rem; margin:0.75rem 0;">
+    <li><strong>Discover</strong> — <code>/.well-known/x402.json</code>, <code>/.well-known/bazaar</code>, <code>/llms.txt</code>, <code>/openapi.json</code>, or the MCP gateway at <code>/x402/v1/mcp</code>.</li>
+    <li><strong>Estimate (free)</strong> — <code>POST /v1/estimate</code> returns the recommended mode, algorithm, backend, runtime, and price for your QUBO/Ising.</li>
+    <li><strong>Pay &amp; execute</strong> — <code>POST /v1/optimize</code> returns an x402 challenge (USDC on Base). Pay, then poll <code>GET /v1/jobs/{job_id}</code>.</li>
+  </ol>
+  <pre><code>curl -s https://api.cortexcloud.org/v1/estimate \
+  -H 'content-type: application/json' \
+  -d '{"problem_type":"qubo","n":4,"data":{"linear":[1,-2,3,-4],"quadratic":{"0,1":-1.5}}}'</code></pre>
 
-<section class="hero">
-  <div class="wrap grid">
-    <div>
-      <h1>One endpoint. Every model. <span class="accent">Pay per call in USDC.</span></h1>
-      <p class="sub">CortexCloud routes your agent to the best provider and settles on-chain via x402 — no API keys, no subscriptions, no lock-in.</p>
-      <div class="ctas">
-        <a class="btn" href="#start">Start building →</a>
-        <a class="btn ghost" href="/docs">Read the docs</a>
-      </div>
-      <div class="pills">
-        <span class="lbl">Connect over</span>
-        <span>MCP</span><span>OpenAI-compatible</span><span>x402</span><span>REST</span>
-      </div>
-    </div>
-    <div class="term">
-      <div class="bar">
-        <span class="dot" style="background:#f87171"></span>
-        <span class="dot" style="background:#fbbf24"></span>
-        <span class="dot" style="background:#34d399"></span>
-        <span class="ttl">cortexcloud — example flow</span>
-      </div>
-<pre><span class="dim">$</span> curl https://api.cortexcloud.org/x402/v1/chat/completions \
-<span class="dim">  -H</span> "content-type: application/json" <span class="dim">\</span>
-<span class="dim">  -d</span> '{"model":"gemini-2.0-flash","messages":[{"role":"user","content":"hi"}]}'
+  <h2>Surface</h2>
+  <table>
+    <tr><th>Endpoint</th><th>Cost</th><th></th></tr>
+    <tr><td><code>POST /v1/estimate</code></td><td><span class="tag free">FREE</span> analyze + recommend mode/backend/price</td><td></td></tr>
+    <tr><td><code>POST /v1/optimize</code></td><td><span class="tag paid">x402 USDC</span> solve, returns job_id</td><td></td></tr>
+    <tr><td><code>GET /v1/jobs/{id}</code></td><td><span class="tag free">FREE</span> poll result</td><td></td></tr>
+    <tr><td><code>GET /v1/backends</code>, <code>GET /v1/capabilities</code></td><td><span class="tag free">FREE</span> capability discovery</td><td></td></tr>
+    <tr><td><code>/x402/v1/mcp</code></td><td><span class="tag free">FREE*</span> 4 MCP tools (<code>cortex_optimize</code> is paid)</td><td></td></tr>
+  </table>
 
-<span class="acc">HTTP/2 402</span> Payment Required
-<span class="dim">  accepts: 0.005 USDC</span> <span class="dim">· eip155:8453 · payTo 0xab55...018008</span>
+  <h2>Pricing</h2>
+  <table>
+    <tr><th>Mode</th><th>Solver</th><th>Price</th></tr>
+    <tr><td>classical</td><td><code>brute-force</code> (exact, n&le;20) / <code>simulated-annealing</code></td><td>$0.02</td></tr>
+    <tr><td>hybrid</td><td><code>qaoa-local</code> (QAOA + classical outer loop)</td><td>$0.10</td></tr>
+    <tr><td>quantum</td><td><code>wukong</code> (Origin Quantum Wukong, Quafu cloud)</td><td>$0.25</td></tr>
+  </table>
+  <p style="color:#9aa5c0; font-size:0.9rem;">No API keys. No subscriptions. Pay exactly per call. Quantum is only recommended with benchmark evidence — never on marketing.</p>
 
-<span class="dim">→ agent signs payment authorization · facilitator settles</span>
-<span class="ok">✓ paid 0.005 USDC · request retried · 200 OK</span></pre>
-    </div>
-  </div>
-</section>
-
-<section id="pipeline">
-  <div class="wrap">
-    <h2>From request to settlement</h2>
-    <p class="lead">Every call flows through one gateway: routed to the best provider, executed, and settled on-chain when paid via x402.</p>
-    <div class="pipe">
-      <div class="step"><div class="num">01</div><h3>Agent</h3><p>Plain-language goal from any agent harness.</p><span class="tag">Claude Code · OpenClaw · MCP</span></div>
-      <div class="step"><div class="num">02</div><h3>Route</h3><p>OpenAI-compatible endpoint picks the model and provider.</p><span class="tag">chat_completions</span></div>
-      <div class="step"><div class="num">03</div><h3>Execute</h3><p>Chat, embeddings, search, images, voice, market data.</p><span class="tag">40+ models</span></div>
-      <div class="step"><div class="num">04</div><h3>Settle</h3><p>x402 challenge answered — USDC on Base, per call.</p><span class="tag">0.005 USDC</span></div>
-      <div class="step"><div class="num">05</div><h3>Receipt</h3><p>Payment verifiable on-chain, builder code attached.</p><span class="tag">bc_cortexcloud</span></div>
-    </div>
-  </div>
-</section>
-
-<section id="apis" style="background:var(--bg-soft); border-top:1px solid var(--border); border-bottom:1px solid var(--border);">
-  <div class="wrap">
-    <h2>What you can call</h2>
-    <p class="lead">Real endpoints, real prices. Full contract in <a href="/openapi.json">/openapi.json</a>.</p>
-    <div class="grid">
-      <div class="card"><div class="ic">💬</div><h3>Chat &amp; Responses</h3><p>OpenAI-compatible · $0.005/call</p></div>
-      <div class="card"><div class="ic">🧮</div><h3>Embeddings</h3><p>$0.001/call</p></div>
-      <div class="card"><div class="ic">🖼️</div><h3>Image generation</h3><p>Text + image-to-image · $0.04</p></div>
-      <div class="card"><div class="ic">🎙️</div><h3>Speech &amp; transcription</h3><p>TTS + Whisper · $0.02 / $0.015</p></div>
-      <div class="card"><div class="ic">🎬</div><h3>Video generation</h3><p>$0.20/clip</p></div>
-      <div class="card"><div class="ic">🔎</div><h3>Web search</h3><p>Exa search + contents · $0.03 / $0.02</p></div>
-      <div class="card"><div class="ic">📈</div><h3>Market data</h3><p>Prices, coins, DEX pairs · $0.005</p></div>
-      <div class="card"><div class="ic">⛓️</div><h3>Base on-chain</h3><p>Balance, token balance, nonce · $0.005</p></div>
-      <div class="card"><div class="ic">🏦</div><h3>DeFi data</h3><p>DeFiLlama chains, protocols, yields · $0.005</p></div>
-      <div class="card"><div class="ic">₿</div><h3>Crypto &amp; FX</h3><p>Prices, history, lists · $0.005–0.01</p></div>
-      <div class="card"><div class="ic">🔌</div><h3>RPC</h3><p>Ethereum JSON-RPC · $0.005</p></div>
-      <div class="card"><div class="ic">🗂️</div><h3>Models</h3><p>Model catalog · free</p></div>
-    </div>
-  </div>
-</section>
-
-<section id="start">
-  <div class="wrap">
-    <h2>Get started in minutes</h2>
-    <p class="lead">Bring your own wallet with a little USDC on Base — that's the only setup.</p>
-    <div class="steps">
-      <div class="stepcard">
-        <h3>Try it with curl</h3>
-        <p>Hit any endpoint — you get a 402 challenge, pay it, retry. <code>curl -i https://api.cortexcloud.org/x402/v1/data/prices</code></p>
-      </div>
-      <div class="stepcard">
-        <h3>Install the MCP server</h3>
-        <p>One line into Claude Code, Cursor, or any MCP client: <code>claude mcp add cortexcloud -s user -- npx -y @cortexcloud/mcp</code></p>
-      </div>
-      <div class="stepcard">
-        <h3>Read the spec</h3>
-        <p>Interactive docs at <a href="/docs">/docs</a>, machine-readable contract at <a href="/openapi.json">/openapi.json</a>.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<footer>
-  <div class="wrap">
-    <div class="fcols">
-      <div>
-        <a class="brand" href="/" style="font-weight:700; color:var(--fg); display:inline-flex; gap:.5rem; align-items:center;"><img src="/cortex-logo.png" alt="" style="width:26px;height:26px;border-radius:.4rem;"/>CortexCloud</a>
-        <p class="bio">The agent-native AI gateway. One endpoint, every model, pay per call in USDC on Base. Built on x402.</p>
-      </div>
-      <div><h4>Product</h4><ul><li><a href="#apis">APIs</a></li><li><a href="#pipeline">How it works</a></li><li><a href="https://www.x402scan.com">x402scan</a></li></ul></div>
-      <div><h4>Developers</h4><ul><li><a href="/docs">Docs</a></li><li><a href="/openapi.json">OpenAPI</a></li><li><a href="https://www.npmjs.com/package/@cortexcloud/mcp">MCP server</a></li></ul></div>
-      <div><h4>Payment</h4><ul><li>Base · USDC (6 decimals)</li><li><code style="font-size:.78rem; word-break:break-all;">0xab55b97638b202059eec3104c334dfc588018008</code></li><li>builder code <code>bc_cortexcloud</code></li></ul></div>
-    </div>
-    <div class="fbot">
-      <span>© 2026 CortexCloud</span>
-      <span>Agents pay. Autonomously.</span>
-    </div>
-  </div>
-</footer>
-
-<script>
-  /* theme toggle */
-  var btn = document.getElementById("theme-btn");
-  btn.addEventListener("click", function () {
-    var cur = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-    document.documentElement.dataset.theme = cur;
-    try { localStorage.setItem("cc-theme", cur); } catch (e) {}
-  });
-  /* mobile menu */
-  var burger = document.getElementById("burger"), links = document.getElementById("navlinks");
-  burger.addEventListener("click", function () {
-    var open = links.classList.toggle("open");
-    burger.setAttribute("aria-expanded", open);
-  });
-</script>
-
+  <h2>Links</h2>
+  <p><a href="/openapi.json">OpenAPI</a> · <a href="/.well-known/x402.json">x402 manifest</a> · <a href="/.well-known/bazaar">Bazaar doc</a> · <a href="/llms.txt">llms.txt</a> · <a href="/health">health</a></p>
+</div>
 </body>
 </html>

@@ -1,63 +1,48 @@
 """S3 + S6: public audit endpoints — /pubkey, /usage, /receipts.
 
-Receipts are stored as an append-only Redis LIST per payer (hash of address),
-RPUSHed by the x402 middleware on every settled payment. /usage aggregates and
-/receipts paginates that list. Fail-open: no records -> zeros, Redis down -> 503.
+Backed by the PostgreSQL x402_payments ledger (written by the x402
+middleware after every settled call). Usage aggregates per wallet;
+receipts paginate raw entries. Fail-open: no records -> zeros.
 """
-import json
-import hashlib
+from __future__ import annotations
+
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
+from sqlalchemy import desc, func, select
 
-from app.core.cache import get_redis
+from app.database.session import AsyncSessionLocal
+from app.models import Payment
 from app.x402.trust import get_pubkey_pem
 
-logger = None
-router = APIRouter()
-
-
-def _key(address: str) -> str:
-    return f"x402:rx:{hashlib.sha256(address.encode()).hexdigest()}"
-
-
-async def _records(address: str):
-    r = get_redis()
-    raw = await r.lrange(_key(address), 0, -1)
-    out = []
-    for item in raw:
-        try:
-            out.append(json.loads(item))
-        except Exception:
-            continue
-    return out
+router = APIRouter(prefix="/x402/v1", tags=["x402"])
 
 
 @router.get("/pubkey")
 async def get_pubkey():
-    """S6: public ECDSA P-256 key used to verify X-Cortex-Signature header."""
-    return JSONResponse({
-        "algorithm": "ECDSA_P-256_SHA256",
-        "public_key_pem": get_pubkey_pem(),
-    })
+    try:
+        return {"public_key_pem": get_pubkey_pem()}
+    except Exception as exc:
+        return JSONResponse(status_code=503, content={"error": "pubkey_unavailable", "detail": str(exc)})
 
 
 @router.get("/usage")
 async def usage(address: str = Query(...)):
-    """S3: per-wallet call count + total spend + per-endpoint breakdown (30d)."""
     try:
-        recs = await _records(address)
-        total = sum(int(r.get("payment_amount_atomic", 0)) for r in recs)
-        breakdown = {}
-        for r in recs:
-            ep = r.get("endpoint", "?")
-            breakdown[ep] = breakdown.get(ep, 0) + int(r.get("payment_amount_atomic", 0))
-        return JSONResponse({
+        async with AsyncSessionLocal() as db:
+            rows = (
+                await db.execute(
+                    select(Payment.endpoint, func.count(Payment.id), func.sum(Payment.amount_usd))
+                    .where(Payment.payer == address.lower())
+                    .group_by(Payment.endpoint)
+                )
+            ).all()
+        return {
             "address": address,
-            "call_count": len(recs),
-            "total_spend_atomic": str(total),
-            "total_spend_usdc": f"{total / 1_000_000:.6f}",
-            "breakdown": {k: str(v) for k, v in breakdown.items()},
-        })
+            "usage": [
+                {"endpoint": ep, "calls": int(cnt), "total_usd": float(total or 0.0)}
+                for ep, cnt, total in rows
+            ],
+        }
     except Exception as exc:
         return JSONResponse(status_code=503, content={"error": "usage_store_unavailable", "detail": str(exc)})
 
@@ -65,18 +50,32 @@ async def usage(address: str = Query(...)):
 @router.get("/receipts")
 async def receipts(
     address: str = Query(...),
-    cursor: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=500),
+    limit: int = Query(25, ge=1, le=200),
+    offset: int = Query(0, ge=0),
 ):
-    """S6: paginated append-only receipt history for a wallet address."""
     try:
-        recs = await _records(address)
-        page = recs[cursor:cursor + limit]
-        return JSONResponse({
-            "address": address,
-            "count": len(page),
-            "next_cursor": cursor + len(page) if cursor + len(page) < len(recs) else None,
-            "receipts": page,
-        })
+        async with AsyncSessionLocal() as db:
+            rows = (
+                await db.execute(
+                    select(Payment)
+                    .where(Payment.payer == address.lower())
+                    .order_by(desc(Payment.occurred_at))
+                    .limit(limit)
+                    .offset(offset)
+                )
+            ).scalars().all()
+        receipts_out = [
+            {
+                "ts": r.occurred_at.isoformat() if r.occurred_at else None,
+                "endpoint": r.endpoint,
+                "amount_usd": float(r.amount_usd),
+                "amount_atomic_usdc": r.amount_atomic,
+                "mode": r.mode,
+                "n_vars": r.n_vars,
+                "nonce": r.nonce,
+            }
+            for r in rows
+        ]
+        return {"receipts": receipts_out, "count": len(receipts_out), "limit": limit, "offset": offset}
     except Exception as exc:
         return JSONResponse(status_code=503, content={"error": "receipts_store_unavailable", "detail": str(exc)})
