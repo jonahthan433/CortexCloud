@@ -58,6 +58,14 @@ class Settings(BaseSettings):
     X402_RATE_LIMIT: int = Field(default=60, env="X402_RATE_LIMIT")
     X402_RESOURCE_BASE: str = Field(default="https://api.cortexcloud.org", env="X402_RESOURCE_BASE")
 
+    # MPP (Machine Payments Protocol) — Tempo settlement via pympp.
+    # Recipient is WALLET_ADDRESS; NO operator private key is stored
+    # server-side (pympp verifies on-chain via RPC; clients pay own gas).
+    MPP_ENABLED: bool = Field(default=False, env="MPP_ENABLED")
+    MPP_REALM: str = Field(default="api.cortexcloud.org", env="MPP_REALM")
+    MPP_SECRET_KEY: Optional[str] = Field(default=None, env="MPP_SECRET_KEY")
+    MPP_STORE_PATH: str = Field(default="mpp-store.sqlite", env="MPP_STORE_PATH")
+
     # Optimization engine
     MAX_OPTIMIZE_VARS: int = Field(default=5000, env="MAX_OPTIMIZE_VARS")
     QAOA_LOCAL_MAX_N: int = Field(default=12, env="QAOA_LOCAL_MAX_N")

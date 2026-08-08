@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.core.config import settings  # noqa: E402
 from app.main import create_app  # noqa: E402
-from app.middleware.x402 import INPUT_SCHEMAS  # noqa: E402
+from app.middleware.x402 import INPUT_SCHEMAS, TEMPO_USDC  # noqa: E402
 from app.x402.pricing import ROUTE_PRICING  # noqa: E402
 
 SPEC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "openapi.json")
@@ -73,7 +73,10 @@ for path, methods in spec.get("paths", {}).items():
             op["x-payment-info"] = {
                 # AgentCash / IETF canonical shape
                 "price": {"mode": "fixed", "currency": "USD", "amount": amount},
-                "protocols": [{"x402": {}}],
+                "protocols": [
+                    {"x402": {}},
+                    {"mpp": {"method": "tempo", "intent": "charge", "currency": TEMPO_USDC}},
+                ],
                 # legacy x402scan compat (kept alongside canonical keys)
                 "scheme": "x402",
                 "network": settings.X402_NETWORK,

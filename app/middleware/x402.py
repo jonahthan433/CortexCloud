@@ -97,6 +97,85 @@ _PATH_DESCRIPTIONS = {
 # USDC on Base mainnet (canonical contract, 6 decimals).
 USDC_ON_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
 
+# ---- MPP (Machine Payments Protocol) via pympp (official Python SDK) ----
+# Server side needs NO private key: pympp verifies credentials on-chain via
+# Tempo RPC; recipient is our public WALLET_ADDRESS. MPP_SECRET_KEY is the
+# HMAC secret for stateless challenge IDs (persist across restarts).
+try:
+    from mpp import Challenge as _MppChallenge
+    from mpp.server import Mpp as _Mpp
+    from mpp.methods.tempo import ChargeIntent as _ChargeIntent, tempo as _tempo
+    from mpp.stores.sqlite import SQLiteStore as _SQLiteStore
+    _MPP_AVAILABLE = True
+except Exception:
+    _MPP_AVAILABLE = False
+
+# Tempo USDC (TIP-20, chain 4217) — canonical address from pympp defaults.
+TEMPO_USDC = "0x20C000000000000000000000b9537d11c60E8b50"
+
+_mpp_instance = None
+_mpp_init_attempted = False
+
+
+async def _get_mpp():
+    """Lazily build the Mpp server singleton. None when disabled/unconfigured."""
+    global _mpp_instance, _mpp_init_attempted
+    if _mpp_init_attempted:
+        return _mpp_instance
+    _mpp_init_attempted = True
+    if not (_MPP_AVAILABLE and settings.MPP_ENABLED and settings.MPP_SECRET_KEY and settings.WALLET_ADDRESS):
+        return None
+    try:
+        store = await _SQLiteStore.create(settings.MPP_STORE_PATH)
+        _mpp_instance = _Mpp.create(
+            method=_tempo(
+                currency=TEMPO_USDC,
+                intents={"charge": _ChargeIntent()},
+                recipient=settings.WALLET_ADDRESS,
+            ),
+            realm=settings.MPP_REALM,
+            secret_key=settings.MPP_SECRET_KEY,
+            store=store,
+        )
+        logger.info(f"MPP enabled: realm={settings.MPP_REALM} recipient={settings.WALLET_ADDRESS}")
+    except Exception as e:
+        logger.error(f"MPP init failed (MPP disabled): {e}")
+        _mpp_instance = None
+    return _mpp_instance
+
+
+async def _record_payment(path: str, payer: str, amount_atomic: int, body_str: str | None, nonce: str | None = None) -> None:
+    """Record a settled payment in PostgreSQL. Telemetry never blocks a payment."""
+    try:
+        if not payer:
+            return
+        from app.database.session import AsyncSessionLocal
+        from app.models import Payment
+
+        mode = n_vars = None
+        try:
+            _b = json.loads(body_str or "{}")
+            mode = _b.get("mode")
+            n_vars = (_b.get("problem") or {}).get("n")
+        except Exception:
+            pass
+        async with AsyncSessionLocal() as _db:
+            _db.add(
+                Payment(
+                    endpoint=path,
+                    payer=payer,
+                    amount_atomic=int(amount_atomic),
+                    amount_usd=int(amount_atomic) / 1_000_000,
+                    mode=mode,
+                    n_vars=n_vars,
+                    nonce=nonce,
+                    status="settled",
+                )
+            )
+            await _db.commit()
+    except Exception:
+        pass
+
 # GET routes take query params instead of a JSON body.
 # The only paid route is POST /v1/optimize (body), so this stays empty.
 QUERY_ROUTES: set[str] = set()
@@ -186,10 +265,12 @@ class X402Middleware(BaseHTTPMiddleware):
         # once and cached on the request — downstream routes reuse it.
         # Do NOT re-inject request._receive here (starlette 1.x state
         # machine rejects a second http.request; see SSE comment below).
+        body_str = None
         if method == "POST" and path == "/v1/optimize":
             try:
                 body = await request.body()
                 data = json.loads(body) if body else {}
+                body_str = body.decode("utf-8", errors="replace") if body else None
                 price_str = price_for_mode((data.get("mode") or "auto"))
             except (json.JSONDecodeError, AttributeError, TypeError) as e:
                 logger.warning(f"Failed to parse request body for dynamic pricing: {e}")
@@ -200,8 +281,46 @@ class X402Middleware(BaseHTTPMiddleware):
         payment_signature = request.headers.get("payment-signature")
         x_payment = request.headers.get("x-payment")
         x_correlation_id = request.headers.get("x-correlation-id")
+        mpp = await _get_mpp()
+        authorization = request.headers.get("authorization")
 
         if not payment_signature:
+            if mpp and authorization:
+                # MPP credential path: client answered a challenge with
+                # `Authorization: <credential>`. pympp verifies on-chain.
+                try:
+                    result = await mpp.charge(
+                        authorization=authorization, amount=price_str.lstrip("$")
+                    )
+                except Exception as e:
+                    logger.warning(f"MPP charge error: {e}")
+                    return JSONResponse(
+                        status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                        content={"error": "Payment verification failed", "details": str(e)},
+                    )
+                if isinstance(result, _MppChallenge):
+                    return JSONResponse(
+                        status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                        content={"error": "Payment required"},
+                        headers={
+                            "WWW-Authenticate": result.to_www_authenticate(mpp.realm),
+                            "x-payment-protocol": "mpp",
+                        },
+                    )
+                credential, receipt = result
+                payer = getattr(credential, "source", None) or ""
+                request.state.x402_payer = payer
+                request.state.x402_start = time.perf_counter()
+                await _record_payment(path, payer, int(required), body_str)
+                limited = await _rate_limit(request)
+                if limited:
+                    return limited
+                response = await call_next(request)
+                success_payload = json.dumps({"success": True, "details": {"protocol": "mpp"}})
+                response.headers["X-PAYMENT-RESPONSE"] = base64.b64encode(success_payload.encode()).decode()
+                _log_request(request, response, request.state.x402_start)
+                return response
+
             # x402 v2 PaymentRequirements challenge (validated by x402scan's
             # validatePaymentRequiredDetailed: x402Version, accepts[] fields,
             # resource object, bazaar input schema all mandatory).
@@ -264,22 +383,27 @@ class X402Middleware(BaseHTTPMiddleware):
                     }
                 },
             }
+            _headers = {
+                "Accept": "application/json",
+                # x402 v2 contract = JSON body + payment-required header.
+                # x-payment-protocol keeps protocol detection honest when MPP
+                # is also advertised.
+                "x-payment-protocol": "x402, mpp" if mpp else "x402",
+                # @agentcash/discovery parses v2 challenges ONLY from this
+                # base64 header; its body parser is v1-only. Without it the
+                # probe drops the challenge -> "No valid x402 response found".
+                "payment-required": base64.b64encode(json.dumps(challenge).encode()).decode(),
+            }
+            if mpp:
+                try:
+                    ch = await mpp.charge(authorization=None, amount=price_str.lstrip("$"))
+                    _headers["WWW-Authenticate"] = ch.to_www_authenticate(mpp.realm)
+                except Exception as e:
+                    logger.warning(f"MPP challenge generation failed: {e}")
             return JSONResponse(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
                 content=challenge,
-                headers={
-                    "Accept": "application/json",
-                    # x402 v2 contract = JSON body + payment-required header.
-                    # A WWW-Authenticate header without an MPP `Payment ...`
-                    # challenge trips the audit's unconditional MPP check
-                    # ("WWW-Authenticate header contains no Payment challenges").
-                    # x-payment-protocol keeps protocol detection at ["x402"].
-                    "x-payment-protocol": "x402",
-                    # @agentcash/discovery parses v2 challenges ONLY from this
-                    # base64 header; its body parser is v1-only. Without it the
-                    # probe drops the challenge -> "No valid x402 response found".
-                    "payment-required": base64.b64encode(json.dumps(challenge).encode()).decode(),
-                },
+                headers=_headers,
             )
 
         # Payment headers present, verify and settle via CDP facilitator
@@ -442,36 +566,8 @@ class X402Middleware(BaseHTTPMiddleware):
 
         # Record the settled payment in PostgreSQL (jobs/payments ledger).
         # Telemetry never blocks a settled payment.
-        try:
-            _payer = getattr(request.state, "x402_payer", None) or (_sig_payload.get("payload") or {}).get("authorization", {}).get("from", "")
-            if _payer:
-                from app.database.session import AsyncSessionLocal
-                from app.models import Payment
-
-                mode = None
-                n_vars = None
-                try:
-                    _b = json.loads(request.state.x402_body or "{}")
-                    mode = _b.get("mode")
-                    n_vars = (_b.get("problem") or {}).get("n")
-                except Exception:
-                    pass
-                async with AsyncSessionLocal() as _db:
-                    _db.add(
-                        Payment(
-                            endpoint=path,
-                            payer=_payer,
-                            amount_atomic=int(required),
-                            amount_usd=int(required) / 1_000_000,
-                            mode=mode,
-                            n_vars=n_vars,
-                            nonce=_auth0.get("nonce"),
-                            status="settled",
-                        )
-                    )
-                    await _db.commit()
-        except Exception:
-            pass
+        _payer = getattr(request.state, "x402_payer", None) or (_sig_payload.get("payload") or {}).get("authorization", {}).get("from", "")
+        await _record_payment(path, _payer, int(required), request.state.x402_body, _auth0.get("nonce"))
     
         # Payment verified and settled, proceed to request
         limited = await _rate_limit(request)

@@ -65,6 +65,13 @@
           "protocols": [
             {
               "x402": {}
+            },
+            {
+              "mpp": {
+                "method": "tempo",
+                "intent": "charge",
+                "currency": "0x20C000000000000000000000b9537d11c60E8b50"
+              }
             }
           ],
           "scheme": "x402",
