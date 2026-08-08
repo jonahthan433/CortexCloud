@@ -18,6 +18,7 @@ locally from the sampled bitstring. All costs are model estimates
 """
 from __future__ import annotations
 
+import json
 import logging
 import time
 from typing import Any
@@ -25,6 +26,11 @@ from typing import Any
 from app.core.config import settings
 from app.solvers.base import Estimate, SolveResult, SolverAvailability, SolverSpec
 from app.solvers.quantum.base import QuantumBackend
+from app.x402.pricing import MODE_PRICE_USD
+
+# Shots for every QPU run. Single constant so preflight logging and the
+# submission call can never drift apart.
+BRAKET_SHOTS = 1024
 
 # Provider -> model figures. NONE of these are advertised as measured:
 # they only feed relative cost-aware routing until live execution
@@ -152,6 +158,38 @@ class BraketBackend(QuantumBackend):
             runtime_s=self._cfg["runtime_s"], price_usd=self._cfg["price_usd"], basis="model"
         )
 
+    # -- preflight ---------------------------------------------------
+    def _preflight_cost(self, qubo, n: int) -> str | None:
+        """Refusal reason, or None when safe to submit. Called immediately
+        before CreateQuantumTask: refuse unless the provider cost is known,
+        positive, finite, and within QUANTUM_MAX_COST_USD."""
+        est = self.estimate(qubo, n)
+        try:
+            cost = float(est.price_usd)
+        except (TypeError, ValueError):
+            return "quantum preflight failed: provider cost unavailable"
+        if cost != cost or cost <= 0:  # NaN or non-positive => not confidently known
+            return "quantum preflight failed: provider cost not confidently determined"
+        if cost > settings.QUANTUM_MAX_COST_USD:
+            return (
+                f"quantum preflight failed: estimated provider cost ${cost:.2f} "
+                f"> QUANTUM_MAX_COST_USD ${settings.QUANTUM_MAX_COST_USD:.2f}"
+            )
+        return None
+
+    def _log_preflight(self, n: int, cost: float, device_arn: str) -> None:
+        """One structured line per real submission attempt. Never logs
+        credentials or request bodies — cost/billing fields only."""
+        self._log.info(json.dumps({
+            "event": "quantum.preflight",
+            "provider": self.provider,
+            "backend": self.spec.id,
+            "device_arn": device_arn,
+            "shots": BRAKET_SHOTS,
+            "estimated_provider_cost_usd": round(cost, 4),
+            "cortexcloud_price_usd": MODE_PRICE_USD.get("quantum"),
+        }))
+
     # -- execution ---------------------------------------------------
     def solve(self, qubo, n: int, timeout_s: float = 300.0) -> SolveResult:
         t0 = time.time()
@@ -184,7 +222,17 @@ class BraketBackend(QuantumBackend):
             for i, h in enumerate(qubo.get("linear") or []):
                 circ.rz(2.0 * float(h) * gamma, i)
             circ.rx(2.0 * beta, range(n))
-            task = dev.run(circ, shots=1024)
+            # Preflight cost gate: refuse submission unless the provider cost
+            # is known, positive, and within QUANTUM_MAX_COST_USD — checked
+            # HERE, immediately before CreateQuantumTask (defense in depth on
+            # top of the runner-level cap). Log the billing facts first.
+            est = self.estimate(qubo, n)
+            preflight = self._preflight_cost(qubo, n)
+            if preflight:
+                self._log.warning("%s (device %s)", preflight, arn)
+                return SolveResult(status="failed", error=preflight)
+            self._log_preflight(n, float(est.price_usd), arn)
+            task = dev.run(circ, shots=BRAKET_SHOTS)
             counts = task.result().measurement_counts
             bits = max(counts, key=counts.get) if counts else ("0" * n)
             x = [int(c) for c in bits]
