@@ -47,7 +47,7 @@ def aws_creds(monkeypatch):
 @pytest.fixture
 def braket_discovery(monkeypatch):
     class FakeClient:
-        def get_devices(self, filters=None):
+        def search_devices(self, filters=None):
             return {"devices": _device()}
 
     monkeypatch.setattr(braket, "_new_client", lambda region: FakeClient())
@@ -91,7 +91,7 @@ def test_braket_available_after_discovery(aws_creds, braket_discovery):
 
 def test_braket_no_online_devices(aws_creds, monkeypatch):
     class Empty:
-        def get_devices(self, filters=None):
+        def search_devices(self, filters=None):
             return {"devices": []}
 
     monkeypatch.setattr(braket, "_new_client", lambda region: Empty())

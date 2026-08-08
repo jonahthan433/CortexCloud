@@ -113,14 +113,18 @@ class BraketBackend(QuantumBackend):
             devices: list[dict] = []
             for region in self._regions():
                 client = _new_client(region)
-                resp = client.get_devices(
-                    filters=[
-                        {"name": "providerName", "values": [self._cfg["aws_name"]]},
-                        {"name": "deviceStatus", "values": ["ONLINE"]},
-                    ]
-                )
+                # SearchDevices only supports the deviceArn filter (and the
+                # key itself is required) — pass empty filters, filter
+                # provider/status client-side (matches the SDK's own pattern).
+                resp = client.search_devices(filters=[])
+                # ponytail: no nextToken pagination (Braket lists ~15 devices);
+                # add a loop when device counts grow.
                 for d in resp.get("devices", []):
-                    if d.get("deviceType") == "QPU":
+                    if (
+                        d.get("deviceType") == "QPU"
+                        and d.get("deviceStatus") == "ONLINE"
+                        and d.get("providerName") == self._cfg["aws_name"]
+                    ):
                         devices.append(d)
             self._devices, self._error = devices, None
         except ImportError as exc:
