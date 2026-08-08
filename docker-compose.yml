@@ -8,7 +8,7 @@ services:
     network_mode: host
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: a375954df141f6c2e29e2232b1b27d9b2d228f9c178a6ea6
       POSTGRES_DB: cortexcloud
     volumes:
       - postgres_data:/var/lib/postgresql/data
