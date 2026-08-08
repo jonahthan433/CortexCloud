@@ -139,11 +139,11 @@ GET /v1/examples (free).
 
 ## Discovery
 
-- MCP server (stdio + Streamable HTTP): /x402/v1/mcp
-- Payment manifest: /.well-known/x402.json
-- Bazaar discovery: /.well-known/bazaar
-- OpenAPI: /openapi.json
-- Agent examples: /v1/examples
+- MCP server (Streamable HTTP): https://api.cortexcloud.org/mcp
+- Payment manifest (x402): https://api.cortexcloud.org/.well-known/x402.json
+- Bazaar discovery: https://api.cortexcloud.org/.well-known/bazaar
+- OpenAPI: https://api.cortexcloud.org/openapi.json
+- Agent examples: https://api.cortexcloud.org/v1/examples
 
 ## Honesty
 
