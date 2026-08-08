@@ -59,6 +59,12 @@ async def well_known_x402():
     return build_manifest()
 
 
+@router.get("/.well-known/x402", tags=["x402 Discovery"])
+async def well_known_x402_bare():
+    """Same manifest at the extensionless path some x402 discovery tools probe."""
+    return build_manifest()
+
+
 @router.get("/.well-known/agentsearch.txt", tags=["x402 Discovery"])
 async def agentsearch_txt():
     """Agent-search discovery file (agentsearch.txt convention): what this
