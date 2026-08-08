@@ -60,9 +60,20 @@ async def well_known_x402():
 
 
 @router.get("/.well-known/x402", tags=["x402 Discovery"])
-async def well_known_x402_bare():
-    """Same manifest at the extensionless path some x402 discovery tools probe."""
-    return build_manifest()
+async def well_known_x402_v1():
+    """v1 discovery document (resource URL list) — the shape x402scan-mcp and
+    other v1 discovery tools parse. The rich v2 manifest stays at x402.json."""
+    return {
+        "version": 1,
+        "resources": [
+            "https://api.cortexcloud.org/v1/optimize",
+            "https://api.cortexcloud.org/v1/estimate",
+            "https://api.cortexcloud.org/v1/backends",
+            "https://api.cortexcloud.org/v1/capabilities",
+            "https://api.cortexcloud.org/v1/examples",
+        ],
+        "instructions": "Pay-per-call QUBO/Ising optimization via x402 (USDC on Base eip155:8453). Full pricing: https://api.cortexcloud.org/v1/capabilities; rich manifest: https://api.cortexcloud.org/.well-known/x402.json; agent docs: https://api.cortexcloud.org/llms.txt.",
+    }
 
 
 @router.get("/.well-known/agentsearch.txt", tags=["x402 Discovery"])
