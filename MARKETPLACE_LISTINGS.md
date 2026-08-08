@@ -1,78 +1,111 @@
-# MARKETPLACE_LISTINGS.md — Agent/API Marketplace Audit & Listing Kit
+# MARKETPLACE_LISTINGS.md — Submission Kit & Status Tracker
 
-Audit date: 2026-08-08. Goal: get CortexCloud listed where AUTONOMOUS AGENTS can
-discover it and call the paid optimization API directly (x402 USDC-on-Base or MCP).
-Nothing here is submitted; every item needing credentials/approval is marked
-`ACTION: JONATHAN`. Canonical facts (endpoints, prices) come from the live API —
-refresh via `scripts/update_state.py` output if prices change.
+Audit: 2026-08-08. Distribution phase active. Source of truth for all listing
+metadata. Nothing requiring Jonathan's credentials/approval has been submitted;
+every item is either LIVE, PREPARED (needs him), or BLOCKED. Statuses updated
+as submissions land.
 
-## Canonical listing facts (use everywhere)
+## Canonical listing facts
 
-- Base URL / paid route: `POST https://api.cortexcloud.org/v1/optimize` (x402)
-- Free: `POST /v1/estimate` · `GET /v1/jobs/{id}` · `GET /v1/backends` · `GET /v1/capabilities` · `GET /v1/examples`
-- Prices (USDC on Base, eip155:8453, 6 decimals): classical $0.05 (50000) · hybrid $0.10 (100000) · quantum $0.85 (850000)
-- Payee: `0x5a0353bc9c75b893a9b5735d3e79f1bd988ea143` (primary; challenge `accepts` advertises wallets)
-- MCP: `https://api.cortexcloud.org/mcp` (Streamable HTTP + stdio; 4 tools; v0.4.0) — tools wrap the REST surface 1:1 and pay x402 automatically
+- Base / paid: `POST https://api.cortexcloud.org/v1/optimize` (x402) · Free: `/v1/estimate`, `/v1/jobs/{id}`, `/v1/backends`, `/v1/capabilities`, `/v1/examples`
+- Prices (USDC on Base, eip155:8453, 6-dec): classical $0.05 (50000) · hybrid $0.10 (100000) · quantum $0.85 (850000) · payee `0x5a0353bc9c75b893a9b5735d3e79f1bd988ea143`
+- MCP: `https://api.cortexcloud.org/mcp` (Streamable HTTP; 4 tools; v0.4.0) — verified reachable publicly (HTTP 200), `/openapi.json` and `/.well-known/agentsearch.txt` also 200. No production API changes required for listings.
 - Discovery: `/llms.txt` · `/.well-known/x402.json` · `/.well-known/bazaar` · `/.well-known/agentsearch.txt` · `/openapi.json`
-- Repo: https://github.com/jonahthan433/CortexCloudAPI (public, for registry review)
 
-### Canonical description
-- Short (~120 chars): `Pay-per-call QUBO/Ising optimization API for AI agents. Estimate free, solve per run via x402 (USDC on Base). $0.05-$0.85/run, no API keys.`
-- Long (directories/forms):
-  `CortexCloud Optimization Network — pay-per-call QUBO/Ising optimization for autonomous agents. Estimate for free (decision block: mode, backend, provider cost, price), then solve per run: classical $0.05, hybrid $0.10, quantum $0.85, paid via x402 in USDC on Base (no API keys, no signup). Quantum QPU execution (Rigetti via Amazon Braket) is opt-in and only recommended with benchmark evidence. MCP server at /mcp (cortex_estimate_optimization, cortex_optimize, cortex_get_job, cortex_list_backends).`
+### Descriptions (reuse everywhere)
+- Short: `Pay-per-call QUBO/Ising optimization API for AI agents. Estimate free, solve per run via x402 (USDC on Base). $0.05-$0.85/run, no API keys.`
+- Long: `CortexCloud Optimization Network — pay-per-call QUBO/Ising optimization for autonomous agents. Estimate for free (decision block: mode, backend, provider cost, price), then solve per run: classical $0.05, hybrid $0.10, quantum $0.85, paid via x402 in USDC on Base (no API keys, no signup). Quantum QPU execution (Rigetti via Amazon Braket) is opt-in and only recommended with benchmark evidence. MCP server at /mcp (cortex_estimate_optimization, cortex_optimize, cortex_get_job, cortex_list_backends).`
 
-## Tier 1 — x402-native marketplaces (agents pay per call directly) — DONE / VERIFY
+## Submission tracker
 
-| Platform | URL | Status | Action |
-|---|---|---|---|
-| x402scan | x402scan.app | ✅ REGISTERED (14 resources) | Verify quantum price shows $0.85/850000; refresh if stale |
-| mppscan | mppscan (Merit) | ✅ REGISTERED | Verify as above |
-| Poncho AI | tryponcho.com/m/api.cortexcloud.org | ✅ REGISTERED | Verify |
-| AgentCash directory | agentcash.dev/apis | ⚠️ AUTO (feeds from x402scan+mppscan) | Search "CortexCloud" in the directory; if absent, re-check scan entries (category/summary fields drive it) |
+| # | Platform | Status | Listing URL | Date | Needs |
+|---|---|---|---|---|---|
+| 0a | x402scan | ✅ LIVE | x402scan.com → search `api.cortexcloud.org` (14 resources) | 2026-07 | none |
+| 0b | mppscan | ✅ LIVE | mppscan.com → search `api.cortexcloud.org` | 2026-07 | none |
+| 0c | Poncho AI | ✅ LIVE | https://tryponcho.com/m/api.cortexcloud.org | 2026-07 | none (HTTP 200 verified 08-08) |
+| 0d | AgentCash dir | ⚠️ AUTO | agentcash.dev/apis (fed by x402scan/mppscan) | — | verify presence |
+| 1 | Smithery | 🧰 PREPARED | smithery.ai/server/cortexcloud/cortexcloud (est.) | — | Jonathan: login + `smithery mcp publish` |
+| 2 | Glama | 🧰 PREPARED | glama.ai/mcp/servers/… (est.) | — | Jonathan: account + submit URL |
+| 3 | mcp.so | 🧰 PREPARED | mcp.so/servers/cortexcloud (est.) | — | Jonathan: submit form |
+| 4 | PulseMCP | 🧰 PREPARED | pulsemcp.com (est.) | — | Jonathan: submit form |
+| 5 | awesome-mcp-servers | 🧰 PREPARED | PR to punkpeye/awesome-mcp-servers | — | Jonathan: approve/`gh pr create` |
+| 6 | apis.guru | 🧰 PREPARED | PR to APIs-guru/openapi-directory | — | Jonathan: approve/`gh pr create` |
+| 7 | Official MCP Registry | ⛔ BLOCKED | registry.modelcontextprotocol.io | — | npm passkey publish (Lenovo/iPhone) + registry GitHub auth |
 
-Note: AgentCash's directory is populated from x402scan/mppscan listings, so the
-highest-leverage single action is keeping the two scan entries accurate
-(category = optimization, summary with prices). Agents with AgentCash wallets
-can already call the API today.
+## Kit 1 — Smithery
+```bash
+npm i -g @smithery/cli
+smithery login          # GitHub OAuth (Jonathan)
+smithery mcp publish https://api.cortexcloud.org/mcp -n cortexcloud/cortexcloud
+# metadata prompts: description = short desc above; categories: optimization; tags: x402, qubo, ising, usdc, quantum
+```
+Verify after publish: `https://smithery.ai/server/cortexcloud/cortexcloud`.
 
-## Tier 2 — MCP directories (agents install the MCP server; x402 pays inside tools)
+## Kit 2 — Glama (glama.ai/mcp)
+1. Create account (GitHub OAuth) → glama.ai/mcp/servers → "Submit server".
+2. Server URL: `https://api.cortexcloud.org/mcp` (remote HTTP — Glama probes it).
+3. Name `CortexCloud` · description = short · category `optimization`.
+Verify: `https://glama.ai/mcp/servers/cortexcloud-cortexcloud` (or search "cortexcloud").
+Note: Glama also indexes from the official registry once live (metaregistry).
 
-| Platform | Submission | Cost | Needs | Priority |
-|---|---|---|---|---|
-| smithery.ai | `smithery mcp publish https://api.cortexcloud.org/mcp -n cortexcloud/cortexcloud` (CLI or web) | free | GitHub account (Jonathan) | 1 |
-| glama.ai/mcp | Submit server URL at glama.ai (has a submit tool); metaregistry, ~21k servers, daily index | free | account | 2 |
-| mcp.so | https://mcp.so/submit (name, URL, description, category) | free | none sensitive; still a public submit | 3 |
-| PulseMCP | pulse.mcp.so submit form | free | account | 4 |
-| awesome-mcp-servers (punkpeye) | GitHub PR adding one line (content below) | free | PR from jonathan444 | 5 |
-| registry.modelcontextprotocol.io (official) | npm publish of an MCP package + server.json | free | ⛔ BLOCKED: npm 2FA is passkey-only — publish from Lenovo (fingerprint) or iPhone | 6 |
+## Kit 3 — mcp.so
+Form at `https://mcp.so/submit`: name `cortexcloud`, server URL `https://api.cortexcloud.org/mcp`,
+description = short, category `AI / Optimization`. Verify: `https://mcp.so/servers/cortexcloud` (search "cortexcloud").
 
-Entry for awesome-mcp-servers (PR body):
+## Kit 4 — PulseMCP
+Form at `https://pulsemcp.com` → Submit a server: URL `https://api.cortexcloud.org/mcp`, name `CortexCloud`,
+description = short. Verify: pulsemcp.com search "cortexcloud". (Site is Cloudflare-fronted; 403 to bots — form only.)
+
+## Kit 5 — awesome-mcp-servers (punkpeye/awesome-mcp-servers)
+PR body / README addition:
 ```
 - [CortexCloud](https://api.cortexcloud.org/mcp) - Pay-per-call QUBO/Ising optimization for AI agents: estimate free, solve per run (classical $0.05, hybrid $0.10, quantum $0.85) via x402 (USDC on Base). No API keys.
 ```
-Suggested smithery metadata: name `cortexcloud/cortexcloud`, categories `optimization, quantum, payments`, tags `x402, qubo, ising, usdc`.
+`gh` is authenticated as jonahthan433 — PR command ready:
+```bash
+gh repo clone punkpeye/awesome-mcp-servers /tmp/awesome-mcp && cd /tmp/awesome-mcp
+# add line to README.md under relevant section, then:
+git checkout -b add-cortexcloud && git add README.md && git commit -m "add CortexCloud MCP server"
+gh pr create --title "Add CortexCloud MCP server" --body "Remote Streamable-HTTP MCP server: pay-per-call QUBO/Ising optimization via x402 (USDC on Base)."
+```
+(Requires Jonathan's approval before opening.)
 
-## Tier 3 — API directories agents read (OpenAPI-driven)
+## Kit 6 — apis.guru (APIs-guru/openapi-directory)
+Submit via `https://apis.guru/add-api` — OpenAPI URL: `https://api.cortexcloud.org/openapi.json`
+(the API is machine-readable; apis.guru fetches + validates it). This creates a PR in
+APIs-guru/openapi-directory — approve as jonahthan433. Prepared issue/PR text:
+```
+Add CortexCloud Optimization Network — pay-per-call QUBO/Ising optimization API over x402 (USDC on Base).
+OpenAPI: https://api.cortexcloud.org/openapi.json (self-maintained, 14 paths, 1 paid x402 operation).
+```
+Verify: apis.guru → search "cortexcloud".
 
-| Platform | Submission | Notes | Priority |
-|---|---|---|---|
-| apis.guru | https://apis.guru/add-api (PR to APIs-guru/openapi-directory with openapi.json) | machine-readable; agent tooling (incl. a GPT plugin) reads it | 3 |
-| RapidAPI | publisher account + spec upload | human-first, key-based (not x402) — weak fit for agent-direct payments | low |
+## Kit 7 — Official MCP Registry (registry.modelcontextprotocol.io)
+Server metadata (server.json) — verify exact schema in the registry UI at submission time:
+```json
+{
+  "name": "github.jonahthan433/cortexcloud",
+  "description": "Pay-per-call QUBO/Ising optimization for AI agents over x402 (USDC on Base). Estimate free, solve per run ($0.05-$0.85). Quantum QPU opt-in, benchmark-gated.",
+  "version": "0.4.0",
+  "remotes": {
+    "https://api.cortexcloud.org/mcp": {}
+  }
+}
+```
+Publish path (both need Jonathan): (a) npm `@cortexcloud/mcp-server` — publish blocked headless
+(passkey-only 2FA; run from Lenovo/iPhone), then register via registry website (GitHub auth);
+or (b) attach server.json to a GitHub release of jonahthan433/CortexCloudAPI and register via
+the registry website. Verify: registry.modelcontextprotocol.io → search "cortexcloud".
 
-For apis.guru: submit `https://api.cortexcloud.org/openapi.json` (already served, self-updating).
+## Already-live verification (08-08)
+- tryponcho.com/m/api.cortexcloud.org → HTTP 200, title "CortexCloud API • Poncho" ✅
+- api.cortexcloud.org/mcp, /openapi.json, /.well-known/agentsearch.txt → HTTP 200 ✅
+- x402scan.com / mppscan.com: registered 2026-07; entry URLs discoverable via their search —
+  re-verify price fields ($0.85 quantum) next pass.
+- agentcash.dev/apis: fed automatically from the scans; verify "CortexCloud" appears.
 
-## Tier 4 — Self-discovery (already live, zero listing) — FOUNDATION
-
-Agents can already find the service without any listing: `/llms.txt`,
-`/.well-known/agentsearch.txt`, `/.well-known/x402.json`, `/.well-known/bazaar`,
-`/openapi.json`. All Tier 1–3 listings should point at these URLs.
-
-## Backlog / next moves (no submissions made)
-
-1. ✅ Verify scan entries' price fields ($0.85 quantum) — keeps AgentCash directory accurate
-2. Jonathan: `smithery mcp publish` (GitHub auth) — highest-value MCP listing
-3. Jonathan: glama + mcp.so + PulseMCP form submissions (5 min each)
-4. Jonathan: open awesome-mcp-servers PR (one line above)
-5. Jonathan: apis.guru PR with openapi.json
-6. Official MCP registry: npm publish from Lenovo/iPhone (passkey) — package the existing bundle as `@cortexcloud/mcp-server`
-7. Long-tail (when idle): mcpdirectory.com, cursor.directory, x402jp.com (Japan Bazaar), note.com/x402inc outreach
+## Next actions (Jonathan only)
+1. Smithery publish (2 min) → highest-value MCP listing
+2. Glama + mcp.so + PulseMCP forms (~5 min each)
+3. Approve 2 PRs (awesome-mcp-servers, apis.guru) — commands above, gh ready
+4. Official registry: npm publish from Lenovo/iPhone (passkey) or GitHub-release path
