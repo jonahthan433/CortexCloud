@@ -82,6 +82,10 @@ class Settings(BaseSettings):
     # trigger uncontrolled quantum-cloud charges.
     QUANTUM_LIVE_EXECUTION: bool = Field(default=False, env="QUANTUM_LIVE_EXECUTION")
     QUANTUM_MAX_COST_USD: float = Field(default=5.0, env="QUANTUM_MAX_COST_USD")
+    # When false (default), a quantum route whose estimated provider cost
+    # exceeds its customer price is refused before submission (margin
+    # guard). Set true only to explicitly allow selling below cost.
+    QUANTUM_ALLOW_SUBSIDY: bool = Field(default=False, env="QUANTUM_ALLOW_SUBSIDY")
     BRAKET_REGIONS: str = Field(default="us-east-1,us-west-1", env="BRAKET_REGIONS")
     AWS_ACCESS_KEY_ID: Optional[str] = Field(default=None, env="AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY: Optional[str] = Field(default=None, env="AWS_SECRET_ACCESS_KEY")

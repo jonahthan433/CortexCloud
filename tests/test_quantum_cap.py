@@ -18,11 +18,13 @@ def test_cap():
     qubo = {"linear": [0.0, 0.0], "quadratic": {}, "n": 2}
     old_cap = settings.QUANTUM_MAX_COST_USD
     try:
-        # cheap run under cap -> allowed
+        # cheap run under cap and under price -> allowed
         settings.QUANTUM_MAX_COST_USD = 5.0
-        assert quantum_cost_cap_error(FakeSolver(0.35), qubo, 2) is None
-        # expensive run over cap -> blocked
-        assert quantum_cost_cap_error(FakeSolver(3.40), qubo, 2) is None  # under 5
+        assert quantum_cost_cap_error(FakeSolver(0.35), qubo, 2) is None  # real Cepheus cost
+        # above price ($0.85) but under cap -> margin guard blocks
+        err = quantum_cost_cap_error(FakeSolver(3.40), qubo, 2)
+        assert err and "quantum margin guard" in err
+        # over cap -> cost cap blocks
         err = quantum_cost_cap_error(FakeSolver(9.99), qubo, 2)
         assert err and "quantum cost cap exceeded" in err
         # cap disabled (<=0) -> never blocks
@@ -36,6 +38,37 @@ def test_cap():
     finally:
         settings.QUANTUM_MAX_COST_USD = old_cap
     print("quantum cost-cap gate: OK")
+
+
+def test_margin_guard():
+    """Quantum route must not be sold below estimated provider cost unless
+    QUANTUM_ALLOW_SUBSIDY=true."""
+    from app.x402.pricing import MODE_PRICE_USD, below_cost, gross_margin_usd
+
+    qubo = {"linear": [0.0, 0.0], "quadratic": {}, "n": 2}
+    old_cap = settings.QUANTUM_MAX_COST_USD
+    old_sub = settings.QUANTUM_ALLOW_SUBSIDY
+    try:
+        settings.QUANTUM_MAX_COST_USD = 5.0
+        # verified Cepheus run: cost 0.35 < price 0.85 -> positive margin, no block
+        assert MODE_PRICE_USD["quantum"] == 0.85
+        assert gross_margin_usd("quantum") == 0.50
+        assert below_cost("quantum") is False
+        assert quantum_cost_cap_error(FakeSolver(0.35), qubo, 2) is None
+        # cost above price -> blocked by default
+        settings.QUANTUM_ALLOW_SUBSIDY = False
+        err = quantum_cost_cap_error(FakeSolver(1.20), qubo, 2)
+        assert err and "quantum margin guard" in err
+        # explicit subsidy allowance -> allowed
+        settings.QUANTUM_ALLOW_SUBSIDY = True
+        assert quantum_cost_cap_error(FakeSolver(1.20), qubo, 2) is None
+        # classical/hybrid (local provider cost 0) never margin-gated
+        assert below_cost("classical") is False
+        assert gross_margin_usd("hybrid") == 0.10
+    finally:
+        settings.QUANTUM_MAX_COST_USD = old_cap
+        settings.QUANTUM_ALLOW_SUBSIDY = old_sub
+    print("quantum margin guard: OK")
 
 
 def test_braket_preflight():
@@ -78,4 +111,5 @@ def test_braket_preflight():
 
 if __name__ == "__main__":
     test_cap()
+    test_margin_guard()
     test_braket_preflight()

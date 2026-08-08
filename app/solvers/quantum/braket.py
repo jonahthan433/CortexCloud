@@ -179,6 +179,13 @@ class BraketBackend(QuantumBackend):
                 f"quantum preflight failed: estimated provider cost ${cost:.2f} "
                 f"> QUANTUM_MAX_COST_USD ${settings.QUANTUM_MAX_COST_USD:.2f}"
             )
+        price = MODE_PRICE_USD.get("quantum", 0.0)
+        if cost > price and not settings.QUANTUM_ALLOW_SUBSIDY:
+            return (
+                f"quantum preflight failed: est provider cost ${cost:.2f} > "
+                f"cortexcloud price ${price:.2f} "
+                f"(set QUANTUM_ALLOW_SUBSIDY=true to sell below cost)"
+            )
         return None
 
     def _log_preflight(self, n: int, cost: float, device_arn: str) -> None:
@@ -192,6 +199,7 @@ class BraketBackend(QuantumBackend):
             "shots": BRAKET_SHOTS,
             "estimated_provider_cost_usd": round(cost, 4),
             "cortexcloud_price_usd": MODE_PRICE_USD.get("quantum"),
+            "margin_usd": round(cost - MODE_PRICE_USD.get("quantum", 0.0), 4),
         }))
 
     # -- execution ---------------------------------------------------
@@ -213,19 +221,30 @@ class BraketBackend(QuantumBackend):
         # (same angles as the Origin template; objective recomputed
         # locally from the sampled bitstring either way).
         try:
-            from braket.aws import AwsDevice
+            import boto3
+            from braket.aws import AwsDevice, AwsSession
             from braket.circuits import Circuit
 
             arn = self._devices[0]["deviceArn"]
-            dev = AwsDevice(arn)
+            # The SDK builds its own boto3 session — give it the device's
+            # region + our creds explicitly (no ambient AWS_DEFAULT_REGION
+            # on the server).
+            region = arn.split(":")[3]
+            _boto_kw = {"region_name": region}
+            if settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY:
+                _boto_kw.update(
+                    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                )
+            dev = AwsDevice(arn, aws_session=AwsSession(boto_session=boto3.Session(**_boto_kw)))
             gamma, beta = -0.5, 0.5
             circ = Circuit().h(range(n))
             for key, c in (qubo.get("quadratic") or {}).items():
                 i, j = (int(t) for t in key.split(","))
-                circ.cnot(i, j).rz(2.0 * float(c) * gamma, j).cnot(i, j)
+                circ.cnot(i, j).rz(j, 2.0 * float(c) * gamma).cnot(i, j)
             for i, h in enumerate(qubo.get("linear") or []):
-                circ.rz(2.0 * float(h) * gamma, i)
-            circ.rx(2.0 * beta, range(n))
+                circ.rz(i, 2.0 * float(h) * gamma)
+            circ.rx(range(n), 2.0 * beta)
             # Preflight cost gate: refuse submission unless the provider cost
             # is known, positive, and within QUANTUM_MAX_COST_USD — checked
             # HERE, immediately before CreateQuantumTask (defense in depth on
@@ -247,7 +266,13 @@ class BraketBackend(QuantumBackend):
                 backend=self.spec.id,
                 runtime_s=round(time.time() - t0, 3),
                 quality_note="hardware run — objective recomputed locally from sampled bitstring",
-                meta={"source": f"aws-braket-{self.spec.id}", "device_arn": arn},
+                meta={
+                    "source": f"aws-braket-{self.spec.id}",
+                    "device_arn": arn,
+                    "task_arn": task.id,
+                    "shots": BRAKET_SHOTS,
+                    "counts": dict(counts),
+                },
             )
         except Exception as exc:  # surface SDK/network errors honestly
             self._log.warning("braket solve failed: %s", exc)

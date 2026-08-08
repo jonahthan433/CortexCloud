@@ -1,15 +1,28 @@
 """x402 pricing — single source of truth for paid/free routes.
 
 /v1/optimize is the only paid route; its price follows the requested
-mode (classical 0.02 / hybrid 0.10 / quantum 0.25). Everything else is
+mode (classical 0.05 / hybrid 0.10 / quantum 0.85). Everything else is
 free. The middleware reads this dict by path to build the 402 challenge,
 so this table is also what discovery (/.well-known/x402.json, llms.txt,
 bazaar) renders.
+
+Costs are kept separate from prices: MODE_PRICE_USD is what customers
+pay; PROVIDER_COST_USD is our estimated per-run provider cost (model
+basis; finer per-device estimates live in the solver adapters, e.g. the
+braket device cfg). gross_margin_usd(mode) = price - cost. Quantum must
+never be sold below estimated provider cost unless QUANTUM_ALLOW_SUBSIDY
+=true (enforced in runner.quantum_cost_cap_error + braket preflight).
 """
 from __future__ import annotations
 
-# mode -> USD per optimization run
-MODE_PRICE_USD = {"classical": 0.05, "hybrid": 0.10, "quantum": 0.25}
+# mode -> USD per optimization run (customer price)
+MODE_PRICE_USD = {"classical": 0.05, "hybrid": 0.10, "quantum": 0.85}
+
+# mode -> estimated provider cost per run, USD (model basis). Quantum
+# reflects the verified Aug-2026 Rigetti Cepheus-1-108Q run (1024 shots,
+# $0.35). Solver adapters may carry finer per-device estimates; this
+# table is the documented default the margin guard reasons about.
+PROVIDER_COST_USD = {"classical": 0.0, "hybrid": 0.0, "quantum": 0.35}
 
 ROUTE_PRICING = {
     "POST /v1/optimize": "$0.05",  # base; middleware overrides per mode
@@ -33,6 +46,17 @@ def price_for_mode(mode: str) -> str:
     if m in MODE_PRICE_USD:
         return f"${MODE_PRICE_USD[m]:.6f}"
     return f"${MODE_PRICE_USD['classical']:.6f}"  # auto defaults to classical
+
+
+def gross_margin_usd(mode: str) -> float:
+    """Customer price minus estimated provider cost, USD."""
+    m = (mode or "auto").lower()
+    return MODE_PRICE_USD.get(m, MODE_PRICE_USD["classical"]) - PROVIDER_COST_USD.get(m, 0.0)
+
+
+def below_cost(mode: str) -> bool:
+    """True when the route would sell below estimated provider cost."""
+    return gross_margin_usd(mode) < 0.0
 
 
 def usd_to_usdc_atomic(usd_str: str) -> int:

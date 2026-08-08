@@ -170,15 +170,24 @@ async def run_job(job_id: str) -> None:
 
 
 def quantum_cost_cap_error(solver, qubo, n: int) -> str | None:
-    """Blocking reason when a quantum run would exceed QUANTUM_MAX_COST_USD,
+    """Blocking reason when a quantum run would exceed QUANTUM_MAX_COST_USD
+    or be sold below estimated provider cost (unless QUANTUM_ALLOW_SUBSIDY),
     else None. Pure + testable; called before ANY QPU submission."""
     if solver.spec.mode != "quantum" or settings.QUANTUM_MAX_COST_USD <= 0:
         return None
     est = solver.estimate(qubo, n)
-    if float(est.price_usd) > settings.QUANTUM_MAX_COST_USD:
+    cost = float(est.price_usd)
+    if cost > settings.QUANTUM_MAX_COST_USD:
         return (
-            f"quantum cost cap exceeded: est ${float(est.price_usd):.2f} "
+            f"quantum cost cap exceeded: est ${cost:.2f} "
             f"> QUANTUM_MAX_COST_USD ${settings.QUANTUM_MAX_COST_USD:.2f}"
+        )
+    price = MODE_PRICE_USD.get("quantum", MODE_PRICE_USD["classical"])
+    if cost > price and not settings.QUANTUM_ALLOW_SUBSIDY:
+        return (
+            f"quantum margin guard: est provider cost ${cost:.2f} > "
+            f"cortexcloud price ${price:.2f} "
+            f"(set QUANTUM_ALLOW_SUBSIDY=true to sell below cost)"
         )
     return None
 

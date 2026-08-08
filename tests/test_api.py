@@ -42,8 +42,8 @@ async def test_optimize_requires_payment(client, qb_small):
     payee = opts[0].get("payTo") or pr.get("recipient")
     assert payee and str(payee).startswith("0x")
     assert pr["resource"]["url"].endswith("/v1/optimize")
-    # classical mode = $0.02 = 20000 atomic USDC (6 decimals)
-    assert opts[0]["amount"] == 20000
+    # classical mode = $0.05 = 50000 atomic USDC (6 decimals); amount is a string
+    assert opts[0]["amount"] == "50000"
     exts = pr.get("extensions", {})
     assert "bazaar" in exts
 
@@ -134,7 +134,7 @@ async def test_quantum_job_fails_honestly_without_backend(client, qb_small):
     from app.optimizer.problem import ProblemInput
     from app.optimizer.runner import create_job, schedule
 
-    job_id = await create_job(ProblemInput(**qb_small), "quantum", 0.25)
+    job_id = await create_job(ProblemInput(**qb_small), "quantum", 0.85)
     schedule(job_id)
     for _ in range(50):
         r = await client.get(f"/v1/jobs/{job_id}")
@@ -143,4 +143,8 @@ async def test_quantum_job_fails_honestly_without_backend(client, qb_small):
         await asyncio.sleep(0.1)
     body = r.json()
     assert body["status"] == "failed", body
-    assert "no available solver" in body["error"].lower()
+    # honest failure, never fake: either no solver or the live-execution gate
+    assert (
+        "no available solver" in body["error"].lower()
+        or "quantum" in body["error"].lower()
+    )

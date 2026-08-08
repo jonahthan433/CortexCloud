@@ -261,7 +261,7 @@ class X402Middleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Dynamic pricing for /v1/optimize: price follows the requested
-        # mode (classical 0.05 / hybrid 0.10 / quantum 0.25). Body is read
+        # mode (classical 0.05 / hybrid 0.10 / quantum 0.85). Body is read
         # once and cached on the request — downstream routes reuse it.
         # Do NOT re-inject request._receive here (starlette 1.x state
         # machine rejects a second http.request; see SSE comment below).

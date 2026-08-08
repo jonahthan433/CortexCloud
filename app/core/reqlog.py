@@ -9,7 +9,7 @@ LATENCY = Histogram(
     "cortexcloud_request_latency_seconds",
     "x402 request latency per endpoint",
     ["endpoint"],
-    buckets=(0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30),
+    buckets=(0.05, 0.1, 0.25, 0.5, 0.85, 1, 2.5, 5, 10, 30),
 )
 UPSTREAM_ERRORS = Counter("cortexcloud_upstream_errors_total", "upstream provider errors", ["provider"])
 CACHE_HITS = Counter("cortexcloud_proof_cache_hits_total", "x402 payment-proof cache hits")
