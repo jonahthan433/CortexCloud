@@ -338,7 +338,7 @@ class X402Middleware(BaseHTTPMiddleware):
                         "scheme": "exact",
                         "network": settings.X402_NETWORK,
                         "asset": USDC_ON_BASE,
-                        "amount": required,
+                        "amount": str(required),
                         "payTo": settings.WALLET_ADDRESS,
                         "maxTimeoutSeconds": 60,
                         # EIP-712 domain for the asset — client requires extra.name/version
@@ -352,7 +352,7 @@ class X402Middleware(BaseHTTPMiddleware):
                         "scheme": "exact",
                         "network": settings.X402_NETWORK,
                         "asset": USDC_ON_BASE,
-                        "amount": required,
+                        "amount": str(required),
                         "payTo": settings.WALLET_ADDRESS_2 or settings.WALLET_ADDRESS,
                         "maxTimeoutSeconds": 60,
                         "extra": {"name": "USD Coin", "version": "2"},
