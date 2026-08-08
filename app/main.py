@@ -52,11 +52,13 @@ def create_app(override_openapi: bool = True) -> FastAPI:
 
         application.openapi = lambda: _OPENAPI_SPEC
 
-    # CORS
+    # CORS. No cookies/sessions in this API (payment is x402-signed headers,
+    # never bearer), so credentials are never needed — wildcard + credentials
+    # would be an invalid combo browsers reject anyway.
     application.add_middleware(
         CORSMiddleware,
         allow_origins=settings.BACKEND_CORS_ORIGINS,
-        allow_credentials=True,
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
     )
