@@ -57,10 +57,19 @@
           }
         ],
         "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.020000"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            }
+          ],
           "scheme": "x402",
           "network": "eip155:8453",
           "asset": "USDC",
-          "price": "$0.02",
           "price_atomic_usdc": "20000",
           "decimals": 6
         }

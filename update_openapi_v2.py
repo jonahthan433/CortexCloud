@@ -69,11 +69,15 @@ for path, methods in spec.get("paths", {}).items():
                 "402", {"description": "Payment Required — x402 PaymentRequirements challenge"}
             )
             op["security"] = [{"x402": []}]
+            amount = f"{float(price.lstrip('$')):.6f}"
             op["x-payment-info"] = {
+                # AgentCash / IETF canonical shape
+                "price": {"mode": "fixed", "currency": "USD", "amount": amount},
+                "protocols": [{"x402": {}}],
+                # legacy x402scan compat (kept alongside canonical keys)
                 "scheme": "x402",
                 "network": settings.X402_NETWORK,
                 "asset": "USDC",
-                "price": price,
                 "price_atomic_usdc": _usd_atomic(price),
                 "decimals": 6,
             }
