@@ -30,7 +30,7 @@ as submissions land.
 | 4 | PulseMCP | 🧰 PREPARED | pulsemcp.com (est.) | — | Jonathan: submit form |
 | 5 | awesome-mcp-servers | 🚀 SUBMITTED | PR https://github.com/punkpeye/awesome-mcp-servers/pull/11752 | 2026-08-08 | awaiting merge |
 | 6 | apis.guru | 🚀 SUBMITTED | issue https://github.com/APIs-guru/openapi-directory/issues/2992 | 2026-08-08 | awaiting maintainer review/PR |
-| 7 | Official MCP Registry | 🧰 PREPARED (v0.4.0 npm + server.json pushed, f13cd58) | registry.modelcontextprotocol.io → io.github.jonahthan433/cortexcloud | — | run 4 commands on Lenovo/iPhone (npm passkey) |
+| 7 | Official MCP Registry | ✅ LIVE | registry.modelcontextprotocol.io → io.github.jonahthan433/cortexcloud v0.4.0 (verified via /v0.1/servers?search=cortexcloud) | 2026-08-08 | none |
 
 ## Kit 1 — Smithery
 ```bash
