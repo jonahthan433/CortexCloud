@@ -28,3 +28,4 @@ Thumbs.db
 # one-off deploy/mutation helpers (not shipped)
 patch_*.py
 agefix.py
+mpp-store.sqlite
