@@ -269,6 +269,28 @@
         "security": []
       }
     },
+    "/.well-known/agentsearch.txt": {
+      "get": {
+        "tags": [
+          "Discovery",
+          "x402 Discovery"
+        ],
+        "summary": "Agentsearch Txt",
+        "description": "Agent-search discovery file (agentsearch.txt convention): what this\nservice is, how agents call it, and where the machine-readable docs live.",
+        "operationId": "agentsearch_txt__well_known_agentsearch_txt_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
     "/llms.txt": {
       "get": {
         "tags": [
