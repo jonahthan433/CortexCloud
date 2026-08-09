@@ -13,8 +13,8 @@ as submissions land.
 - Discovery: `/llms.txt` · `/.well-known/x402.json` · `/.well-known/bazaar` · `/.well-known/agentsearch.txt` · `/openapi.json`
 
 ### Descriptions (reuse everywhere)
-- Short: `Pay-per-call QUBO/Ising optimization API for AI agents. Estimate free, solve per run via x402 (USDC on Base). $0.05-$0.85/run, no API keys.`
-- Long: `CortexCloud Optimization Network — pay-per-call QUBO/Ising optimization for autonomous agents. Estimate for free (decision block: mode, backend, provider cost, price), then solve per run: classical $0.05, hybrid $0.10, quantum $0.85, paid via x402 in USDC on Base (no API keys, no signup). Quantum QPU execution (Rigetti via Amazon Braket) is opt-in and only recommended with benchmark evidence. MCP server at /mcp (cortex_estimate_optimization, cortex_optimize, cortex_get_job, cortex_list_backends).`
+- Short: `Pay-per-call QUBO/Ising optimization API for AI agents. Estimate free, solve per run via x402 (USDC on Base). $0.05-$0.25 classical by size, $0.10 hybrid, $1.00 quantum, no API keys.`
+- Long: `CortexCloud Optimization Network — pay-per-call QUBO/Ising optimization for autonomous agents. Estimate for free (decision block: mode, backend, provider cost, price), then solve per run: classical $0.05-0.25 by size, hybrid $0.10, quantum $1.00, paid via x402 in USDC on Base (no API keys, no signup). Quantum QPU execution (Rigetti via Amazon Braket) is opt-in and only recommended with benchmark evidence. MCP server at /mcp (cortex_estimate_optimization, cortex_optimize, cortex_get_job, cortex_list_backends).`
 
 ## Submission tracker
 
@@ -59,7 +59,7 @@ description = short. Verify: pulsemcp.com search "cortexcloud". (Site is Cloudfl
 ## Kit 5 — awesome-mcp-servers (punkpeye/awesome-mcp-servers)
 PR body / README addition:
 ```
-- [CortexCloud](https://api.cortexcloud.org/mcp) - Pay-per-call QUBO/Ising optimization for AI agents: estimate free, solve per run (classical $0.05, hybrid $0.10, quantum $0.85) via x402 (USDC on Base). No API keys.
+- [CortexCloud](https://api.cortexcloud.org/mcp) - Pay-per-call QUBO/Ising optimization for AI agents: estimate free, solve per run (classical $0.05-0.25 by size, hybrid $0.10, quantum $1.00) via x402 (USDC on Base). No API keys.
 ```
 `gh` is authenticated as jonahthan433 — PR command ready:
 ```bash
@@ -85,7 +85,7 @@ Server metadata (server.json) — verify exact schema in the registry UI at subm
 ```json
 {
   "name": "github.jonahthan433/cortexcloud",
-  "description": "Pay-per-call QUBO/Ising optimization for AI agents over x402 (USDC on Base). Estimate free, solve per run ($0.05-$0.85). Quantum QPU opt-in, benchmark-gated.",
+  "description": "Pay-per-call QUBO/Ising optimization for AI agents over x402 (USDC on Base). Estimate free, solve per run ($0.05-$1.00 by size and mode). Quantum QPU opt-in, benchmark-gated.",
   "version": "0.4.0",
   "remotes": {
     "https://api.cortexcloud.org/mcp": {}
