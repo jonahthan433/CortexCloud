@@ -17,6 +17,30 @@ from app.solvers.quantum.base import QuantumBackend
 
 _DISCOVERY_TTL_S = 300.0  # mirror Braket: single TTL for the discovery cache
 _SHOTS = 1024
+_DISCOVERY_TIMEOUT_S = 15.0  # hard cap so a stalled IBM API can't wedge a job
+
+
+def _list_backends(service):
+    """service.backends() can hang with no effective timeout in the IBM SDK;
+    run it in a thread and give up after _DISCOVERY_TIMEOUT_S. The orphaned
+    thread is harmless (bounded by the discovery TTL)."""
+    import concurrent.futures as _cf
+
+    with _cf.ThreadPoolExecutor(max_workers=1) as ex:
+        fut = ex.submit(service.backends, simulator=False, operational=True)
+        try:
+            backends = fut.result(timeout=_DISCOVERY_TIMEOUT_S)
+        except _cf.TimeoutError:
+            ex.shutdown(wait=False)
+            raise TimeoutError("IBM API discovery timed out")
+    return [
+        {
+            "name": b.name,
+            "num_qubits": int(getattr(b, "num_qubits", 0) or 0),
+            "simulator": bool(getattr(b, "simulator", False)),
+        }
+        for b in backends
+    ]
 
 
 def _qubo_terms(qubo: dict, n: int):
@@ -39,7 +63,12 @@ class IBMBackend(QuantumBackend):
     """Primary quantum provider: IBM Quantum real-time QPU via Qiskit Runtime."""
 
     def __init__(self):
-        self._cfg = {"name": "IBM", "price_usd": 0.0, "runtime_s": 60.0, "cap": 127}
+        self._cfg = {"name": "IBM", "price_usd": 0.50, "runtime_s": 1200.0, "cap": 127}
+        # price_usd 0.50 keeps IBM sellable at the $1.00 mode price;
+        # runtime_s 1200 reflects open-plan queue reality, so the router's
+        # cost+latency sort keeps Braket (60s) primary.
+        # price_usd 0.50 (== rigetti): equal effective $1.00, so the router's
+        # registry-order tie-break keeps Braket primary; IBM stays a fallback.
         self._devices: list[dict] | None = None
         self._error: str | None = None
         self._discovered_at = 0.0
@@ -79,15 +108,7 @@ class IBMBackend(QuantumBackend):
                 self._discovered_at = time.time()
                 return self._devices, self._error
             service = self._new_service()
-            found = [
-                {
-                    "name": b.name,
-                    "num_qubits": int(getattr(b, "num_qubits", 0) or 0),
-                    "simulator": bool(getattr(b, "simulator", False)),
-                }
-                for b in service.backends(simulator=False, operational=True)
-            ]
-            found.sort(key=lambda d: d["num_qubits"], reverse=True)
+            found = _list_backends(service)
             self._devices, self._error = found, None
         except ImportError as exc:
             self._devices, self._error = [], f"qiskit SDK not installed ({exc})"
@@ -106,8 +127,11 @@ class IBMBackend(QuantumBackend):
         return SolverAvailability(True, f"{len(devices)} IBM QPU(s) online")
 
     def estimate(self, qubo, n: int) -> Estimate:
-        t = _SHOTS * n * 1e-6  # rough runtime model: shots x qubits
-        return Estimate(runtime_s=max(t, 1.0), price_usd=float(self._cfg["price_usd"]), basis="model")
+        return Estimate(
+            runtime_s=float(self._cfg["runtime_s"]),
+            price_usd=float(self._cfg["price_usd"]),
+            basis="model",
+        )
 
     def solve(self, qubo, n: int, timeout_s: float = 1200.0) -> SolveResult:
         t0 = time.time()
