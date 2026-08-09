@@ -125,6 +125,15 @@ class BraketBackend(QuantumBackend):
                         and d.get("deviceStatus") == "ONLINE"
                         and d.get("providerName") == self._cfg["aws_name"]
                     ):
+                        caps = d.get("deviceCapabilities") or ""
+                        if isinstance(caps, dict):
+                            caps = json.dumps(caps)
+                        # Exclude AHS-only devices (e.g. QuEra Aquila): they
+                        # cannot run the QUBO/Ising IR, so paying for a job on
+                        # them is a guaranteed failure. Require a gate-model,
+                        # annealing, or openqasm-capable device.
+                        if not any(k in caps for k in ("jaqcd", "annealing", "openqasm")):
+                            continue
                         devices.append(d)
             self._devices, self._error = devices, None
         except ImportError as exc:

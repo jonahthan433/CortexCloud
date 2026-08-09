@@ -1,13 +1,40 @@
-"""Shared fixtures — real PostgreSQL (new tables only, truncated per test)."""
-
 import asyncio
+import os
+
+# CRITICAL: tests run against a dedicated scratch database — NEVER production
+# data. Set DATABASE_URL before importing app settings so the app binds to
+# the test DB. The DB itself must exist (created once via psql, see ops notes).
+_DB_NAME = "cortexcloud_test"
+if "DATABASE_URL" not in os.environ:
+    _pw = os.environ.get("POSTGRES_PASSWORD", "")
+    if not _pw:
+        # pytest doesn't export .env — read the real password from the app env file.
+        for _l in open("/opt/CortexCloudAPI/.env"):
+            if _l.startswith("POSTGRES_PASSWORD="):
+                _pw = _l.split("=", 1)[1].strip()
+                break
+    os.environ["DATABASE_URL"] = (
+        "postgresql+asyncpg://"
+        f"{os.environ.get('POSTGRES_USER', 'postgres')}:{_pw}@127.0.0.1:5432/{_DB_NAME}"
+    )
 
 import pytest
 import pytest_asyncio
 
-from app.core.config import settings
-from app.database.session import AsyncSessionLocal
-from app.main import create_app
+from app.core.config import settings  # noqa: E402
+from app.database.session import AsyncSessionLocal  # noqa: E402
+from app.main import create_app  # noqa: E402
+
+
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def _create_test_tables():
+    """Create schema in the scratch DB once per session."""
+    import app.models  # noqa: F401  (populate Base.metadata before create_all)
+    from app.database.session import Base, engine
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)

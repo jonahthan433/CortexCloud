@@ -242,6 +242,24 @@ OUTPUT_EXAMPLES = {
 }
 
 
+def _validate_optimize_body(data) -> list | None:
+    """Money-path guard: reject bodies the endpoint would reject, BEFORE
+    any x402/MPP settlement. Returns a FastAPI-style 422 detail list."""
+    if not isinstance(data, dict):
+        return [{"type": "missing", "loc": ["body"], "msg": "Request body must be a JSON object", "input": None}]
+    prob = data.get("problem")
+    if not isinstance(prob, dict):
+        return [{"type": "missing", "loc": ["body", "problem"], "msg": "Field required", "input": None}]
+    if prob.get("problem_type") not in ("qubo", "ising"):
+        return [{"type": "value_error", "loc": ["body", "problem", "problem_type"],
+                 "msg": "problem_type must be 'qubo' or 'ising'", "input": prob.get("problem_type")}]
+    if not isinstance(prob.get("n"), int):
+        return [{"type": "missing", "loc": ["body", "problem", "n"], "msg": "Field required", "input": None}]
+    if not isinstance(prob.get("data"), dict):
+        return [{"type": "missing", "loc": ["body", "problem", "data"], "msg": "Field required", "input": None}]
+    return None
+
+
 def _input_schema(path: str) -> dict:
     return INPUT_SCHEMAS.get(path, {"type": "object", "properties": {}})
 
@@ -283,6 +301,14 @@ class X402Middleware(BaseHTTPMiddleware):
         x_correlation_id = request.headers.get("x-correlation-id")
         mpp = await _get_mpp()
         authorization = request.headers.get("authorization")
+
+
+        # Money-path guard: never settle a request the endpoint would reject.
+        # Validate the paid body BEFORE either settle branch (x402 or MPP).
+        if path == "/v1/optimize" and (payment_signature or (mpp and authorization)):
+            _v_err = _validate_optimize_body(data)
+            if _v_err:
+                return JSONResponse(status_code=422, content={"detail": _v_err})
 
         if not payment_signature:
             if mpp and authorization:

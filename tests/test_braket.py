@@ -25,6 +25,7 @@ def _device(provider_arn_suffix="rigetti/Ankaa-3", qubits=100):
             "deviceStatus": "ONLINE",
             "providerName": "Rigetti",
             "deviceType": "QPU",
+            "deviceCapabilities": "{\"action\":{\"braket.ir.jaqcd.program\":{}}}",
             "quantumComputingDeviceData": {"qpuSpecifications": {"qubitCount": qubits}},
         }
     ]
