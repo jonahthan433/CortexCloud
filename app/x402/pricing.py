@@ -22,8 +22,9 @@ MODE_PRICE_USD = {"classical": 0.05, "hybrid": 0.10, "quantum": 0.85}
 # reflects the verified Aug-2026 Rigetti Cepheus-1-108Q run (1024 shots,
 # $0.35). Solver adapters may carry finer per-device estimates; this
 # table is the documented default the margin guard reasons about.
-# Quantum: observed $0.35/run (1024 fixed shots, verified Cepheus billing)
-# + safety buffer for provider rate changes. Flat per run: BRAKET_SHOTS is fixed.
+# Quantum mode cost: $0.50/run (Braket rigetti, primary provider; fixed
+# 1024 shots -> flat cost) + buffer. IBM Open Plan fallback costs $0.00 and
+# stays sellable at the effective price via the per-provider margin guard.
 PROVIDER_COST_USD = {"classical": 0.0, "hybrid": 0.0, "quantum": 0.50}
 
 # Margin policy: the charged price for a mode is never below the list

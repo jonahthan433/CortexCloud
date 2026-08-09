@@ -35,6 +35,22 @@ def _wukong():
     return _origin_wukong or None
 
 
+_ibm_backend: Solver | None = None
+
+
+def _ibm() -> Solver | None:
+    """Primary quantum provider: IBM Quantum (Qiskit Runtime)."""
+    global _ibm_backend
+    if _ibm_backend is None:
+        try:
+            from app.solvers.quantum.ibm import IBMBackend
+
+            _ibm_backend = IBMBackend()
+        except Exception:
+            _ibm_backend = False
+    return _ibm_backend or None
+
+
 def _braket() -> list[Solver]:
     global _braket_backends
     if _braket_backends is None:
@@ -52,7 +68,10 @@ def solvers() -> list[Solver]:
     wk = _wukong()
     if wk is not None:
         out.append(wk)
-    out.extend(_braket())
+    out.extend(_braket())  # Braket primary
+    ib = _ibm()
+    if ib is not None:
+        out.append(ib)  # IBM fallback
     return out
 
 

@@ -89,6 +89,7 @@ class Settings(BaseSettings):
     BRAKET_REGIONS: str = Field(default="us-east-1,us-west-1", env="BRAKET_REGIONS")
     AWS_ACCESS_KEY_ID: Optional[str] = Field(default=None, env="AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY: Optional[str] = Field(default=None, env="AWS_SECRET_ACCESS_KEY")
+    IBM_QUANTUM_TOKEN: Optional[str] = Field(default=None, env="IBM_QUANTUM_TOKEN")
 
     # Gate for /internal/metrics (revenue aggregates). Leave unset to
     # disable the endpoint entirely — never expose money figures publicly.

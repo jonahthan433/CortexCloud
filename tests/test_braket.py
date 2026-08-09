@@ -51,6 +51,10 @@ def braket_discovery(monkeypatch):
         def search_devices(self, filters=None):
             return {"devices": _device()}
 
+        def get_device(self, deviceArn):
+            # search_devices omits capabilities; get_device returns them
+            return _device()[0]
+
     monkeypatch.setattr(braket, "_new_client", lambda region: FakeClient())
 
 
@@ -143,17 +147,17 @@ def test_router_quantum_requires_evidence(no_aws, rigetti_available):
     assert "evidence" in sel["quantum_gate"]
 
 
-def test_router_quantum_with_evidence(no_aws, rigetti_available):
+def test_router_quantum_with_evidence(no_aws, no_ibm, rigetti_available):
     sel = _router_select(4, 3)
     assert any(c["provider"] == "aws_braket" and c["backend"] == "rigetti" for c in sel["ranked"])
 
 
-def test_router_never_unavailable(no_aws):
+def test_router_never_unavailable(no_aws, no_ibm):
     sel = _router_select(4, 4)
     assert not any(c["mode"] == "quantum" for c in sel["ranked"])
 
 
-def test_router_explicit_quantum_uses_available(no_aws, rigetti_available):
+def test_router_explicit_quantum_uses_available(no_aws, no_ibm, rigetti_available):
     sel = _router_select(4, 0, force_mode="quantum")
     assert sel["recommended"]["provider"] == "aws_braket"
     assert sel["recommended"]["mode"] == "quantum"
@@ -161,7 +165,7 @@ def test_router_explicit_quantum_uses_available(no_aws, rigetti_available):
     assert sel["recommended"]["backend"] == "quera"
 
 
-def test_router_cost_breakdown(no_aws, rigetti_available):
+def test_router_cost_breakdown(no_aws, no_ibm, rigetti_available):
     sel = _router_select(4, 0)
     c = sel["recommended"]
     assert {"provider_cost_usd", "cortexcloud_price_usd", "margin_usd"} <= set(c)

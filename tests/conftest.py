@@ -48,6 +48,20 @@ async def _clean_tables():
     yield
 
 
+@pytest.fixture
+def no_ibm(monkeypatch):
+    monkeypatch.setattr("app.core.config.settings.IBM_QUANTUM_TOKEN", None)
+
+
+@pytest.fixture(autouse=True)
+def _reset_registry():
+    from app.solvers import registry
+    registry._origin_wukong = None
+    registry._braket_backends = None
+    registry._ibm_backend = None
+    yield
+
+
 @pytest_asyncio.fixture
 async def client():
     from httpx import ASGITransport, AsyncClient

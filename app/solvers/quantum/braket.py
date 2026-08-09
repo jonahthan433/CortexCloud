@@ -125,13 +125,18 @@ class BraketBackend(QuantumBackend):
                         and d.get("deviceStatus") == "ONLINE"
                         and d.get("providerName") == self._cfg["aws_name"]
                     ):
-                        caps = d.get("deviceCapabilities") or ""
-                        if isinstance(caps, dict):
-                            caps = json.dumps(caps)
-                        # Exclude AHS-only devices (e.g. QuEra Aquila): they
-                        # cannot run the QUBO/Ising IR, so paying for a job on
-                        # them is a guaranteed failure. Require a gate-model,
-                        # annealing, or openqasm-capable device.
+                        # search_devices does NOT return deviceCapabilities,
+                        # so fetch the full device record to check IR support.
+                        # Excludes AHS-only devices (e.g. QuEra Aquila) that
+                        # cannot run the QUBO/Ising IR. Failures skip the
+                        # device, never the whole discovery.
+                        caps = ""
+                        try:
+                            full = client.get_device(deviceArn=d["deviceArn"])
+                            c = full.get("deviceCapabilities") or ""
+                            caps = json.dumps(c) if isinstance(c, dict) else str(c)
+                        except Exception:
+                            caps = ""
                         if not any(k in caps for k in ("jaqcd", "annealing", "openqasm")):
                             continue
                         devices.append(d)
