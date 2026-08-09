@@ -22,7 +22,7 @@ def sh(cmd: str) -> str:
 def main() -> None:
     sha = sh("git -C /opt/CortexCloudAPI rev-parse --short HEAD")
     date = sh("date -u +%Y-%m-%dT%H:%MZ")
-    svcs = {s: sh(f"systemctl is-active {s}") for s in ("cortexcloud", "cortexcloud-mcp", "cortexcloud-gateway")}
+    svcs = {s: sh(f"systemctl is-active {s}") for s in ("cortexcloud", "cortexcloud-mcp")}
 
     from app.x402.pricing import MARKUP, MODE_PRICE_USD, PROVIDER_COST_USD, effective_price_usd
 
@@ -47,7 +47,7 @@ def main() -> None:
 
     lines = [
         f"- commit: `{sha}` ({date} UTC)",
-        f"- services: API={svcs['cortexcloud']} MCP={svcs['cortexcloud-mcp']} gateway={svcs['cortexcloud-gateway']}",
+        f"- services: API={svcs[.cortexcloud.]} MCP={svcs[.cortexcloud-mcp.]}",
         "- prices (list / est provider cost / effective): "
         + "; ".join(f"{m} ${v['list']:.2f} / ${v['est_cost']:.2f} / ${v['effective']:.2f}" for m, v in prices.items()),
         f"- markup: {MARKUP}x",
