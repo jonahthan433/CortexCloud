@@ -257,6 +257,10 @@ def _validate_optimize_body(data) -> list | None:
         return [{"type": "missing", "loc": ["body", "problem", "n"], "msg": "Field required", "input": None}]
     if not isinstance(prob.get("data"), dict):
         return [{"type": "missing", "loc": ["body", "problem", "data"], "msg": "Field required", "input": None}]
+    mode = data.get("mode")
+    if mode is not None and mode not in ("auto", "classical", "hybrid", "quantum"):
+        return [{"type": "value_error", "loc": ["body", "mode"],
+                 "msg": "mode must be one of auto, classical, hybrid, quantum", "input": mode}]
     return None
 
 
@@ -309,6 +313,16 @@ class X402Middleware(BaseHTTPMiddleware):
             _v_err = _validate_optimize_body(data)
             if _v_err:
                 return JSONResponse(status_code=422, content={"detail": _v_err})
+            # Availability pre-check: refuse BEFORE settling when the requested
+            # mode has no executable backend (e.g. quantum with all QPUs
+            # offline). 409 = retry later or pick another mode.
+            from app.solvers.registry import mode_has_available_solver
+            _mode = (data.get("mode") or "auto") if isinstance(data, dict) else "auto"
+            if not mode_has_available_solver(_mode):
+                return JSONResponse(
+                    status_code=409,
+                    content={"error": "no available solver for requested mode", "mode": _mode},
+                )
 
         if not payment_signature:
             if mpp and authorization:

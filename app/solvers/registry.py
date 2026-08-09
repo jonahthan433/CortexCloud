@@ -68,6 +68,20 @@ def for_mode(mode: str) -> list[Solver]:
     return [s for s in solvers() if s.spec.mode == mode]
 
 
+def mode_has_available_solver(mode: str) -> bool:
+    """Money-path pre-settle check: does the mode have an executable solver?
+
+    Used by the x402 middleware guard so a buyer is never charged for a mode
+    with no available backend (e.g. quantum while all QPUs are offline)."""
+    try:
+        for s in for_mode(mode):
+            if s.availability().available:
+                return True
+    except Exception:
+        return False
+    return False
+
+
 def availability(s: Solver) -> SolverAvailability:
     return s.availability()
 
