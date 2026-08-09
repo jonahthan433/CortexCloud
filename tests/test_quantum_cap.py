@@ -50,9 +50,9 @@ def test_margin_guard():
     old_sub = settings.QUANTUM_ALLOW_SUBSIDY
     try:
         settings.QUANTUM_MAX_COST_USD = 5.0
-        # verified Cepheus run: cost 0.35 < price 0.85 -> positive margin, no block
+        # verified Cepheus run: cost 0.50 < effective 1.00 -> positive margin, no block
         assert MODE_PRICE_USD["quantum"] == 0.85
-        assert gross_margin_usd("quantum") == 0.50
+        assert gross_margin_usd("quantum") == 0.50  # effective 1.00 - cost 0.50
         assert below_cost("quantum") is False
         assert quantum_cost_cap_error(FakeSolver(0.35), qubo, 2) is None
         # cost above price -> blocked by default
@@ -74,15 +74,27 @@ def test_margin_guard():
 def test_effective_pricing():
     """Provider-cost-aware dynamic pricing: price = max(list, cost x MARKUP);
     sellable flag at the charged mode price."""
-    from app.x402.pricing import MARKUP, effective_price_usd, price_for_mode, sellable_at_mode_price
+    from app.x402.pricing import MARKUP, classical_price_for_n, effective_price_usd, price_for_mode, sellable_at_mode_price
 
-    # list floor holds while cost x markup is below it
-    assert effective_price_usd("quantum") == 0.85  # 0.35 x 2.0 < 0.85 -> floor
-    assert price_for_mode("quantum") == "$0.850000"
-    assert price_for_mode("auto") == "$0.050000"
+    # list floor holds while cost x markup is below it (quantum cost 0.50 -> 1.00)
+    assert effective_price_usd("quantum") == 1.00  # 0.50 x 2.0 = 1.00 > 0.85 floor
+    assert price_for_mode("quantum") == "$1.000000"
+    assert price_for_mode("auto") == "$0.050000"  # no n -> classical list floor
     # expensive provider pushes the effective price up automatically
     assert effective_price_usd("quantum", 3.40) == round(3.40 * MARKUP, 6)
     assert effective_price_usd("quantum", 3.40) == 6.80
+    # size-based classical pricing tiers
+    assert classical_price_for_n(4) == 0.05
+    assert classical_price_for_n(20) == 0.05
+    assert classical_price_for_n(21) == 0.10
+    assert classical_price_for_n(200) == 0.10
+    assert classical_price_for_n(201) == 0.25
+    assert classical_price_for_n(5000) == 0.25
+    assert effective_price_usd("classical", n=4) == 0.05
+    assert effective_price_usd("classical", n=50) == 0.10
+    assert effective_price_usd("classical", n=1000) == 0.25
+    assert price_for_mode("classical", n=50) == "$0.100000"
+    assert effective_price_usd("auto", n=50) == 0.10
     # sellability at the charged (mode-level) price
     assert sellable_at_mode_price("quantum", 0.35) is True
     assert sellable_at_mode_price("quantum", 3.40) is False

@@ -293,7 +293,7 @@ class X402Middleware(BaseHTTPMiddleware):
                 body = await request.body()
                 data = json.loads(body) if body else {}
                 body_str = body.decode("utf-8", errors="replace") if body else None
-                price_str = price_for_mode((data.get("mode") or "auto"))
+                price_str = price_for_mode((data.get("mode") or "auto"), n=((data.get("problem") or {}).get("n") if isinstance(data, dict) else None))
             except (json.JSONDecodeError, AttributeError, TypeError) as e:
                 logger.warning(f"Failed to parse request body for dynamic pricing: {e}")
 

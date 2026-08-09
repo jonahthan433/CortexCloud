@@ -22,7 +22,9 @@ MODE_PRICE_USD = {"classical": 0.05, "hybrid": 0.10, "quantum": 0.85}
 # reflects the verified Aug-2026 Rigetti Cepheus-1-108Q run (1024 shots,
 # $0.35). Solver adapters may carry finer per-device estimates; this
 # table is the documented default the margin guard reasons about.
-PROVIDER_COST_USD = {"classical": 0.0, "hybrid": 0.0, "quantum": 0.35}
+# Quantum: observed $0.35/run (1024 fixed shots, verified Cepheus billing)
+# + safety buffer for provider rate changes. Flat per run: BRAKET_SHOTS is fixed.
+PROVIDER_COST_USD = {"classical": 0.0, "hybrid": 0.0, "quantum": 0.50}
 
 # Margin policy: the charged price for a mode is never below the list
 # price, and never below provider_cost x MARKUP — prices move with
@@ -46,17 +48,36 @@ FREE_ROUTES = {
 }
 
 
-def price_for_mode(mode: str) -> str:
-    return f"${effective_price_usd(mode):.6f}"
+def price_for_mode(mode: str, n: int | None = None) -> str:
+    return f"${effective_price_usd(mode, n=n):.6f}"
 
 
-def effective_price_usd(mode: str, provider_cost: float | None = None) -> float:
+# Size-based classical pricing: exact brute-force fits n<=20, heuristic
+# classical (SA) handles mid problems, large jobs are premium compute.
+CLASSICAL_SIZE_TIERS: tuple[tuple[int, float], ...] = ((20, 0.05), (200, 0.10), (2**31 - 1, 0.25))
+
+
+def classical_price_for_n(n: int) -> float:
+    """Classical customer price by problem size (n variables)."""
+    n = int(n or 0)
+    for cap, price in CLASSICAL_SIZE_TIERS:
+        if n <= cap:
+            return price
+    return 0.25
+
+
+def effective_price_usd(mode: str, provider_cost: float | None = None, n: int | None = None) -> float:
     """Charged price for a mode: max(list price, provider cost x MARKUP).
-    provider_cost defaults to the mode's estimated provider cost, so the
-    price rises automatically if provider costs climb."""
+    Classical/auto prices are size-aware (n tiers). provider_cost defaults
+    to the mode's estimated provider cost, so the price rises automatically
+    if provider costs climb."""
     m = (mode or "auto").lower()
+    if m in ("classical", "auto") and n is not None:
+        base = classical_price_for_n(n)
+    else:
+        base = MODE_PRICE_USD.get(m, MODE_PRICE_USD["classical"])
     cost = PROVIDER_COST_USD.get(m, 0.0) if provider_cost is None else float(provider_cost)
-    return max(MODE_PRICE_USD.get(m, MODE_PRICE_USD["classical"]), cost * MARKUP)
+    return max(base, cost * MARKUP)
 
 
 def sellable_at_mode_price(mode: str, provider_cost: float) -> bool:
@@ -71,7 +92,7 @@ def sellable_at_mode_price(mode: str, provider_cost: float) -> bool:
 def gross_margin_usd(mode: str) -> float:
     """Customer price minus estimated provider cost, USD."""
     m = (mode or "auto").lower()
-    return MODE_PRICE_USD.get(m, MODE_PRICE_USD["classical"]) - PROVIDER_COST_USD.get(m, 0.0)
+    return effective_price_usd(m) - PROVIDER_COST_USD.get(m, 0.0)
 
 
 def below_cost(mode: str) -> bool:

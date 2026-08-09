@@ -37,7 +37,7 @@ BRAKET_SHOTS = 1024
 # produces verified price-list / benchmark data. qubit cap is a SAFE
 # floor; the real capacity comes from device discovery.
 PROVIDERS: dict[str, dict[str, Any]] = {
-    "rigetti": {"aws_name": "Rigetti", "price_usd": 0.35, "runtime_s": 60.0, "cap": 100},
+    "rigetti": {"aws_name": "Rigetti", "price_usd": 0.50, "runtime_s": 60.0, "cap": 100},
     "ionq":    {"aws_name": "IonQ",    "price_usd": 3.40, "runtime_s": 90.0, "cap": 100},
     "iqm":     {"aws_name": "IQM",     "price_usd": 0.40, "runtime_s": 75.0, "cap": 100},
     "quera":   {"aws_name": "QuEra",   "price_usd": 0.25, "runtime_s": 120.0, "cap": 100},

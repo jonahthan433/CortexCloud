@@ -182,7 +182,8 @@ def quantum_cost_cap_error(solver, qubo, n: int) -> str | None:
             f"quantum cost cap exceeded: est ${cost:.2f} "
             f"> QUANTUM_MAX_COST_USD ${settings.QUANTUM_MAX_COST_USD:.2f}"
         )
-    price = MODE_PRICE_USD.get("quantum", MODE_PRICE_USD["classical"])
+    from app.x402.pricing import effective_price_usd
+    price = effective_price_usd("quantum")
     if cost > price and not settings.QUANTUM_ALLOW_SUBSIDY:
         return (
             f"quantum margin guard: est provider cost ${cost:.2f} > "

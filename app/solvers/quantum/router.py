@@ -31,7 +31,8 @@ LATENCY_TAX = 1e-4    # gentle runtime penalty so pricing isn't the only axis
 def _candidate(solver, qubo: dict, n: int) -> dict[str, Any]:
     est = solver.estimate(qubo, n)
     provider_cost = est.price_usd
-    customer = MODE_PRICE_USD.get(solver.spec.mode, MODE_PRICE_USD["classical"])
+    from app.x402.pricing import effective_price_usd
+    customer = effective_price_usd(solver.spec.mode, provider_cost, n=n)
     return {
         **est.to_dict(solver.spec),
         "solver_id": solver.spec.id,

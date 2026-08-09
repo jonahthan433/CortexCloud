@@ -54,7 +54,7 @@ async def optimize(req: OptimizeRequest, request: Request):
         raise HTTPException(status_code=422, detail=f"mode must be one of auto|classical|hybrid|quantum, got {req.mode!r}")
     if req.problem.n > 5000:
         raise HTTPException(status_code=422, detail="n exceeds 5000 variables")
-    price = MODE_PRICE_USD.get(req.mode, MODE_PRICE_USD["classical"])
+    price = effective_price_usd(req.mode, n=req.problem.n)
     job_id = await create_job(req.problem, req.mode, price)
     schedule(job_id)
     return {
