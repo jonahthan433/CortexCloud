@@ -54,16 +54,10 @@
   .skip-link:focus { left: 0; }
   :focus-visible { outline: 2px solid var(--emerald); outline-offset: 2px; border-radius: 4px; }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 0 1.5rem; }
-  /* Top bar */
-  .topbar { display: flex; align-items: center; justify-content: space-between; max-width: 1080px; margin: 0 auto; padding: 0.9rem 1.5rem 0; }
-  .topbar img { display: block; }
-  .status-pill { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; font-weight: 600; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0.22rem 0.7rem; }
-  .hero-brand { text-align: center; margin: 0 0 1rem; }
-  .hero-brand img { filter: drop-shadow(0 4px 14px rgba(16,185,129,0.25)); }
-  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
-  .status-dot.ok { background: var(--emerald); box-shadow: 0 0 6px rgba(16,185,129,0.6); }
-  .status-dot.warn { background: var(--amber); }
-  .status-dot.bad { background: #ef4444; }
+  /* Hero */
+  header.hero { text-align: center; }
+  .hero .sub { margin-left: auto; margin-right: auto; }
+  .hero-cta, .hero-meta { justify-content: center; }
   /* Buttons */
   .btn { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.62rem 1.15rem; border-radius: 8px; font-weight: 700; font-size: 0.92rem; border: 1px solid var(--line); color: var(--ink); background: transparent; transition: all 0.15s; cursor: pointer; font-family: inherit; }
   .btn:hover { border-color: var(--ink); }
@@ -72,7 +66,7 @@
   .btn.outline-dark { border: 1px solid var(--line-d); color: #e4e4e7; }
   .btn.outline-dark:hover { background: #e4e4e7; color: var(--ink); }
   /* Hero */
-  header.hero { padding: 4.2rem 0 2.2rem; }
+  header.hero { padding: 3.2rem 0 2rem; }
   .hero h1 { font-size: clamp(2.1rem, 5.2vw, 3.3rem); font-weight: 800; letter-spacing: -0.035em; line-height: 1.08; max-width: 17ch; }
   .hero h1 .mark { background: linear-gradient(90deg, #059669, #10b981); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .hero .sub { color: var(--muted); font-size: 1.08rem; max-width: 58ch; margin: 1rem 0 1.4rem; }
@@ -152,11 +146,7 @@
   .foot a { color: var(--muted); }
   .foot a:hover { color: var(--ink); }
   @media (max-width: 760px) {
-    .topbar { padding: 0.6rem 1.25rem 0; }
-    header.hero { padding: 2.2rem 0 1.4rem; text-align: center; }
-    .hero .sub { margin-left: auto; margin-right: auto; }
-    .hero-meta { justify-content: center; }
-    .hero-cta { justify-content: center; }
+    header.hero { padding: 2rem 0 1.4rem; }
     .console-body { grid-template-columns: 1fr; }
     .ep-list { border-right: none; border-bottom: 1px solid var(--line-d); max-height: 208px; }
     .ep { padding: 0.8rem 0.9rem; }
@@ -173,12 +163,10 @@
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
-<div class="topbar"><a href="/"><img src="/logo-mark.png" alt="CortexCloud" width="26" height="26"></a><span class="status-pill" id="status" role="status" aria-live="polite"><span class="status-dot" aria-hidden="true"></span><span id="status-text">Checking…</span></span></div>
 <main id="main">
 <header class="hero wrap">
-  <p class="hero-brand"><img src="/logo-mark.png" alt="CortexCloud" width="44" height="44"></p>
-  <h1>Plug AI agents into <span class="mark">optimization</span></h1>
-  <p class="sub" id="hero-sub">Classical, hybrid, and real quantum solvers behind one pay-per-call API. No API keys, no signup — an agent estimates for free, gets an exact USDC price, pays, and polls for the solution.</p>
+  <h1>CortexCloud</h1>
+  <p class="sub">Classical, hybrid, and real quantum solvers behind one pay-per-call API. No API keys, no signup — an agent estimates for free, gets an exact USDC price, pays, and polls for the solution.</p>
   <div class="hero-cta">
     <a class="btn dark" href="#explorer">Run a live estimate — free</a>
     <a class="btn" href="/docs">Read the API reference</a>
@@ -336,19 +324,6 @@
 </main>
 
 <script>
-// Live status from the real health endpoint
-(function () {
-  var dot = document.querySelector('.status-dot'), txt = document.getElementById('status-text');
-  fetch('/health', {headers: {'accept': 'application/json'}})
-    .then(function (r) { return r.json(); })
-    .then(function (d) {
-      var ok = d.status === 'healthy' && d.backends && d.backends.quantum.available >= 1;
-      dot.className = 'status-dot ' + (ok ? 'ok' : 'warn');
-      txt.textContent = ok ? 'All systems operational' : 'Degraded — check /health';
-    })
-    .catch(function () { dot.className = 'status-dot bad'; txt.textContent = 'Status unavailable'; });
-})();
-
 // Copy helper
 function copyText(txt, btn) {
   if (navigator.clipboard && navigator.clipboard.writeText) {
