@@ -47,7 +47,7 @@ def main() -> None:
 
     lines = [
         f"- commit: `{sha}` ({date} UTC)",
-        f"- services: API={svcs[.cortexcloud.]} MCP={svcs[.cortexcloud-mcp.]}",
+        f"- services: API={svcs['cortexcloud']} MCP={svcs['cortexcloud-mcp']}",
         "- prices (list / est provider cost / effective): "
         + "; ".join(f"{m} ${v['list']:.2f} / ${v['est_cost']:.2f} / ${v['effective']:.2f}" for m, v in prices.items()),
         f"- markup: {MARKUP}x",
