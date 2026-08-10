@@ -70,7 +70,11 @@ def select(
             continue
         ranked.append(_candidate(s, qubo, n))
 
-    ranked.sort(key=lambda c: (c["_pref"], c["_cost"]))
+    ranked.sort(key=lambda c: (
+        0 if (n <= BRUTE_FORCE_CAP and c["solver_id"] == "brute-force") else 1,
+        c["_pref"],
+        c["_cost"],
+    ))
     for c in ranked:
         # Internal bookkeeping is stripped before any candidate reaches the
         # response boundary (estimator additionally whitelists).
