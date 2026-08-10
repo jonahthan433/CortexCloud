@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CortexCloud — Pay-per-call optimization API for AI agents</title>
-<meta name="description" content="Classical, hybrid and real quantum solvers behind one pay-per-call API. Agents discover it via MCP and x402, estimate for free, and pay per call in USDC on Base. No API keys, no signup, no subscriptions.">
+<title>CortexCloud — Optimization API for AI agents: classical, hybrid, quantum</title>
+<meta name="description" content="Classical, hybrid and real quantum solvers behind one pay-per-call API. Agents discover it via MCP and x402/MPP, estimate for free, and pay per call in USDC on Base. No API keys, no signup, no subscriptions.">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://api.cortexcloud.org/">
 <meta property="og:type" content="website">
@@ -14,9 +14,12 @@
 <meta property="og:image" content="https://api.cortexcloud.org/og.svg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="CortexCloud — Optimization infrastructure for autonomous agents">
-<meta name="twitter:description" content="Pay-per-call optimization API for AI agents. Classical, hybrid, real quantum. x402 + USDC on Base.">
-<meta name="theme-color" content="#0a0e1a">
-<meta name="color-scheme" content="dark">
+<meta name="twitter:description" content="Pay-per-call optimization API for AI agents. Classical, hybrid, real quantum. x402 + MPP, USDC on Base.">
+<meta name="theme-color" content="#fafafa">
+<meta name="color-scheme" content="light">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -37,107 +40,129 @@
 </script>
 <style>
   :root {
-    --bg: #0a0e1a; --bg2: #0d1428; --panel: #111a30; --border: #22304f;
-    --text: #e8eaf2; --muted: #aab4cc; --dim: #7c88a6;
-    --blue: #4d8dff; --blue-d: #2563eb; --green: #3ddc84; --amber: #ffd166;
-    --red: #ff6b6b; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --bg: #fafafa; --ink: #18181b; --muted: #71717a; --dim: #a1a1aa;
+    --line: #e4e4e7; --line-d: #3f3f46; --panel: #18181b; --panel2: #27272a;
+    --emerald: #10b981; --emerald-l: #34d399; --blue: #60a5fa; --redl: #f87171; --amber: #fbbf24;
+    --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html { scroll-behavior: smooth; scroll-padding-top: 72px; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; }
-  a { color: var(--blue); text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  code { font-family: var(--mono); font-size: 0.9em; background: #16203a; border: 1px solid var(--border); border-radius: 5px; padding: 0.12em 0.4em; }
-  pre { font-family: var(--mono); font-size: 0.85rem; line-height: 1.55; background: #080c16; border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; overflow-x: auto; margin: 0.8rem 0; position: relative; }
-  pre code { background: none; border: none; padding: 0; font-size: inherit; }
-  .skip-link { position: absolute; left: -999px; top: 0; background: var(--blue); color: #fff; padding: 0.5rem 1rem; border-radius: 0 0 8px 0; z-index: 50; }
+  html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+  body { font-family: "Geist", ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; text-decoration: none; }
+  code { font-family: var(--mono); font-size: 0.9em; background: #f4f4f5; border: 1px solid var(--line); border-radius: 5px; padding: 0.12em 0.4em; }
+  .skip-link { position: absolute; left: -999px; top: 0; background: var(--ink); color: #fff; padding: 0.5rem 1rem; border-radius: 0 0 8px 0; z-index: 50; }
   .skip-link:focus { left: 0; }
-  :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 4px; }
+  :focus-visible { outline: 2px solid var(--emerald); outline-offset: 2px; border-radius: 4px; }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 0 1.5rem; }
   /* Nav */
-  nav { position: sticky; top: 0; z-index: 40; background: rgba(10,14,26,0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
-  .nav-in { display: flex; align-items: center; gap: 1.2rem; padding: 0.75rem 1.5rem; max-width: 1080px; margin: 0 auto; flex-wrap: wrap; }
-  .brand { display: flex; align-items: center; gap: 0.55rem; font-weight: 800; font-size: 1.05rem; letter-spacing: -0.01em; color: var(--text); }
+  nav { position: sticky; top: 0; z-index: 40; background: rgba(250,250,250,0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .nav-in { display: flex; align-items: center; gap: 1.1rem; padding: 0.7rem 1.5rem; max-width: 1080px; margin: 0 auto; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 0.55rem; font-weight: 700; font-size: 1.05rem; letter-spacing: -0.01em; }
   .brand img { width: 26px; height: 26px; }
-  .nav-links { display: flex; align-items: center; gap: 1.1rem; margin-left: auto; flex-wrap: wrap; font-size: 0.92rem; }
+  .nav-links { display: flex; align-items: center; gap: 1rem; margin-left: auto; flex-wrap: wrap; font-size: 0.9rem; }
   .nav-links a { color: var(--muted); }
-  .nav-links a:hover { color: var(--text); text-decoration: none; }
-  .status-pill { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; font-weight: 600; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 0.22rem 0.7rem; }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-tabs { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; font-size: 0.75rem; }
+  .nav-tabs button { background: transparent; border: none; padding: 0.3rem 0.7rem; font-weight: 600; color: var(--muted); cursor: pointer; font-family: inherit; }
+  .nav-tabs button[aria-selected="true"] { background: #e4e4e7; color: var(--ink); }
+  .status-pill { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; font-weight: 600; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0.22rem 0.7rem; }
   .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
-  .status-dot.ok { background: var(--green); box-shadow: 0 0 6px rgba(61,220,132,0.6); }
+  .status-dot.ok { background: var(--emerald); box-shadow: 0 0 6px rgba(16,185,129,0.6); }
   .status-dot.warn { background: var(--amber); }
-  .status-dot.bad { background: var(--red); }
+  .status-dot.bad { background: #ef4444; }
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.62rem 1.15rem; border-radius: 8px; font-weight: 700; font-size: 0.92rem; border: 1px solid var(--line); color: var(--ink); background: transparent; transition: all 0.15s; cursor: pointer; font-family: inherit; }
+  .btn:hover { border-color: var(--ink); }
+  .btn.dark { background: var(--ink); border-color: var(--ink); color: #fff; border-bottom: 2px solid var(--emerald); }
+  .btn.dark:hover { border-bottom-color: var(--emerald-l); }
+  .btn.outline-dark { border: 1px solid var(--line-d); color: #e4e4e7; }
+  .btn.outline-dark:hover { background: #e4e4e7; color: var(--ink); }
   /* Hero */
-  header.hero { padding: 4.5rem 0 3rem; }
-  .hero h1 { font-size: clamp(2rem, 5vw, 3.1rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.12; max-width: 18ch; }
-  .hero h1 .grad { background: linear-gradient(90deg, #6ea8fe, #3ddc84); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .hero .sub { color: var(--muted); font-size: 1.13rem; max-width: 60ch; margin: 1.1rem 0 1.6rem; }
+  header.hero { padding: 4.2rem 0 2.2rem; }
+  .hero h1 { font-size: clamp(2.1rem, 5.2vw, 3.3rem); font-weight: 800; letter-spacing: -0.035em; line-height: 1.08; max-width: 17ch; }
+  .hero h1 .mark { background: linear-gradient(90deg, #059669, #10b981); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero .sub { color: var(--muted); font-size: 1.08rem; max-width: 58ch; margin: 1rem 0 1.4rem; }
   .hero-cta { display: flex; gap: 0.8rem; flex-wrap: wrap; }
-  .btn { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.68rem 1.25rem; border-radius: 9px; font-weight: 700; font-size: 0.95rem; border: 1px solid var(--border); color: var(--text); background: var(--panel); }
-  .btn:hover { text-decoration: none; border-color: var(--blue); }
-  .btn.primary { background: var(--blue-d); border-color: var(--blue-d); color: #fff; }
-  .btn.primary:hover { background: #1d4ed8; }
-  .btn.ghost { background: transparent; }
-  .hero-meta { margin-top: 1.4rem; display: flex; gap: 1.4rem; flex-wrap: wrap; color: var(--dim); font-size: 0.85rem; }
-  .hero-meta b { color: var(--muted); font-weight: 600; }
-  /* Code hero */
-  .code-card { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: #080c16; margin: 2rem 0; }
-  .code-tabs { display: flex; align-items: center; gap: 0.4rem; padding: 0.55rem 1rem; border-bottom: 1px solid var(--border); background: var(--panel); font-size: 0.8rem; color: var(--dim); flex-wrap: wrap; }
-  .code-tabs .dot { width: 10px; height: 10px; border-radius: 50%; background: #2a3a63; }
-  .code-tabs .dot:first-child { background: #ff6b6b; opacity: 0.7; }
-  .code-tabs .dot:nth-child(2) { background: #ffd166; opacity: 0.7; }
-  .code-tabs .dot:nth-child(3) { background: #3ddc84; opacity: 0.7; }
-  .tab-btn { background: none; border: 1px solid transparent; color: var(--muted); font-size: 0.8rem; border-radius: 6px; padding: 0.28rem 0.7rem; cursor: pointer; font-family: var(--mono); }
-  .tab-btn:hover { color: var(--text); }
-  .tab-btn[aria-selected="true"] { background: #16203a; border-color: var(--border); color: var(--text); }
-  .copy-btn { margin-left: auto; background: none; border: 1px solid var(--border); color: var(--muted); font-size: 0.75rem; border-radius: 6px; padding: 0.2rem 0.6rem; cursor: pointer; font-family: inherit; }
-  .copy-btn:hover { color: var(--text); border-color: var(--blue); }
-  pre .resp { color: #9ad1a5; }
-  pre .cmt { color: #7c88a6; }
-  .pre-label { display: block; color: var(--dim); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; margin: 0.9rem 1.1rem 0; }
+  .hero-meta { margin-top: 1.4rem; display: flex; gap: 0.6rem; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid var(--line); border-radius: 999px; padding: 0.28rem 0.75rem; font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+  .chip b { color: var(--ink); font-weight: 600; }
+  /* Console explorer */
+  .console { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--panel); color: #e4e4e7; margin: 2rem 0 0; box-shadow: 0 20px 50px -20px rgba(24,24,27,0.45); }
+  .console-top { display: flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1rem; border-bottom: 1px solid var(--line-d); background: #101012; font-size: 0.78rem; color: #a1a1aa; }
+  .console-top .dot { width: 10px; height: 10px; border-radius: 50%; background: #3f3f46; }
+  .console-body { display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: 460px; }
+  .ep-list { border-right: 1px solid var(--line-d); overflow-y: auto; max-height: 620px; }
+  .ep { display: flex; align-items: center; gap: 0.55rem; padding: 0.65rem 0.9rem; cursor: pointer; border-bottom: 1px solid #222226; font-size: 0.84rem; }
+  .ep:hover { background: #202024; }
+  .ep[aria-selected="true"] { background: #222226; box-shadow: inset 2px 0 0 var(--emerald); }
+  .ep .method { font-family: var(--mono); font-size: 0.68rem; font-weight: 700; padding: 0.18rem 0.45rem; border-radius: 5px; border: 1px solid; flex-shrink: 0; }
+  .ep .method.get { color: var(--emerald-l); border-color: rgba(52,211,153,0.4); background: rgba(16,185,129,0.12); }
+  .ep .method.post { color: var(--blue); border-color: rgba(96,165,250,0.4); background: rgba(96,165,250,0.12); }
+  .ep .path { color: #d4d4d8; font-family: var(--mono); font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ep .price { margin-left: auto; font-size: 0.72rem; color: var(--emerald-l); font-weight: 600; flex-shrink: 0; }
+  .ep .price.free { color: #a1a1aa; }
+  .ep .desc { display: block; color: #71717a; font-size: 0.72rem; margin-top: 0.15rem; }
+  .ep-main { padding: 1.1rem 1.2rem; display: flex; flex-direction: column; gap: 0.9rem; min-width: 0; }
+  .ep-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .ep-row .method { font-family: var(--mono); font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 5px; border: 1px solid; }
+  .ep-row .method.get { color: var(--emerald-l); border-color: rgba(52,211,153,0.4); background: rgba(16,185,129,0.12); }
+  .ep-row .method.post { color: var(--blue); border-color: rgba(96,165,250,0.4); background: rgba(96,165,250,0.12); }
+  .ep-row .url { font-family: var(--mono); font-size: 0.8rem; color: #d4d4d8; word-break: break-all; }
+  .ep-row .x402-tag { font-size: 0.66rem; font-weight: 700; color: #18181b; background: var(--amber); border-radius: 4px; padding: 0.12rem 0.4rem; letter-spacing: 0.04em; }
+  .ep-row .send { margin-left: auto; }
+  .send { background: #fff; color: #18181b; border: none; font-weight: 700; font-size: 0.8rem; padding: 0.45rem 1rem; border-radius: 7px; cursor: pointer; font-family: inherit; border-bottom: 2px solid var(--emerald); }
+  .send:hover { background: #f4f4f5; }
+  .send:disabled { opacity: 0.4; cursor: not-allowed; }
+  .field label { display: block; font-size: 0.66rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #71717a; margin-bottom: 0.3rem; }
+  .field textarea, .field input { width: 100%; background: #101012; color: #d4d4d8; border: 1px solid var(--line-d); border-radius: 7px; padding: 0.6rem; font-family: var(--mono); font-size: 0.78rem; resize: vertical; }
+  .field textarea:focus, .field input:focus { outline: 2px solid var(--emerald); outline-offset: 1px; }
+  .resp-head { display: flex; align-items: center; gap: 0.6rem; font-size: 0.78rem; }
+  .resp-status { font-family: var(--mono); font-weight: 700; font-size: 0.75rem; padding: 0.14rem 0.5rem; border-radius: 5px; border: 1px solid; }
+  .resp-status.good { color: var(--emerald-l); border-color: rgba(52,211,153,0.4); background: rgba(16,185,129,0.12); }
+  .resp-status.chal { color: var(--amber); border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.12); }
+  .resp-status.bad { color: var(--redl); border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.12); }
+  .resp-body { background: #101012; border: 1px solid var(--line-d); border-radius: 7px; padding: 0.7rem; font-family: var(--mono); font-size: 0.74rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; max-height: 300px; overflow: auto; color: #a3e3c1; }
+  .resp-body.placeholder { color: #52525b; }
+  .resp-body.err { color: #fca5a5; }
+  .resp-note { font-size: 0.78rem; color: #a1a1aa; }
+  .resp-note b { color: #e4e4e7; }
+  .copy-btn { background: none; border: 1px solid var(--line-d); color: #a1a1aa; font-size: 0.7rem; border-radius: 6px; padding: 0.22rem 0.6rem; cursor: pointer; font-family: inherit; }
+  .copy-btn:hover { color: #e4e4e7; border-color: #a1a1aa; }
   /* Sections */
-  section { padding: 2.8rem 0; border-top: 1px solid #141d33; }
-  h2 { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; }
-  .sec-sub { color: var(--muted); max-width: 62ch; margin: 0.6rem 0 1.6rem; }
-  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.1rem; counter-reset: step; }
-  .step { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem 1.2rem 1.4rem; }
-  .step::before { counter-increment: step; content: counter(step); display: block; width: 30px; height: 30px; border-radius: 8px; background: var(--blue-d); color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; margin-bottom: 0.7rem; }
-  .step h3 { font-size: 1.02rem; margin-bottom: 0.35rem; }
-  .step p { color: var(--muted); font-size: 0.92rem; }
-  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.1rem; }
-  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 1.3rem; }
-  .card h3 { font-size: 1.02rem; margin-bottom: 0.3rem; display: flex; align-items: center; gap: 0.5rem; }
-  .card .price { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
-  .card .price small { font-size: 0.8rem; color: var(--dim); font-weight: 500; }
+  section { padding: 3rem 0; }
+  h2 { font-size: 1.45rem; font-weight: 700; letter-spacing: -0.02em; }
+  .sec-sub { color: var(--muted); max-width: 62ch; margin: 0.5rem 0 1.5rem; }
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem; counter-reset: step; }
+  .step { border: 1px solid var(--line); border-radius: 12px; padding: 1.2rem; background: #fff; }
+  .step h3 { font-size: 1rem; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.5rem; }
+  .step h3::before { counter-increment: step; content: counter(step, decimal-leading-zero); font-family: var(--mono); font-size: 0.72rem; font-weight: 600; color: var(--emerald); }
+  .step p { color: var(--muted); font-size: 0.9rem; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem; background: #fff; }
+  .card h3 { font-size: 1rem; margin-bottom: 0.3rem; display: flex; align-items: center; gap: 0.5rem; }
+  .card .price { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.02em; }
+  .card .price small { font-size: 0.78rem; color: var(--dim); font-weight: 500; }
   .card p { color: var(--muted); font-size: 0.9rem; margin: 0.4rem 0 0.8rem; }
-  .tag { display: inline-block; border-radius: 999px; padding: 0.14rem 0.65rem; font-size: 0.72rem; font-weight: 700; }
-  .tag.free { background: #123524; color: var(--green); }
-  .tag.paid { background: #3a2a10; color: var(--amber); }
-  .tag.live { background: #123524; color: var(--green); }
-  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.93rem; }
-  th, td { text-align: left; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--border); }
-  th { color: var(--dim); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
-  td b { color: var(--text); }
-  .note { color: var(--dim); font-size: 0.85rem; margin-top: 0.5rem; }
-  /* Playground */
-  .try-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.1rem; align-items: start; }
-  .try-panel { background: #080c16; border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem; min-width: 0; }
-  .try-panel h3 { font-size: 0.95rem; margin-bottom: 0.6rem; color: var(--text); }
-  .try-panel label { font-size: 0.78rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 0.4rem; }
-  .try-panel textarea { width: 100%; min-height: 150px; background: #0d1428; color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem; font-family: var(--mono); font-size: 0.8rem; resize: vertical; }
-  .try-panel textarea:focus { outline: 2px solid var(--blue); outline-offset: 1px; }
-  .try-out { min-height: 150px; max-height: 340px; overflow: auto; background: #0d1428; border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem; font-family: var(--mono); font-size: 0.78rem; white-space: pre-wrap; word-break: break-word; color: #9ad1a5; }
-  .try-out.err { color: var(--red); }
-  .try-out.placeholder { color: var(--dim); }
-  .try-actions { display: flex; gap: 0.7rem; flex-wrap: wrap; margin-top: 0.9rem; }
-  .try-pay { margin-top: 1rem; border-top: 1px dashed var(--border); padding-top: 0.9rem; }
-  .foot { padding: 2.5rem 0 3.5rem; color: var(--dim); font-size: 0.85rem; border-top: 1px solid #141d33; }
+  .tag { display: inline-block; border-radius: 999px; padding: 0.14rem 0.6rem; font-size: 0.7rem; font-weight: 700; }
+  .tag.live { background: rgba(16,185,129,0.12); color: #059669; border: 1px solid rgba(16,185,129,0.35); }
+  .tag.free { background: #f4f4f5; color: var(--muted); border: 1px solid var(--line); }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.92rem; background: #fff; }
+  th, td { text-align: left; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  td b { font-weight: 600; }
+  .note { color: var(--muted); font-size: 0.84rem; margin-top: 0.5rem; }
+  .badges { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1.2rem; }
+  .pwr { display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid var(--line); border-radius: 999px; padding: 0.3rem 0.8rem; font-size: 0.76rem; font-weight: 600; color: var(--muted); background: #fff; }
+  .pwr .bdot { width: 7px; height: 7px; border-radius: 50%; background: var(--emerald); }
+  .foot { padding: 2.4rem 0 3.2rem; color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--line); }
   .foot a { color: var(--muted); }
+  .foot a:hover { color: var(--ink); }
   @media (max-width: 760px) {
     header.hero { padding-top: 3rem; }
-    .nav-links { gap: 0.8rem; }
-    pre { font-size: 0.78rem; padding: 0.8rem; }
-    .try-grid { grid-template-columns: 1fr; }
+    .console-body { grid-template-columns: 1fr; }
+    .ep-list { border-right: none; border-bottom: 1px solid var(--line-d); max-height: 240px; }
+    .nav-links { gap: 0.7rem; }
+    .ep-row .send { margin-left: 0; }
   }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
@@ -149,107 +174,98 @@
 <nav aria-label="Primary">
   <div class="nav-in">
     <a class="brand" href="/"><img src="/logo-mark.png" alt="" width="26" height="26">CortexCloud</a>
+    <div class="nav-tabs" role="tablist" aria-label="Payment protocol">
+      <button role="tab" id="tab-x402" aria-selected="true">Powered by x402</button>
+      <button role="tab" id="tab-mpp" aria-selected="false">Powered by MPP</button>
+    </div>
     <div class="nav-links">
-      <a href="#how">How it works</a>
-      <a href="#try">Try it live</a>
-      <a href="#pricing">Pricing</a>
       <a href="/docs">API reference</a>
+      <a href="/v1/examples">Examples</a>
+      <a href="#pricing">Pricing</a>
       <a href="https://github.com/jonahthan433/CortexCloudAPI" rel="noopener">GitHub</a>
       <span class="status-pill" id="status" role="status" aria-live="polite"><span class="status-dot" aria-hidden="true"></span><span id="status-text">Checking…</span></span>
-      <a class="btn primary" href="#try" style="padding:0.45rem 1rem;">Try it live</a>
+      <a class="btn dark" href="#explorer" style="padding:0.5rem 1rem;font-size:0.85rem;">Try it live</a>
     </div>
   </div>
 </nav>
 
 <main id="main">
 <header class="hero wrap">
-  <h1>Optimization infrastructure for <span class="grad">autonomous agents</span></h1>
-  <p class="sub">Classical, hybrid, and real quantum solvers behind one API. An agent discovers it via MCP and x402, estimates for free, and pays per call in USDC on Base — no API keys, no signup, no subscriptions.</p>
+  <h1>Plug AI agents into <span class="mark">optimization</span></h1>
+  <p class="sub" id="hero-sub">Classical, hybrid, and real quantum solvers behind one pay-per-call API. No API keys, no signup — an agent estimates for free, gets an exact USDC price, pays, and polls for the solution.</p>
   <div class="hero-cta">
-    <a class="btn primary" href="#try">Run a live estimate — free</a>
-    <a class="btn ghost" href="/docs">Read the API reference</a>
+    <a class="btn dark" href="#explorer">Run a live estimate — free</a>
+    <a class="btn" href="/docs">Read the API reference</a>
   </div>
   <div class="hero-meta">
-    <span>Estimate: <b>free</b></span>
-    <span>Solve from <b>$0.05</b></span>
-    <span>Quantum from <b>$1.503</b></span>
-    <span>Payments: <b>x402 · MPP · USDC on Base</b></span>
-  </div>
-
-  <div class="code-card" id="code-hero">
-    <div class="code-tabs">
-      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-      <button class="tab-btn" data-tab="curl" aria-selected="true" role="tab">curl</button>
-      <button class="tab-btn" data-tab="python" aria-selected="false" role="tab">python</button>
-      <button class="tab-btn" data-tab="mcp" aria-selected="false" role="tab">mcp</button>
-      <button class="copy-btn" data-copy="curl-hero" aria-label="Copy example">Copy</button>
-    </div>
-    <pre id="curl-hero" class="tab-pane" data-pane="curl"><code><span class="cmt"># An agent asks: which solver, how much, how fast? (n=6 QUBO)</span>
-curl -s https://api.cortexcloud.org/v1/estimate \
-  -H 'content-type: application/json' \
-  -d '{"problem_type":"qubo","n":6,"data":{"linear":[1,-2,3,-4,2,-1],"quadratic":{"0,1":-1.5,"1,2":2.0,"2,3":-0.5,"3,4":1.0,"4,5":-2.0}}}'</code></pre>
-    <pre class="tab-pane" data-pane="python" hidden><code><span class="cmt"># Same call with the requests library — no key, no signup</span>
-import requests
-r = requests.post("https://api.cortexcloud.org/v1/estimate", json={
-    "problem_type": "qubo", "n": 6,
-    "data": {"linear": [1,-2,3,-4,2,-1],
-             "quadratic": {"0,1":-1.5,"1,2":2.0,"2,3":-0.5,"3,4":1.0,"4,5":-2.0}},
-})
-print(r.json()["recommendation"])</code></pre>
-    <pre class="tab-pane" data-pane="mcp" hidden><code><span class="cmt"># Or connect an MCP client (Claude, Cursor, Codex):</span>
-claude mcp add cortexcloud --transport http https://api.cortexcloud.org/mcp
-
-<span class="cmt"># Tool: cortex_estimate_optimization (free)</span>
-<span class="cmt"># Tool: cortex_optimize (x402-paid, issues a USDC challenge)</span></code></pre>
-    <span class="pre-label">Response — a real recommendation with the exact price</span>
-    <pre><code class="resp">{
-  "recommendation": {
-    "backend": "rigetti",
-    "mode": "quantum",
-    "estimated_price_usd": 0.75,
-    "cortexcloud_price_usd": 1.503,
-    "reason": "quantum aws_braket/rigetti chosen on 9 benchmark row(s) + cost"
-  }
-}</code></pre>
-    <span class="pre-label">Then, to solve: the payment challenge an agent signs</span>
-    <pre><code><span class="cmt"># POST /v1/optimize replies <b style="color:#ffd166">HTTP 402</b> — an offer, in USDC on Base.
-# Both protocols are live: x402 and MPP (Tempo).</span>
-HTTP 402 Payment Required
-x-payment-protocol: x402, mpp
-www-authenticate: Payment id="VjFPz9...", method="tempo", intent="charge"
-
-{"x402Version": 2, "resource": {"url": "https://api.cortexcloud.org/v1/optimize"},
- "accepts": [{"scheme": "exact", "network": "eip155:8453",
-   "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",  <span class="cmt"># USDC</span>
-   "amount": "1503000",  <span class="cmt"># $1.503 quantum · $0.05 classical · $0.10 hybrid</span>
-   "payTo": "0x5a0353bc9c75b893a9b5735d3e79f1bd988ea143"}]}</code></pre>
+    <span class="chip">Estimate <b>free</b></span>
+    <span class="chip">Solve from <b>$0.05</b></span>
+    <span class="chip">Quantum <b>$1.503</b></span>
+    <span class="chip" id="pay-chip">Payments <b>x402 · USDC on Base</b></span>
   </div>
 </header>
 
-<section id="try" class="wrap">
-  <h2>Try it now — real API, real response</h2>
-  <p class="sec-sub">This playground calls the production API from your browser. Run the estimate (free, instant), then look at the exact payment challenge a paid solve returns. No account, no key, nothing installed.</p>
-  <div class="try-grid">
-    <div class="try-panel">
-      <h3>QUBO problem (JSON)</h3>
-      <label for="try-json">Problem input — edit freely</label>
-      <textarea id="try-json" spellcheck="false" aria-describedby="try-hint">{
-  "problem_type": "qubo",
-  "n": 6,
-  "data": {
-    "linear": [1, -2, 3, -4, 2, -1],
-    "quadratic": {"0,1": -1.5, "1,2": 2.0, "2,3": -0.5, "3,4": 1.0, "4,5": -2.0}
-  }
-}</textarea>
-      <p class="note" id="try-hint">Max-cut, scheduling, portfolio and routing examples live in <a href="/v1/examples">/v1/examples</a>.</p>
-      <div class="try-actions">
-        <button class="btn primary" id="try-est-btn">Estimate (free)</button>
-        <button class="btn ghost" id="try-pay-btn">Show the payment challenge</button>
+<section class="wrap" id="explorer" style="padding-top:0.5rem;">
+  <div class="console" role="region" aria-label="Interactive API explorer">
+    <div class="console-top"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:0.5rem;font-family:var(--mono);">api.cortexcloud.org — live explorer (same-origin, real responses)</span></div>
+    <div class="console-body">
+      <div class="ep-list" role="tablist" aria-label="Endpoints">
+        <div class="ep" data-ep="estimate" aria-selected="true" role="tab" tabindex="0">
+          <span class="method post">POST</span><span class="path">/v1/estimate</span><span class="price free">free</span>
+          <span class="desc">Recommended solver, runtime &amp; exact price</span>
+        </div>
+        <div class="ep" data-ep="optimize" role="tab" tabindex="0">
+          <span class="method post">POST</span><span class="path">/v1/optimize</span><span class="price">from $0.05</span>
+          <span class="desc">Paid solve — returns the 402 payment challenge</span>
+        </div>
+        <div class="ep" data-ep="jobs" role="tab" tabindex="0">
+          <span class="method get">GET</span><span class="path">/v1/jobs/{job_id}</span><span class="price free">free</span>
+          <span class="desc">Poll a submitted job until it completes</span>
+        </div>
+        <div class="ep" data-ep="backends" role="tab" tabindex="0">
+          <span class="method get">GET</span><span class="path">/v1/backends</span><span class="price free">free</span>
+          <span class="desc">Solver backends with live availability</span>
+        </div>
+        <div class="ep" data-ep="capabilities" role="tab" tabindex="0">
+          <span class="method get">GET</span><span class="path">/v1/capabilities</span><span class="price free">free</span>
+          <span class="desc">Modes, limits, providers, payment terms</span>
+        </div>
+        <div class="ep" data-ep="examples" role="tab" tabindex="0">
+          <span class="method get">GET</span><span class="path">/v1/examples</span><span class="price free">free</span>
+          <span class="desc">Canonical agent examples with schemas</span>
+        </div>
       </div>
-    </div>
-    <div class="try-panel">
-      <h3>Live response</h3>
-      <div class="try-out placeholder" id="try-out" role="status" aria-live="polite">Press “Estimate (free)” to call POST /v1/estimate against production…</div>
+      <div class="ep-main">
+        <div class="ep-row">
+          <span class="method post" id="r-method">POST</span>
+          <span class="url" id="r-url">/v1/estimate</span>
+          <span class="x402-tag" id="r-402" hidden>x402 · PAID</span>
+          <button class="send" id="r-send">Send</button>
+        </div>
+        <div class="field" id="f-param" hidden>
+          <label for="param-input">job_id</label>
+          <input id="param-input" value="00000000-0000-0000-0000-000000000000" spellcheck="false" aria-label="job_id">
+        </div>
+        <div class="field" id="f-body">
+          <label for="body-input">Request body</label>
+          <textarea id="body-input" spellcheck="false" aria-label="Request body">{&quot;problem_type&quot;:&quot;qubo&quot;,&quot;n&quot;:6,&quot;data&quot;:{&quot;linear&quot;:[1,-2,3,-4,2,-1],&quot;quadratic&quot;:{&quot;0,1&quot;:-1.5,&quot;1,2&quot;:2.0,&quot;2,3&quot;:-0.5,&quot;3,4&quot;:1.0,&quot;4,5&quot;:-2.0}}}</textarea>
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem;">
+            <label style="font-size:0.66rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:#71717a;">curl</label>
+            <button class="copy-btn" id="curl-copy">Copy</button>
+          </div>
+          <pre id="curl-pre" style="margin:0;background:#101012;border:1px solid var(--line-d);border-radius:7px;padding:0.6rem;font-family:var(--mono);font-size:0.72rem;color:#d4d4d8;overflow-x:auto;white-space:pre-wrap;word-break:break-all;"></pre>
+        </div>
+        <div>
+          <div class="resp-head">
+            <span style="font-size:0.66rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:#71717a;">Response</span>
+            <span class="resp-status" id="r-status" hidden></span>
+          </div>
+          <div class="resp-body placeholder" id="r-body" role="status" aria-live="polite">Press Send to call the production API…</div>
+          <p class="resp-note" id="r-note" hidden></p>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -269,22 +285,19 @@ www-authenticate: Payment id="VjFPz9...", method="tempo", intent="charge"
   <p class="sec-sub">Binary decision problems as QUBO/Ising: scheduling, routing, portfolio selection, staffing, facility placement, knapsack, max-cut. Sized classical solvers for everything; real QPU hardware for the hard stuff.</p>
   <div class="grid3">
     <div class="card">
-      <h3>Classical</h3>
+      <h3>Classical <span class="tag live">LIVE</span></h3>
       <div class="price">$0.05–0.25 <small>by problem size</small></div>
-      <p><code>brute-force</code> exact for n ≤ 20, <code>simulated-annealing</code> up to n = 5,000. Sized pricing: n ≤ 20 → $0.05 · 21–200 → $0.10 · &gt;200 → $0.25.</p>
-      <span class="tag live">LIVE</span>
+      <p><code>brute-force</code> exact for n ≤ 20, <code>simulated-annealing</code> up to n = 5,000. n ≤ 20 → $0.05 · 21–200 → $0.10 · &gt;200 → $0.25.</p>
     </div>
     <div class="card">
-      <h3>Hybrid</h3>
+      <h3>Hybrid <span class="tag live">LIVE</span></h3>
       <div class="price">$0.10</div>
       <p><code>qaoa-local</code> — QAOA ansatz with a classical outer loop. The middle ground between exact and QPU.</p>
-      <span class="tag live">LIVE</span>
     </div>
     <div class="card">
-      <h3>Quantum</h3>
+      <h3>Quantum <span class="tag live">LIVE</span></h3>
       <div class="price">$1.503</div>
-      <p><code>rigetti</code> — Rigetti Cepheus-1-108Q via Amazon Braket, 1024 shots. IBM Quantum open-plan as fallback. Quantum is chosen only on benchmark evidence, never on marketing.</p>
-      <span class="tag live">LIVE</span>
+      <p><code>rigetti</code> — Rigetti Cepheus-1-108Q via Amazon Braket, 1024 shots. IBM Quantum open-plan fallback. Chosen only on benchmark evidence, never on marketing.</p>
     </div>
   </div>
   <p class="note">Backend availability is checked live: <a href="/health">/health</a> currently reports 2 classical, 1 hybrid and 3 quantum backends online.</p>
@@ -292,7 +305,7 @@ www-authenticate: Payment id="VjFPz9...", method="tempo", intent="charge"
 
 <section id="payments" class="wrap">
   <h2>Agent-native payments</h2>
-  <p class="sec-sub">No API keys. No billing portal. No human in the loop. The protocol negotiates the price, and the agent pays in USDC on Base via x402 (with MPP/Tempo as a second rail) — the same payment pattern registered with x402scan and the AgentCash Bazaar.</p>
+  <p class="sec-sub" id="pay-sub">No API keys. No billing portal. No human in the loop. The protocol negotiates the price, and the agent pays per call in USDC on Base via x402 — the same payment pattern registered with x402scan and the AgentCash Bazaar.</p>
   <table>
     <tr><th>Property</th><th>CortexCloud</th></tr>
     <tr><td>Authentication</td><td>None required — payments are the auth</td></tr>
@@ -313,18 +326,22 @@ www-authenticate: Payment id="VjFPz9...", method="tempo", intent="charge"
     <tr><td><b>quantum</b></td><td><code>rigetti</code> — Cepheus-1-108Q via AWS Braket (1024 shots)</td><td><b>$1.503</b></td></tr>
     <tr><td>estimate</td><td><code>POST /v1/estimate</code> — analyze + recommend</td><td><b>free</b></td></tr>
   </table>
-  <p class="note">Every amount above is what a real x402 challenge returns today. Cost basis (published): Braket rate card $0.30/task + $0.000425/shot → $0.7352 at 1024 shots; infra $0.001 + payment $0.0005 per request. Charged = max(list, 2× total cost).</p>
+  <p class="note">Every amount above is what a real 402 challenge returns today. Cost basis (published): Braket rate card $0.30/task + $0.000425/shot → $0.7352 at 1024 shots; infra $0.001 + payment $0.0005 per request. Charged = max(list, 2× total cost).</p>
 </section>
 
 <section id="docs" class="wrap">
   <h2>Start in 60 seconds</h2>
   <p class="sec-sub">From landing to first paid call without creating an account.</p>
   <div class="grid3">
-    <div class="card"><h3>API reference</h3><p>Interactive OpenAPI docs — every endpoint, schema and the x402 payment flow, rendered by Swagger UI.</p><a class="btn" href="/docs">Open the reference</a></div>
-    <div class="card"><h3>MCP</h3><p>Connect Claude, Cursor, or Codex to the 4-tool MCP server with one command.</p><pre style="font-size:0.72rem;margin:0.5rem 0 0.8rem;"><code>claude mcp add cortexcloud --transport http https://api.cortexcloud.org/mcp</code></pre><a class="btn" href="https://github.com/jonahthan433/CortexCloudAPI" rel="noopener">MCP docs on GitHub</a></div>
+    <div class="card"><h3>API reference</h3><p>Interactive OpenAPI docs — every endpoint, schema and the x402 payment flow, rendered by Swagger UI.</p><a class="btn dark" href="/docs" style="padding:0.5rem 1rem;font-size:0.84rem;">Open the reference</a></div>
+    <div class="card"><h3>MCP</h3><p>Connect Claude, Cursor, or Codex to the 4-tool MCP server with one command.</p><pre style="font-size:0.72rem;margin:0.5rem 0 0.8rem;background:#f4f4f5;border:1px solid var(--line);border-radius:7px;padding:0.6rem;overflow-x:auto;"><code style="background:none;border:none;padding:0;">claude mcp add cortexcloud --transport http https://api.cortexcloud.org/mcp</code></pre><a class="btn" href="https://github.com/jonahthan433/CortexCloudAPI" rel="noopener">MCP docs on GitHub</a></div>
     <div class="card"><h3>Examples</h3><p>Copy-paste request/response demos for scheduling, portfolio allocation, and routing — every one a free estimate.</p><a class="btn" href="/v1/examples">Open examples</a></div>
   </div>
   <p class="note" style="margin-top:1.2rem;">Discovery surface: <a href="/llms.txt">llms.txt</a> · <a href="/.well-known/x402.json">x402.json</a> · <a href="/.well-known/bazaar">Bazaar</a> · <a href="/.well-known/agentsearch.txt">agentsearch.txt</a> · <a href="/openapi.json">OpenAPI</a> · <a href="/health">status</a></p>
+  <div class="badges">
+    <span class="pwr"><span class="bdot"></span>Powered by x402</span>
+    <span class="pwr"><span class="bdot"></span>Powered by MPP (Tempo)</span>
+  </div>
 </section>
 
 <footer class="foot wrap">
@@ -346,74 +363,129 @@ www-authenticate: Payment id="VjFPz9...", method="tempo", intent="charge"
     .catch(function () { dot.className = 'status-dot bad'; txt.textContent = 'Status unavailable'; });
 })();
 
-// Copy buttons
-document.querySelectorAll('.copy-btn').forEach(function (btn) {
-  btn.addEventListener('click', function () {
-    var el = document.getElementById(btn.dataset.copy);
-    var text = el ? el.innerText : '';
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1500); });
-    } else {
-      btn.textContent = 'Select manually'; setTimeout(function () { btn.textContent = 'Copy'; }, 2000);
-    }
-  });
-});
-
-// Code tabs
-document.querySelectorAll('.tab-btn').forEach(function (btn) {
-  btn.addEventListener('click', function () {
-    document.querySelectorAll('.tab-btn').forEach(function (b) { b.setAttribute('aria-selected', 'false'); });
-    document.querySelectorAll('.tab-pane').forEach(function (p) { p.hidden = true; });
-    btn.setAttribute('aria-selected', 'true');
-    document.querySelector('.tab-pane[data-pane="' + btn.dataset.tab + '"]').hidden = false;
-  });
-});
-
-// Playground — calls the production API same-origin
+// Payment-protocol toggle (x402 / MPP) — both are genuinely live on this API
 (function () {
-  var out = document.getElementById('try-out'), estBtn = document.getElementById('try-est-btn'),
-      payBtn = document.getElementById('try-pay-btn'), ta = document.getElementById('try-json');
-
-  function parseInput() {
-    try { return JSON.parse(ta.value); }
-    catch (e) { out.className = 'try-out err'; out.textContent = 'Invalid JSON: ' + e.message; return null; }
+  var t402 = document.getElementById('tab-x402'), tmpp = document.getElementById('tab-mpp');
+  function setRail(rail) {
+    t402.setAttribute('aria-selected', rail === 'x402');
+    tmpp.setAttribute('aria-selected', rail === 'mpp');
+    document.getElementById('pay-chip').innerHTML = rail === 'x402'
+      ? 'Payments <b>x402 · USDC on Base</b>' : 'Payments <b>MPP · USDC on Tempo</b>';
+    document.getElementById('pay-sub').textContent = rail === 'x402'
+      ? 'No API keys. No billing portal. No human in the loop. The protocol negotiates the price, and the agent pays per call in USDC on Base via x402 — the same payment pattern registered with x402scan and the AgentCash Bazaar.'
+      : 'No API keys. No billing portal. No human in the loop. The same requests settle per-call on Tempo via MPP (Machine Payments Protocol) — settlement is on-chain, permissionless, and instantly verifiable.';
   }
-  function show(data, err) {
-    out.className = err ? 'try-out err' : 'try-out';
-    out.textContent = err ? String(data) : JSON.stringify(data, null, 2);
-  }
-  function setBusy(btn, busy) { btn.disabled = busy; btn.textContent = busy ? 'Working…' : btn.dataset.label; }
+  t402.addEventListener('click', function () { setRail('x402'); });
+  tmpp.addEventListener('click', function () { setRail('mpp'); });
+})();
 
-  estBtn.dataset.label = 'Estimate (free)';
-  payBtn.dataset.label = 'Show the payment challenge';
-  estBtn.addEventListener('click', function () {
-    var body = parseInput(); if (!body) return;
-    setBusy(estBtn, true);
-    fetch('/v1/estimate', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body)})
-      .then(function (r) { return r.json().then(function (d) { return {ok: r.ok, d: d}; }); })
-      .then(function (x) {
-        if (!x.ok) return show(x.d, true);
-        var d = x.d, rec = d.recommendation;
-        show({problem: d.problem, recommendation: rec, alternatives_available: (d.alternatives || []).length, evidence: d.evidence});
-      })
-      .catch(function (e) { show('Network error: ' + e.message, true); })
-      .finally(function () { setBusy(estBtn, false); });
+// Copy helper
+function copyText(txt, btn) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1500); });
+  } else {
+    btn.textContent = 'Select manually'; setTimeout(function () { btn.textContent = 'Copy'; }, 2000);
+  }
+}
+
+// Console explorer — calls the production API same-origin
+(function () {
+  var EPs = {
+    estimate:   {method: 'POST', path: '/v1/estimate',  hasBody: true,
+                 body: '{"problem_type":"qubo","n":6,"data":{"linear":[1,-2,3,-4,2,-1],"quadratic":{"0,1":-1.5,"1,2":2.0,"2,3":-0.5,"3,4":1.0,"4,5":-2.0}}}',
+                 note: 'Free. Returns the recommended solver, mode, runtime and the exact price a paid solve would charge.'},
+    optimize:   {method: 'POST', path: '/v1/optimize',  hasBody: true, paid: true,
+                 body: '{"mode":"auto","problem":{"problem_type":"qubo","n":4,"data":{"0,0":1,"0,1":-1,"1,1":1}}}',
+                 note: 'HTTP 402 is the offer: an agent signs and settles it (x402 or MPP), then polls GET /v1/jobs/{id}. No money moves from this page.'},
+    jobs:       {method: 'GET',  path: '/v1/jobs/{job_id}', hasBody: false, param: 'job_id',
+                 note: 'Poll an optimization job by id. Replace the placeholder with a real job_id from a paid solve.'},
+    backends:   {method: 'GET',  path: '/v1/backends',  hasBody: false,
+                 note: 'Solver backends with per-backend availability, provider and limits.'},
+    capabilities:{method: 'GET', path: '/v1/capabilities', hasBody: false,
+                 note: 'Service capabilities, modes, limits, providers and payment terms.'},
+    examples:   {method: 'GET',  path: '/v1/examples',  hasBody: false,
+                 note: 'Canonical agent examples with schemas, constraints and pricing.'}
+  };
+  var cur = 'estimate';
+  var methodEl = document.getElementById('r-method'), urlEl = document.getElementById('r-url'),
+      tagEl = document.getElementById('r-402'), sendEl = document.getElementById('r-send'),
+      paramF = document.getElementById('f-param'), bodyF = document.getElementById('f-body'),
+      paramI = document.getElementById('param-input'), bodyI = document.getElementById('body-input'),
+      curlPre = document.getElementById('curl-pre'), curlCopy = document.getElementById('curl-copy'),
+      stEl = document.getElementById('r-status'), bodyOut = document.getElementById('r-body'),
+      noteEl = document.getElementById('r-note');
+
+  function render() {
+    var ep = EPs[cur];
+    methodEl.textContent = ep.method;
+    methodEl.className = 'method ' + ep.method.toLowerCase();
+    urlEl.textContent = ep.path;
+    tagEl.hidden = !ep.paid;
+    paramF.hidden = !ep.param;
+    bodyF.hidden = !ep.hasBody;
+    buildCurl();
+  }
+  function buildCurl() {
+    var ep = EPs[cur], path = ep.path;
+    if (ep.param) path = path.replace('{' + ep.param + '}', paramI.value || ':' + ep.param);
+    var c = 'curl -X ' + ep.method + " 'https://api.cortexcloud.org" + path + "' \\\n  -H 'content-type: application/json'";
+    if (ep.hasBody) c += " \\\n  -d '" + (bodyI.value || '{}') + "'";
+    curlPre.textContent = c;
+  }
+  function setStatus(code) {
+    stEl.hidden = false;
+    stEl.textContent = 'HTTP ' + code;
+    stEl.className = 'resp-status ' + (code === 402 ? 'chal' : (code >= 200 && code < 300 ? 'good' : 'bad'));
+  }
+  function livePath() {
+    var ep = EPs[cur], path = ep.path;
+    return ep.param ? path.replace('{' + ep.param + '}', encodeURIComponent(paramI.value)) : path;
+  }
+
+  document.querySelectorAll('.ep').forEach(function (el) {
+    el.addEventListener('click', function () {
+      document.querySelectorAll('.ep').forEach(function (e) { e.setAttribute('aria-selected', 'false'); });
+      el.setAttribute('aria-selected', 'true');
+      cur = el.dataset.ep; render();
+      bodyOut.className = 'resp-body placeholder'; bodyOut.textContent = 'Press Send to call the production API…';
+      stEl.hidden = true; noteEl.hidden = true;
+    });
+    el.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); el.click(); } });
   });
 
-  payBtn.addEventListener('click', function () {
-    var body = parseInput(); if (!body) return;
-    setBusy(payBtn, true);
-    fetch('/v1/optimize', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({mode: 'auto', problem: body})})
-      .then(function (r) { return r.json().then(function (d) { return {ok: r.ok, d: d}; }); })
+  sendEl.addEventListener('click', function () {
+    var ep = EPs[cur];
+    sendEl.disabled = true; sendEl.textContent = 'Working…';
+    var url = livePath(), opts = {method: ep.method, headers: {'content-type': 'application/json'}};
+    if (ep.hasBody) opts.body = bodyI.value || '{}';
+    fetch(url, opts)
+      .then(function (r) { return r.text().then(function (t) { return {ok: r.ok, status: r.status, text: t}; }); })
       .then(function (x) {
-        if (x.d && x.d.accepts && x.d.accepts[0]) {
-          var p = x.d.accepts[0], usd = (parseInt(p.amount, 10) / 1e6).toFixed(2);
-          show({explained: 'A real 402 challenge for this problem. An agent would sign and pay ' + usd + ' USDC on Base (eip155:8453) to ' + p.payTo.slice(0,6) + '\u2026' + p.payTo.slice(-4) + ', then poll /v1/jobs/{id}.', challenge: x.d});
-        } else { show(x.d, !x.ok); }
+        setStatus(x.status);
+        var pretty = null;
+        try { pretty = JSON.stringify(JSON.parse(x.text), null, 2); } catch (e) {}
+        bodyOut.className = 'resp-body ' + (x.status === 402 ? '' : (x.ok ? '' : 'err'));
+        bodyOut.textContent = pretty || x.text || '(empty body)';
+        noteEl.hidden = !ep.note; noteEl.innerHTML = ep.note || '';
+        if (x.status === 402) {
+          var j;
+          try { j = JSON.parse(x.text); } catch (e) {}
+          if (j && j.accepts && j.accepts[0]) {
+            var p = j.accepts[0], usd = (parseInt(p.amount, 10) / 1e6).toFixed(2);
+            noteEl.innerHTML = 'This is a live 402 offer: <b>' + usd + ' USDC</b> on <b>' + p.network +
+              '</b> to <b>' + p.payTo.slice(0, 6) + '…' + p.payTo.slice(-4) + '</b>. An agent signs and settles this, then polls GET /v1/jobs/{id}.';
+            noteEl.hidden = false;
+          }
+        }
       })
-      .catch(function (e) { show('Network error: ' + e.message, true); })
-      .finally(function () { setBusy(payBtn, false); });
+      .catch(function (e) { bodyOut.className = 'resp-body err'; bodyOut.textContent = 'Network error: ' + e.message; })
+      .finally(function () { sendEl.disabled = false; sendEl.textContent = 'Send'; });
   });
+
+  bodyI.addEventListener('input', buildCurl);
+  paramI.addEventListener('input', buildCurl);
+  curlCopy.addEventListener('click', function () { copyText(curlPre.textContent, curlCopy); });
+  render();
 })();
 
 // GTM tracking beacon — anonymous visit/referrer capture
