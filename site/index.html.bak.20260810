@@ -163,12 +163,12 @@ curl -s https://api.cortexcloud.org/v1/estimate \
     <span class="pre-label">Response — real recommendation with exact price</span>
     <pre><code class="resp">{
   "recommendation": {
-    "backend": "rigetti",
-    "mode": "quantum",
-    "estimated_runtime_s": 60.0,
-    "estimated_price_usd": 0.75,
-    "cortexcloud_price_usd": 1.503,
-    "reason": "quantum aws_braket/rigetti chosen on 9 benchmark row(s) + cost"
+    "backend": "brute-force",
+    "mode": "classical",
+    "estimated_runtime_s": 0.001,
+    "estimated_price_usd": 0.0,
+    "cortexcloud_price_usd": 0.05,
+    "reason": "exact enumeration fits this size at lowest cost"
   }
 }</code></pre>
     <span class="pre-label">Then, to solve: the x402 challenge</span>
@@ -176,7 +176,7 @@ curl -s https://api.cortexcloud.org/v1/estimate \
 # The agent signs the payment; the job runs; GET /v1/jobs/{id} returns it.</span>
 HTTP 402 Payment Required
 {"scheme":"x402","network":"eip155:8453","asset":"USDC",
- "amount":"1.503000","payTo":"0x5a03…ea143"}</code></pre>
+ "amount":"0.050000","payTo":"0x5a03…ea143"}</code></pre>
   </div>
 </header>
 
