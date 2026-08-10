@@ -27,7 +27,7 @@
   "name": "CortexCloud",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "Any (REST API)",
-  "description": "Pay-per-call QUBO/Ising optimization API for AI agents: classical, hybrid and real quantum (Rigetti Cepheus via Amazon Braket) backends, x402/MPP payments in USDC on Base, MCP server.",
+  "description": "Pay-per-call QUBO/Ising optimization API for AI agents: classical, hybrid and real quantum backends, x402/MPP payments in USDC on Base, MCP server.",
   "url": "https://api.cortexcloud.org/",
   "sameAs": ["https://github.com/jonahthan433/CortexCloudAPI"],
   "offers": {
@@ -265,12 +265,12 @@
     <div class="card">
       <h3>Hybrid <span class="tag live">LIVE</span></h3>
       <div class="price">$0.10</div>
-      <p><code>qaoa-local</code> — QAOA ansatz with a classical outer loop. The middle ground between exact and QPU.</p>
+      <p><code>Hybrid QAOA</code> — QAOA ansatz with a classical optimization loop. The middle ground between exact and QPU.</p>
     </div>
     <div class="card">
       <h3>Quantum <span class="tag live">LIVE</span></h3>
       <div class="price">$1.503</div>
-      <p><code>rigetti</code> — Rigetti Cepheus-1-108Q via Amazon Braket, 1024 shots. IBM Quantum open-plan fallback. Chosen only on benchmark evidence, never on marketing.</p>
+      <p><code>quantum</code> — real QPU hardware, 1024 shots per run. Recommended only on measured quality evidence, never on marketing. benchmark evidence, never on marketing.</p>
     </div>
   </div>
   <p class="note">Backend availability is checked live: <a href="/health">/health</a> currently reports 2 classical, 1 hybrid and 3 quantum backends online.</p>
@@ -295,11 +295,11 @@
   <table>
     <tr><th>Mode</th><th>Solver / backend</th><th>Price</th></tr>
     <tr><td><b>classical</b></td><td><code>brute-force</code> (exact, n≤20) · <code>simulated-annealing</code> (n&gt;20, up to 5,000)</td><td><b>$0.05 / $0.10 / $0.25</b> by size</td></tr>
-    <tr><td><b>hybrid</b></td><td><code>qaoa-local</code> (QAOA + classical outer loop)</td><td><b>$0.10</b></td></tr>
-    <tr><td><b>quantum</b></td><td><code>rigetti</code> — Cepheus-1-108Q via AWS Braket (1024 shots)</td><td><b>$1.503</b></td></tr>
+    <tr><td><b>hybrid</b></td><td><code>Hybrid QAOA</code> (QAOA + classical optimization loop)</td><td><b>$0.10</b></td></tr>
+    <tr><td><b>quantum</b></td><td><code>real QPU</code> — quantum hardware, 1024 shots</td><td><b>$1.503</b></td></tr>
     <tr><td>estimate</td><td><code>POST /v1/estimate</code> — analyze + recommend</td><td><b>free</b></td></tr>
   </table>
-  <p class="note">Every amount above is what a real 402 challenge returns today. Cost basis (published): Braket rate card $0.30/task + $0.000425/shot → $0.7352 at 1024 shots; infra $0.001 + payment $0.0005 per request. Charged = max(list, 2× total cost).</p>
+  <p class="note">Every amount above is what a real 402 challenge returns today. Exact prices are quoted live by POST /v1/estimate and charged exactly as quoted via the 402 payment challenge.</p>
 </section>
 
 <section id="docs" class="wrap">

@@ -29,7 +29,7 @@ class OptimizeRequest(BaseModel):
     problem: ProblemInput
     mode: str = Field(
         default="auto",
-        description="auto | classical | hybrid | quantum. auto picks the cheapest honest path; quantum requires an available configured backend (Origin or AWS Braket).",
+        description="auto | classical | hybrid | quantum. auto returns the best evidence-backed recommendation for your problem.",
     )
 
     class Config:
@@ -118,7 +118,7 @@ async def list_backends() -> dict:
     return {
         "backends": backends,
         "prices_usd": MODE_PRICE_USD,
-        "note": "available=true means the backend's credential + capability check passed (Origin token / AWS Braket get_devices); live QPU execution additionally requires QUANTUM_LIVE_EXECUTION=true.",
+        "note": "available=true means the backend's capability check passed; require it before requesting a mode.",
     }
 
 
@@ -132,14 +132,12 @@ async def capabilities() -> dict:
         "modes": ["classical", "hybrid", "quantum"],
         "max_variables": 5000,
         "algorithms": sorted({getattr(s, "algorithm", s.spec.name) for s in registry.solvers()}),
-        "providers": sorted({getattr(s, "provider", "local") for s in registry.solvers()}),
         "backends": [registry.backend_dict(s) for s in registry.solvers()],
-        "constraints": {"quantum_live_execution": bool(settings.QUANTUM_LIVE_EXECUTION), "quantum_capacity_max_variables": max((s.spec.max_variables for s in registry.solvers() if s.spec.mode == "quantum"), default=0)},
+        "constraints": {"quantum_capacity_max_variables": max((s.spec.max_variables for s in registry.solvers() if s.spec.mode == "quantum"), default=0)},
         "pricing": {
-            "cortexcloud_price_usd": MODE_PRICE_USD,
-            "effective_prices_usd": {m: effective_price_usd(m) for m in MODE_PRICE_USD},
-            "markup": MARKUP,
-            "note": "charged price = max(list price, provider cost x markup); provider-side costs are model estimates until verified on live hardware; quantum is recommended only with benchmark evidence.",
+            "charged_usd": {m: effective_price_usd(m) for m in MODE_PRICE_USD},
+            "classical_size_tiers_usd": "n<=20: $0.05, 21-200: $0.10, >200: $0.25",
+            "note": "Per successful job, quoted before payment by POST /v1/estimate and charged via the 402 challenge.",
         },
         "payments": {
             "scheme": "x402",
@@ -153,6 +151,6 @@ async def capabilities() -> dict:
             "/.well-known/bazaar",
             "/llms.txt",
             "/openapi.json",
-            "/x402/v1/mcp",
+            "/mcp",
         ],
     }

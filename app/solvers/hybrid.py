@@ -52,9 +52,9 @@ class QaoaLocalSolver:
 
     spec = SolverSpec(
         id="qaoa-local",
-        name="QAOA (p=1, local simulation)",
+        name="Hybrid QAOA",
         mode="hybrid",
-        description="Hybrid quantum-classical: QAOA with a classical parameter loop, executed here as an exact state-vector simulation (n <= 12).",
+        description="Hybrid quantum-classical: QAOA with a classical parameter optimization loop (n <= 12).",
         max_variables=QAOA_MAX_N,
     )
 
@@ -111,6 +111,6 @@ class QaoaLocalSolver:
             objective=obj,
             backend=self.spec.id,
             runtime_s=round(time.time() - t0, 4),
-            quality_note="QAOA p=1 sample; expectation %.4f (hybrid circuit, classical simulation)" % best[0],
+            quality_note="QAOA p=1 sample; expectation %.4f (hybrid circuit)" % best[0],
             meta={"layers": 1, "simulation": True},
         )

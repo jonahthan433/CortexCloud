@@ -55,7 +55,7 @@ async def bazaar_root():
         "endpoints": _endpoint_catalog(),
         "mcp": {
             "transport": "streamable-http",
-            "endpoint": "/x402/v1/mcp",
+            "endpoint": "https://api.cortexcloud.org/mcp",
             "tools": list_tools(),
         },
         "payment": {
@@ -67,77 +67,3 @@ async def bazaar_root():
         },
         "discovery": ["/.well-known/x402.json", "/llms.txt", "/openapi.json"],
     }
-
-
-# ---------------------------------------------------------------- MCP ----
-_MCP_VERSION = "2025-03-26"
-_DEFAULT_TIMEOUT = 60.0
-
-
-async def _relay(request: Request, method: str, path: str, payload: dict) -> dict | JSONResponse:
-    """Forward to the inner REST surface, carrying x402 payment headers."""
-    url = f"http://127.0.0.1:{request.url.port or 8000}{path}"
-    headers = {
-        "accept": "application/json",
-        "content-type": "application/json",
-        **{k: v for k, v in request.headers.items()
-           if k.lower() in ("payment-signature", "x-payment", "x-correlation-id")},
-    }
-    client = shared_client("mcp", _DEFAULT_TIMEOUT)
-    resp = await client.request(method, url, json=payload if payload else None, headers=headers)
-    if resp.status_code == 402:
-        # Return the challenge verbatim so the MCP client can pay.
-        try:
-            return JSONResponse(status_code=402, content=resp.json(), headers={"payment-required": resp.headers.get("payment-required", "")})
-        except Exception:
-            return JSONResponse(status_code=402, content={"error": "payment required"})
-    try:
-        body = resp.json()
-    except Exception:
-        body = {"raw": resp.text}
-    if resp.status_code >= 400:
-        return JSONResponse(status_code=resp.status_code, content=body)
-    return body
-
-
-@router.post("/x402/v1/mcp", tags=["MCP"])
-async def mcp_gateway(request: Request):
-    try:
-        msg = await request.json()
-    except Exception:
-        return JSONResponse(status_code=400, content={"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": None})
-    method = msg.get("method")
-    params = msg.get("params") or {}
-    rpc_id = msg.get("id")
-
-    if method == "initialize":
-        return {
-            "jsonrpc": "2.0",
-            "id": rpc_id,
-            "result": {
-                "protocolVersion": _MCP_VERSION,
-                "capabilities": {"tools": {}},
-                "serverInfo": {"name": "cortexcloud-optimization-mcp", "version": "0.3.0"},
-            },
-        }
-    if method == "tools/list":
-        return {"jsonrpc": "2.0", "id": rpc_id, "result": {"tools": list_tools()}}
-    if method == "tools/call":
-        tool_name = (params or {}).get("name")
-        args = (params or {}).get("arguments") or {}
-        tool = tool_entry(tool_name)
-        if tool is None:
-            return {"jsonrpc": "2.0", "id": rpc_id, "error": {"code": -32602, "message": f"Unknown tool: {tool_name}"}}
-        path = tool["path"].replace("{job_id}", str(args.get("job_id", "")))
-        payload = None if tool["method"] == "GET" else args
-        if tool["method"] == "GET":
-            payload = None
-        result = await _relay(request, tool["method"], path, payload)
-        if isinstance(result, JSONResponse):
-            return result  # 402 challenge or error, untouched
-        return {
-            "jsonrpc": "2.0",
-            "id": rpc_id,
-            "result": {"content": [{"type": "text", "text": json.dumps(result, default=str)}]},
-        }
-    return {"jsonrpc": "2.0", "id": rpc_id, "error": {"code": -32601, "message": f"Method not found: {method}"}}

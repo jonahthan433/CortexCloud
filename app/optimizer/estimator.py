@@ -41,7 +41,6 @@ async def estimate(problem: ProblemInput, mode: str = "auto") -> dict:
             "decision": {
                 "recommended": False,
                 "mode": None,
-                "provider": None,
                 "backend": None,
                 "algorithm": None,
                 "reason": sel["reason"],
@@ -58,17 +57,21 @@ async def estimate(problem: ProblemInput, mode: str = "auto") -> dict:
             "caveats": _caveats(problem),
         }
 
-    alternatives = [c for c in sel["ranked"] if c["solver_id"] != best["solver_id"]]
+    # Public projection: only what an agent needs to act (mode, solver,
+    # runtime, price, reason). Internal cost/margin/benchmark bookkeeping
+    # stays in the router and never crosses this boundary.
+    def _public(d: dict) -> dict:
+        return {k: d[k] for k in (
+            "mode", "solver_id", "backend", "algorithm", "description",
+            "max_variables", "estimated_runtime_s",
+            "cortexcloud_price_usd", "estimated_cost_usdc",
+        ) if k in d}
+
+    alternatives = [_public(c) for c in sel["ranked"] if c["solver_id"] != best["solver_id"]]
     recommended = {
-        **best,  # mode, algorithm, backend, provider, estimates, costs
+        **_public(best),
         "estimated_cost_usdc": best["cortexcloud_price_usd"],
         "reason": sel["reason"],
-        "cost": {
-            "provider_cost_usd": best["provider_cost_usd"],
-            "cortexcloud_price_usd": best["cortexcloud_price_usd"],
-            "margin_usd": best["margin_usd"],
-            "note": "provider cost is a model estimate until verified pricing/benchmarks exist",
-        },
     }
     quantum_available = any(
         s.availability().available for s in registry.for_mode("quantum")
@@ -80,11 +83,10 @@ async def estimate(problem: ProblemInput, mode: str = "auto") -> dict:
         "decision": {
             "recommended": True,
             "mode": best["mode"],
-            "provider": best["provider"],
             "backend": best["backend"],
             "algorithm": best["algorithm"],
             "reason": sel["reason"],
-            "estimated_cost_usd": best["estimated_price_usd"],
+            "estimated_cost_usd": best["cortexcloud_price_usd"],
             "cortexcloud_price_usd": best["cortexcloud_price_usd"],
             "quantum_available": quantum_available,
             "quantum_recommended": best["mode"] == "quantum",
@@ -92,9 +94,9 @@ async def estimate(problem: ProblemInput, mode: str = "auto") -> dict:
         "evidence": {
             "benchmark_rows": bench_count,
             "basis": "measured" if bench_count else "model",
-            "note": "Quantum is recommended only when benchmark evidence supports it."
+            "note": "Recommendations are evidence-based; quantum is never promoted without measured support."
             if bench_count
-            else "No benchmark rows exist yet; quantum backends are never promoted without evidence.",
+            else "No measured evidence exists yet for this problem family; quantum is never promoted without it.",
         },
         "caveats": _caveats(problem),
     }
@@ -130,14 +132,14 @@ def _caveats(problem: ProblemInput) -> list[str]:
     quantum = registry.for_mode("quantum")
     if not any(q.availability().available for q in quantum):
         out.append(
-            "Quantum execution not offered: no provider credentials configured "
-            "(ORIGINQ_API_TOKEN / AWS_ACCESS_KEY_ID+SECRET)."
+            "Quantum execution is not currently offered — no quantum backend is online. "
+            "Classical and hybrid modes are unaffected."
         )
     else:
         out.append(
-            "Quantum backends are available but only recommended with benchmark evidence; "
-            "none exists yet, so quantum is never promoted."
+            "Quantum backends are available; quantum is only recommended automatically "
+            "when measured quality evidence exists for the problem family."
         )
     if problem.n > 18:
-        out.append("Heuristic result — verify optimality for small n with the brute-force solver.")
+        out.append("Heuristic result — for an exact optimality guarantee use n <= 18.")
     return out

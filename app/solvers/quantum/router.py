@@ -36,7 +36,6 @@ def _candidate(solver, qubo: dict, n: int) -> dict[str, Any]:
     return {
         **est.to_dict(solver.spec),
         "solver_id": solver.spec.id,
-        "provider": getattr(solver, "provider", "local"),
         "provider_cost_usd": round(provider_cost, 6),
         "cortexcloud_price_usd": round(customer, 6),
         "margin_usd": round(customer - provider_cost, 6),
@@ -73,7 +72,12 @@ def select(
 
     ranked.sort(key=lambda c: (c["_pref"], c["_cost"]))
     for c in ranked:
+        # Internal bookkeeping is stripped before any candidate reaches the
+        # response boundary (estimator additionally whitelists).
         c.pop("_cost", None)
+        c.pop("_pref", None)
+        c.pop("provider_cost_usd", None)
+        c.pop("margin_usd", None)
 
     if not ranked:
         return {
@@ -95,9 +99,9 @@ def _reason(best: dict[str, Any], bench_count: int, quantum_gate: str) -> str:
     mode = best["mode"]
     if mode == "classical":
         if best["solver_id"] == "brute-force":
-            return "exact enumeration fits this size at lowest cost"
-        return "heuristic classical (simulated annealing) — exact infeasible at this size"
+            return "exact solver fits this problem size at the lowest evaluated cost"
+        return "heuristic classical — exact solving is infeasible at this size"
     if mode == "hybrid":
-        return "hybrid QAOA (local) — classical heuristic pricier or unavailable"
-    evidence = f"{bench_count} benchmark row(s)" if bench_count else "explicit request"
-    return f"quantum {best['provider']}/{best['backend']} chosen on {evidence} + cost"
+        return "hybrid QAOA — best evaluated fit for this problem size and budget"
+    evidence = f"{bench_count} quality measurement(s) on record" if bench_count else "explicit request"
+    return f"quantum — {evidence}"

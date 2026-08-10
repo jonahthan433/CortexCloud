@@ -36,9 +36,9 @@ class OriginWukongAdapter(QuantumBackend):
         super().__init__(
             SolverSpec(
                 id="wukong",
-                name="Origin Quantum Wukong (superconducting)",
+                name="quantum QPU (superconducting)",
                 mode="quantum",
-                description="QAOA execution on Origin Quantum's Wukong superconducting processor via the Quafu cloud (quafu-runtime).",
+                description="QAOA on a superconducting quantum processor — 1024 shots per run.",
                 max_variables=MAX_QBITS,
                 requires_token=True,
             ),
@@ -64,7 +64,7 @@ class OriginWukongAdapter(QuantumBackend):
 
     def availability(self) -> SolverAvailability:
         if not self._api_token:
-            return SolverAvailability(False, "ORIGINQ_API_TOKEN not set")
+            return SolverAvailability(False, "quantum capability check failed")
         if self._runtime is None and self._sdk() is None:
             return SolverAvailability(
                 False, "quafu-runtime SDK not installed — see requirements-quantum.txt"

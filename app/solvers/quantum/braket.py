@@ -76,11 +76,10 @@ class BraketBackend(QuantumBackend):
         super().__init__(
             SolverSpec(
                 id=provider,
-                name=f"Amazon Braket {cfg['aws_name']} (QPU)",
+                name="quantum QPU",
                 mode="quantum",
                 description=(
-                    f"QAOA on {cfg['aws_name']} QPU via Amazon Braket — "
-                    "device discovered from AWS, not hardcoded."
+                    "QAOA on real quantum hardware — 1024 shots per run."
                 ),
                 max_variables=cfg["cap"],
                 requires_token=True,
@@ -152,13 +151,13 @@ class BraketBackend(QuantumBackend):
     def availability(self) -> SolverAvailability:
         if not self._credentials_present():
             return SolverAvailability(
-                False, "AWS credentials not configured (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY)"
+                False, "quantum capability check failed"
             )
         devices, err = self._discover()
         if err is not None:
             return SolverAvailability(False, f"Braket capability check failed: {err}")
         if not devices:
-            return SolverAvailability(False, f"no ONLINE QPU device for {self._cfg['aws_name']}")
+            return SolverAvailability(False, "no quantum device online")
         # qubit count from the live discovery, not the static floor
         qc = (
             devices[0].get("quantumComputingDeviceData", {})
@@ -168,7 +167,7 @@ class BraketBackend(QuantumBackend):
         if qc:
             self.spec.max_variables = int(qc)
         return SolverAvailability(
-            True, f"credentials + Braket get_devices capability check OK ({self.spec.max_variables} qubits)"
+            True, f"capability check OK ({self.spec.max_variables} qubits)"
         )
 
     def estimate(self, qubo, n: int) -> Estimate:

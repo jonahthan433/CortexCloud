@@ -5,7 +5,7 @@
     "POST /v1/optimize": {
       "classical": 0.05,
       "hybrid": 0.1,
-      "quantum": 0.25,
+      "quantum": 1.503,
       "unit": "USD per job",
       "settlement": "USDC on Base (eip155:8453) via x402"
     },
@@ -202,7 +202,7 @@
           "solver_id": "brute-force"
         }
       },
-      "pricing_behavior": "estimate free; optimize $0.05 classical, $0.10 hybrid, $0.25 quantum (only when a quantum backend shows available=true; otherwise an honest error)."
+      "pricing_behavior": "estimate free; optimize $0.05 classical, $0.10 hybrid, $1.503 quantum (only when a quantum backend shows available=true; otherwise an honest error)."
     }
   ],
   "when_not_to_use": [

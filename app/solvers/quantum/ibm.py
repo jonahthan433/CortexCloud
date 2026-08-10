@@ -76,11 +76,10 @@ class IBMBackend(QuantumBackend):
         super().__init__(
             SolverSpec(
                 id="ibm",
-                name="IBM Quantum (QPU)",
+                name="quantum QPU (open plan)",
                 mode="quantum",
                 description=(
-                    "QAOA on IBM Quantum real-time QPU via Qiskit Runtime — "
-                    "backend discovered dynamically, never hardcoded."
+                    "QAOA on real quantum hardware — 1024 shots per run."
                 ),
                 max_variables=self._cfg["cap"],
                 requires_token=True,

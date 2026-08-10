@@ -114,29 +114,15 @@ def backend_dict(s: Solver) -> dict:
         "id": s.spec.id,
         "name": s.spec.name,
         "mode": s.spec.mode,
-        "provider": getattr(s, "provider", "local"),
         "algorithm": getattr(s, "algorithm", s.spec.name),
         "description": s.spec.description,
         "max_variables": s.spec.max_variables,
-        "requires_token": s.spec.requires_token,
         "available": a.available,
         "verified": a.available if s.spec.mode == "quantum" else True,
     }
     if not a.available:
-        base["note"] = a.reason
-    # Provider-cost-aware pricing surface for quantum backends: agents see
-    # the real estimated provider cost, the effective (markup) price, and
-    # whether the backend is sellable at the current charged mode price.
-    if s.spec.mode == "quantum":
-        from app.x402.pricing import effective_price_usd, sellable_at_mode_price
-
-        try:
-            cost = float(s.estimate({"linear": [0.0, 0.0], "quadratic": {}, "n": 2}, 2).price_usd)
-        except Exception:
-            cost = 0.0
-        base["estimated_provider_cost_usd"] = cost
-        base["effective_price_usd"] = effective_price_usd("quantum", cost)
-        base["sellable_at_mode_price"] = sellable_at_mode_price("quantum", cost)
+        # Neutral public note; operational reasons stay internal.
+        base["note"] = "unavailable — capability check did not pass"
     return base
 
 

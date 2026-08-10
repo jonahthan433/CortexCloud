@@ -89,7 +89,7 @@ async def agentsearch_txt():
         "- POST /v1/estimate with {mode, n, data} for a free recommendation (decision block) and price.",
         "- POST /v1/optimize with {mode: auto|classical|hybrid|quantum, n, data} to solve; a 402 x402 challenge is returned, settle USDC on Base, then poll the job.",
         "- GET /v1/jobs/{job_id} to poll job status (succeeded/failed + solution).",
-        "- GET /v1/backends for backends, availability, and per-backend provider cost.",
+        "- GET /v1/backends for solver backends and live availability.",
         "Discovery: https://api.cortexcloud.org/llms.txt, https://api.cortexcloud.org/.well-known/x402.json, https://api.cortexcloud.org/.well-known/bazaar, https://api.cortexcloud.org/.well-known/agentsearch.txt, https://api.cortexcloud.org/openapi.json",
         "Pricing: https://api.cortexcloud.org/v1/capabilities",
     ])
@@ -103,7 +103,7 @@ async def llms_txt():
         for path, price in sorted(ROUTE_PRICING.items())
         if float(price.lstrip("$")) > 0.0
     ]
-    free = [f"- POST {path} — {desc}" for path, desc in sorted(FREE_ROUTES.items())]
+    free = [f"- {path} — {desc}" for path, desc in sorted(FREE_ROUTES.items())]
 
     text = f"""# CortexCloud
 
@@ -133,13 +133,13 @@ protocol — no API keys, no subscriptions. Settlement is permissionless.
 ## Decision block (machine-friendly)
 
 POST /v1/estimate returns a top-level "decision" object agents can branch
-on directly: {{"recommended": true, "mode": "classical", "provider": "local",
-"backend": "brute-force", "algorithm": "...", "reason": "...",
-"estimated_cost_usd": 0.0, "cortexcloud_price_usd": 0.05,
-"quantum_available": false, "quantum_recommended": false}}.
+on directly: {{"recommended": true, "mode": "quantum", "backend": "...",
+"algorithm": "...", "reason": "...", "estimated_cost_usd": 0.0,
+"cortexcloud_price_usd": 1.503, "quantum_available": true,
+"quantum_recommended": true}}.
 "recommended" is false only when no usable solver exists. Quantum is never
-recommended without benchmark evidence; if you explicitly need quantum,
-check /v1/backends for an available=true quantum backend first.
+recommended without measured quality evidence; if you explicitly need
+quantum, check /v1/backends for an available=true quantum backend first.
 
 ## When NOT to use
 
@@ -165,9 +165,9 @@ GET /v1/examples (free).
 ## Honesty
 
 Quantum execution is never faked and never claimed superior without
-benchmark evidence: /v1/backends lists availability, /v1/estimate routes
-to classical whenever it is cheaper/faster, and the Origin Quantum token
-must be configured before the wukong backend reports available.
+measured evidence. /v1/backends publishes live availability per backend,
+and /v1/estimate recommends the best evidence-backed solver for your
+problem and budget. A backend is only ever listed when it verifiably runs.
 
 ## Reference
 

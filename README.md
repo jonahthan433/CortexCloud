@@ -11,7 +11,7 @@
 LLMs can *describe* scheduling, routing, portfolio and allocation problems —
 but they can't *solve* them. CortexCloud is the pay-per-call solving layer:
 an agent formulates the problem as QUBO/Ising, we recommend the right solver
-(classical, hybrid, or quantum on a real Rigetti QPU), and it pays per run
+(classical, hybrid, or real quantum hardware), and it pays per run
 with x402 micropayments. No signup, no keys — the wallet is the account.
 
 ## Quickstart (agent / developer)
@@ -67,8 +67,8 @@ auto-x402), `cortex_get_job`, `cortex_list_backends`.
 | Mode | Solver | Price |
 |---|---|---|
 | classical | `brute-force` (exact, n≤20) / `simulated-annealing` | $0.05 |
-| hybrid | `qaoa-local` (QAOA + classical outer loop) | $0.10 |
-| quantum | `rigetti` (Rigetti Cepheus QPU via AWS Braket) | $0.85 |
+| hybrid | `Hybrid QAOA` (QAOA + classical optimization loop) | $0.10 |
+| quantum | real QPU hardware (1024 shots per run) | $1.503 |
 
 Quantum is only recommended with benchmark evidence — never on marketing.
 

@@ -3,14 +3,7 @@
   "info": {
     "title": "CortexCloud Optimization Network",
     "description": "Optimization infrastructure for AI agents \u2014 discover, pay for, and execute classical, hybrid, or quantum optimization through a single API.",
-    "version": "2.0.0",
-    "x-guidance": "CortexCloud \u2014 optimization infrastructure for AI agents. Discover, pay for, and execute classical, hybrid, or quantum optimization through a single API. POST /v1/estimate is free. POST /v1/optimize returns HTTP 402 with an x402 PaymentRequirements challenge (USDC on Base, chain 8453). Sign the challenge with your wallet and resend with the payment-signature header. Poll GET /v1/jobs/{job_id}. No API keys, no subscriptions.",
-    "x-apisguru-categories": [
-      "ai-ml"
-    ],
-    "contact": {
-      "email": "team@cortexcloud.org"
-    }
+    "version": "2.0.0"
   },
   "paths": {
     "/v1/optimize": {
@@ -49,39 +42,7 @@
                 }
               }
             }
-          },
-          "402": {
-            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
           }
-        },
-        "security": [
-          {
-            "x402": []
-          }
-        ],
-        "x-payment-info": {
-          "price": {
-            "mode": "fixed",
-            "currency": "USD",
-            "amount": "0.050000"
-          },
-          "protocols": [
-            {
-              "x402": {}
-            },
-            {
-              "mpp": {
-                "method": "tempo",
-                "intent": "charge",
-                "currency": "0x20C000000000000000000000b9537d11c60E8b50"
-              }
-            }
-          ],
-          "scheme": "x402",
-          "network": "eip155:8453",
-          "asset": "USDC",
-          "price_atomic_usdc": "50000",
-          "decimals": 6
         }
       }
     },
@@ -93,15 +54,27 @@
         ],
         "summary": "Analyze a problem for free \u2014 mode, algorithm, backend, runtime, price",
         "operationId": "v1_estimate_v1_estimate_post",
+        "parameters": [
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "auto",
+              "title": "Mode"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ProblemInput"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -109,8 +82,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response V1 Estimate V1 Estimate Post"
                 }
               }
@@ -126,8 +99,7 @@
               }
             }
           }
-        },
-        "security": []
+        }
       }
     },
     "/v1/jobs/{job_id}": {
@@ -172,8 +144,7 @@
               }
             }
           }
-        },
-        "security": []
+        }
       }
     },
     "/v1/examples": {
@@ -197,8 +168,7 @@
               }
             }
           }
-        },
-        "security": []
+        }
       }
     },
     "/v1/backends": {
@@ -222,8 +192,7 @@
               }
             }
           }
-        },
-        "security": []
+        }
       }
     },
     "/v1/capabilities": {
@@ -247,8 +216,103 @@
               }
             }
           }
-        },
-        "security": []
+        }
+      }
+    },
+    "/v1/track": {
+      "get": {
+        "tags": [
+          "Tracking",
+          "Tracking"
+        ],
+        "summary": "Track",
+        "description": "Beacon called by the landing page: records where visitors came from.",
+        "operationId": "track_v1_track_get",
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ref"
+            }
+          },
+          {
+            "name": "src",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Src"
+            }
+          },
+          {
+            "name": "med",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Med"
+            }
+          },
+          {
+            "name": "cmp",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cmp"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/.well-known/x402.json": {
@@ -268,8 +332,28 @@
               }
             }
           }
-        },
-        "security": []
+        }
+      }
+    },
+    "/.well-known/x402": {
+      "get": {
+        "tags": [
+          "Discovery",
+          "x402 Discovery"
+        ],
+        "summary": "Well Known X402 V1",
+        "description": "v1 discovery document (resource URL list) \u2014 the shape x402scan-mcp and\nother v1 discovery tools parse. The rich v2 manifest stays at x402.json.",
+        "operationId": "well_known_x402_v1__well_known_x402_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
       }
     },
     "/.well-known/agentsearch.txt": {
@@ -290,8 +374,7 @@
               }
             }
           }
-        },
-        "security": []
+        }
       }
     },
     "/llms.txt": {
@@ -311,8 +394,7 @@
               }
             }
           }
-        },
-        "security": []
+        }
       }
     },
     "/.well-known/bazaar": {
@@ -332,29 +414,7 @@
               }
             }
           }
-        },
-        "security": []
-      }
-    },
-    "/x402/v1/mcp": {
-      "post": {
-        "tags": [
-          "Bazaar / MCP",
-          "MCP"
-        ],
-        "summary": "Mcp Gateway",
-        "operationId": "mcp_gateway_x402_v1_mcp_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        },
-        "security": []
+        }
       }
     },
     "/x402/v1/pubkey": {
@@ -374,8 +434,7 @@
               }
             }
           }
-        },
-        "security": []
+        }
       }
     },
     "/x402/v1/usage": {
@@ -416,8 +475,7 @@
               }
             }
           }
-        },
-        "security": []
+        }
       }
     },
     "/x402/v1/receipts": {
@@ -481,8 +539,7 @@
               }
             }
           }
-        },
-        "security": []
+        }
       }
     },
     "/health": {
@@ -501,8 +558,7 @@
               }
             }
           }
-        },
-        "security": []
+        }
       }
     }
   },
@@ -529,7 +585,7 @@
           "mode": {
             "type": "string",
             "title": "Mode",
-            "description": "auto | classical | hybrid | quantum. auto picks the cheapest honest path; quantum requires an available configured backend (Origin or AWS Braket).",
+            "description": "auto | classical | hybrid | quantum. auto returns the best evidence-backed recommendation for your problem.",
             "default": "auto"
           }
         },
@@ -628,21 +684,7 @@
         ],
         "title": "ValidationError"
       }
-    },
-    "securitySchemes": {
-      "x402": {
-        "type": "http",
-        "scheme": "bearer",
-        "description": "x402 payment: obtain a 402 PaymentRequirements challenge, answer with a wallet authorization, pass it back in the X-PAYMENT signature header."
-      }
     }
   },
-  "servers": [
-    {
-      "url": "https://api.cortexcloud.org"
-    }
-  ],
-  "x-logo": {
-    "url": "https://api.cortexcloud.org/cortex-logo.png"
-  }
+  "tags": []
 }
