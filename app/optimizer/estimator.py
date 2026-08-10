@@ -21,7 +21,7 @@ from app.solvers import registry
 from app.solvers.quantum import router
 
 
-async def estimate(problem: ProblemInput) -> dict:
+async def estimate(problem: ProblemInput, mode: str = "auto") -> dict:
     n = problem.n
     qubo = to_qubo(problem)
     bench_count = await benchmark_evidence(problem)
@@ -30,6 +30,7 @@ async def estimate(problem: ProblemInput) -> dict:
         qubo=qubo,
         n=n,
         bench_count=bench_count,
+        force_mode=mode if mode != "auto" else None,
     )
     best = sel["recommended"]
     if best is None:

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import Query, APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
@@ -67,10 +67,12 @@ async def optimize(req: OptimizeRequest, request: Request):
 
 
 @router.post("/estimate", summary="Analyze a problem for free — mode, algorithm, backend, runtime, price")
-async def v1_estimate(problem: ProblemInput) -> dict:
+async def v1_estimate(problem: ProblemInput, mode: str = Query("auto")) -> dict:
     if problem.n > 5000:
         raise HTTPException(status_code=422, detail="n exceeds 5000 variables")
-    return await estimate(problem)
+    if mode not in ("auto", "classical", "hybrid", "quantum"):
+        raise HTTPException(status_code=422, detail=f"mode must be one of auto|classical|hybrid|quantum, got {mode!r}")
+    return await estimate(problem, mode)
 
 
 @router.get("/jobs/{job_id}", summary="Poll an async optimization job")

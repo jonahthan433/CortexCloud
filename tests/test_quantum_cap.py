@@ -52,19 +52,19 @@ def test_margin_guard():
         settings.QUANTUM_MAX_COST_USD = 5.0
         # verified Cepheus run: cost 0.50 < effective 1.00 -> positive margin, no block
         assert MODE_PRICE_USD["quantum"] == 0.85
-        assert gross_margin_usd("quantum") == 0.50  # effective 1.00 - cost 0.50
+        assert gross_margin_usd("quantum") == round(1.503 - 0.7515, 6)  # eff 1.503 - total 0.7515
         assert below_cost("quantum") is False
         assert quantum_cost_cap_error(FakeSolver(0.35), qubo, 2) is None
         # cost above price -> blocked by default
         settings.QUANTUM_ALLOW_SUBSIDY = False
-        err = quantum_cost_cap_error(FakeSolver(1.20), qubo, 2)
+        err = quantum_cost_cap_error(FakeSolver(2.00), qubo, 2)  # > eff 1.503
         assert err and "quantum margin guard" in err
         # explicit subsidy allowance -> allowed
         settings.QUANTUM_ALLOW_SUBSIDY = True
-        assert quantum_cost_cap_error(FakeSolver(1.20), qubo, 2) is None
+        assert quantum_cost_cap_error(FakeSolver(2.00), qubo, 2) is None
         # classical/hybrid (local provider cost 0) never margin-gated
         assert below_cost("classical") is False
-        assert gross_margin_usd("hybrid") == 0.10
+        assert gross_margin_usd("hybrid") == round(0.10 - 0.0015, 6)  # 0.10 - infra+payment
     finally:
         settings.QUANTUM_MAX_COST_USD = old_cap
         settings.QUANTUM_ALLOW_SUBSIDY = old_sub
@@ -77,12 +77,12 @@ def test_effective_pricing():
     from app.x402.pricing import MARKUP, classical_price_for_n, effective_price_usd, price_for_mode, sellable_at_mode_price
 
     # list floor holds while cost x markup is below it (quantum cost 0.50 -> 1.00)
-    assert effective_price_usd("quantum") == 1.00  # 0.50 x 2.0 = 1.00 > 0.85 floor
-    assert price_for_mode("quantum") == "$1.000000"
+    assert effective_price_usd("quantum") == 1.503  # (0.75 + 0.0015) x 2.0
+    assert price_for_mode("quantum") == "$1.503000"
     assert price_for_mode("auto") == "$0.050000"  # no n -> classical list floor
     # expensive provider pushes the effective price up automatically
-    assert effective_price_usd("quantum", 3.40) == round(3.40 * MARKUP, 6)
-    assert effective_price_usd("quantum", 3.40) == 6.80
+    assert effective_price_usd("quantum", 3.40) == round(3.4015 * MARKUP, 6)
+    assert effective_price_usd("quantum", 3.40) == 6.803
     # size-based classical pricing tiers
     assert classical_price_for_n(4) == 0.05
     assert classical_price_for_n(20) == 0.05

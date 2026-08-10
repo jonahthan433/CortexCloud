@@ -46,7 +46,7 @@ def test_ibm_available_after_discovery(monkeypatch):
     assert b.spec.id == "ibm"
     assert b.spec.mode == "quantum"
     assert b.provider == "ibm_quantum"
-    assert b.estimate(QB, 4).price_usd == 0.50
+    assert b.estimate(QB, 4).price_usd == 0.0  # Open Plan is free
 
 
 def test_ibm_solve_blocked_without_live_flag(monkeypatch):

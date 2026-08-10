@@ -25,7 +25,21 @@ MODE_PRICE_USD = {"classical": 0.05, "hybrid": 0.10, "quantum": 0.85}
 # Quantum mode cost: $0.50/run (Braket rigetti, primary provider; fixed
 # 1024 shots -> flat cost) + buffer. IBM Open Plan fallback costs $0.00 and
 # stays sellable at the effective price via the per-provider margin guard.
-PROVIDER_COST_USD = {"classical": 0.0, "hybrid": 0.0, "quantum": 0.50}
+# Verified Rigetti Cepheus-1-108Q on Braket: $0.30/task + $0.000425/shot
+# (published rate card, Aug-2026) = $0.7352 at the fixed 1024 shots; round
+# up 0.75 as the billing buffer. IBM Open Plan fallback costs $0.00.
+PROVIDER_COST_USD = {"classical": 0.0, "hybrid": 0.0, "quantum": 0.75}
+
+# Per-request fixed costs beyond provider spend (model basis):
+INFRA_COST_USD = 0.0010     # compute, DB, bandwidth, Cloudflare, hosting
+PAYMENT_COST_USD = 0.0005   # x402 verify + settlement relay + ledger write
+
+
+def total_cost_usd(mode: str, provider_cost: float | None = None) -> float:
+    """All-in cost of one paid request: provider + infra + payment."""
+    m = (mode or "auto").lower()
+    prov = PROVIDER_COST_USD.get(m, 0.0) if provider_cost is None else float(provider_cost)
+    return prov + INFRA_COST_USD + PAYMENT_COST_USD
 
 # Margin policy: the charged price for a mode is never below the list
 # price, and never below provider_cost x MARKUP — prices move with
@@ -77,7 +91,7 @@ def effective_price_usd(mode: str, provider_cost: float | None = None, n: int | 
         base = classical_price_for_n(n)
     else:
         base = MODE_PRICE_USD.get(m, MODE_PRICE_USD["classical"])
-    cost = PROVIDER_COST_USD.get(m, 0.0) if provider_cost is None else float(provider_cost)
+    cost = total_cost_usd(m, provider_cost)
     return max(base, cost * MARKUP)
 
 
@@ -85,7 +99,7 @@ def sellable_at_mode_price(mode: str, provider_cost: float) -> bool:
     """True when a provider's estimated cost fits under the charged price
     (margin >= 0 at current prices)."""
     try:
-        return float(provider_cost) <= effective_price_usd(mode)
+        return total_cost_usd(mode, provider_cost) <= effective_price_usd(mode)
     except (TypeError, ValueError):
         return False
 
@@ -93,7 +107,7 @@ def sellable_at_mode_price(mode: str, provider_cost: float) -> bool:
 def gross_margin_usd(mode: str) -> float:
     """Customer price minus estimated provider cost, USD."""
     m = (mode or "auto").lower()
-    return effective_price_usd(m) - PROVIDER_COST_USD.get(m, 0.0)
+    return effective_price_usd(m) - total_cost_usd(m)
 
 
 def below_cost(mode: str) -> bool:

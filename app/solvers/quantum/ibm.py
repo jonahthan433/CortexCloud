@@ -63,10 +63,10 @@ class IBMBackend(QuantumBackend):
     """Primary quantum provider: IBM Quantum real-time QPU via Qiskit Runtime."""
 
     def __init__(self):
-        self._cfg = {"name": "IBM", "price_usd": 0.50, "runtime_s": 1200.0, "cap": 127}
-        # price_usd 0.50 keeps IBM sellable at the $1.00 mode price;
-        # runtime_s 1200 reflects open-plan queue reality, so the router's
-        # cost+latency sort keeps Braket (60s) primary.
+        self._cfg = {"name": "IBM", "price_usd": 0.0, "runtime_s": 1200.0, "cap": 127}
+        # Open Plan QPU is free (0.0); runtime_s 1200 reflects queue
+        # reality. The router prefers the aws_braket provider family, so
+        # IBM is used only as a fallback when no Braket QPU is available.
         # price_usd 0.50 (== rigetti): equal effective $1.00, so the router's
         # registry-order tie-break keeps Braket primary; IBM stays a fallback.
         self._devices: list[dict] | None = None

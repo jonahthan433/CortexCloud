@@ -155,9 +155,23 @@ def create_app(override_openapi: bool = True) -> FastAPI:
         return {
             "status": "healthy" if db_status == "healthy" else "degraded",
             "database": db_status,
-            "gateway": "running",
+            "mcp": "running" if _mcp_alive() else "down",
             "backends": registry.availability_summary(),
         }
+
+    def _mcp_alive() -> bool:
+        """True when the MCP server (separate process, :3100) answers.
+        urllib raises HTTPError for 4xx; any <500 response proves life."""
+        import urllib.error
+        import urllib.request
+
+        try:
+            with urllib.request.urlopen("http://127.0.0.1:3100/mcp", timeout=2) as r:
+                return r.status < 500
+        except urllib.error.HTTPError as e:
+            return e.code < 500
+        except Exception:
+            return False
 
     # Root-level static assets (Next export leftovers kept for compatibility)
     @application.get("/{asset}", include_in_schema=False)

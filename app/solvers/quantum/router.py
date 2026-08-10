@@ -41,6 +41,7 @@ def _candidate(solver, qubo: dict, n: int) -> dict[str, Any]:
         "cortexcloud_price_usd": round(customer, 6),
         "margin_usd": round(customer - provider_cost, 6),
         "_cost": provider_cost + est.runtime_s * LATENCY_TAX,
+        "_pref": 0 if getattr(solver, "provider", "") == "aws_braket" else 1,
     }
 
 
@@ -70,7 +71,7 @@ def select(
             continue
         ranked.append(_candidate(s, qubo, n))
 
-    ranked.sort(key=lambda c: c["_cost"])
+    ranked.sort(key=lambda c: (c["_pref"], c["_cost"]))
     for c in ranked:
         c.pop("_cost", None)
 
