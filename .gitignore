@@ -29,3 +29,4 @@ Thumbs.db
 patch_*.py
 agefix.py
 mpp-store.sqlite
+site/index.html.bak.*
