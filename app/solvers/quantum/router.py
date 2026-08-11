@@ -72,7 +72,6 @@ def select(
 
     ranked.sort(key=lambda c: (
         0 if (n <= BRUTE_FORCE_CAP and c["solver_id"] == "brute-force") else 1,
-        c["_pref"],
         c["_cost"],
     ))
     for c in ranked:
