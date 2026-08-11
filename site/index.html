@@ -159,6 +159,34 @@
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
   }
+
+  /* Use Cases Grid */
+  .usecase-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+  .uc-card { border: 1px solid var(--line); border-radius: 12px; padding: 1.2rem; background: #fff; transition: border-color 0.15s; }
+  .uc-card:hover { border-color: var(--emerald); }
+  .uc-card h3 { font-size: 0.95rem; margin-bottom: 0.4rem; }
+  .uc-card p { font-size: 0.82rem; color: var(--muted); line-height: 1.5; margin-bottom: 0.6rem; }
+
+  /* Benchmark Table */
+  .bench-table-wrap { overflow-x: auto; margin-top: 1rem; }
+  .bench-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+  .bench-table th { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 2px solid var(--line); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); }
+  .bench-table td { padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--line); }
+  .bench-table tr:last-child td { border-bottom: none; }
+
+  /* Trust Grid */
+  .trust-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+  .trust-item { border: 1px solid var(--line); border-radius: 12px; padding: 1.2rem; background: #fff; }
+  .trust-item h3 { font-size: 0.92rem; margin-bottom: 0.35rem; }
+  .trust-item p { font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+
+  /* Nav links in hero */
+  .nav-links { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-bottom: 0.5rem; }
+  .nav-links a { font-size: 0.82rem; color: var(--muted); font-weight: 500; }
+  .nav-links a:hover { color: var(--ink); }
+
+  /* CTA highlight */
+  #cta { background: linear-gradient(180deg, #f0fdf4 0%, var(--bg) 100%); border-radius: 20px; margin-top: 1.5rem; }
 </style>
 </head>
 <body>
@@ -315,6 +343,98 @@
     <span class="pwr"><span class="bdot"></span>Powered by x402</span>
     <span class="pwr"><span class="bdot"></span>Powered by MPP (Tempo)</span>
   </div>
+</section>
+
+<!-- USE CASES -->
+<section id="usecases" class="wrap">
+  <h2>Problems CortexCloud solves</h2>
+  <p class="sec-sub">One API. Eight industries. Formulate your problem as QUBO/Ising, estimate for free, solve from $0.05.</p>
+  <div class="usecase-grid">
+    <div class="uc-card">
+      <h3>📊 Finance</h3>
+      <p>Portfolio selection, capital allocation, risk-minimising rebalancing. Mean-variance optimisation with cardinality constraints — cardinality-constrained Markowitz in one API call.</p>
+      <a class="btn" href="/v1/examples" style="font-size:0.78rem;">See portfolio example →</a>
+    </div>
+    <div class="uc-card">
+      <h3>🚚 Logistics</h3>
+      <p>Vehicle routing, fleet dispatch, last-mile delivery optimisation. Time-indexed QUBO encoding — minimise total distance while respecting capacity constraints.</p>
+      <a class="btn" href="/v1/examples" style="font-size:0.78rem;">See routing example →</a>
+    </div>
+    <div class="uc-card">
+      <h3>⚡ Energy</h3>
+      <p>Generator unit commitment, economic dispatch, grid load balancing. Binary on/off decisions with startup costs — profit-maximising schedules across time periods.</p>
+    </div>
+    <div class="uc-card">
+      <h3>🌾 Agriculture</h3>
+      <p>Crop allocation, field planning, harvest scheduling. Adjacency constraints and disease-risk modelling — maximise yield while respecting rotation rules.</p>
+    </div>
+    <div class="uc-card">
+      <h3>⛏ Mining</h3>
+      <p>Open-pit cutoff grade optimisation, block extraction sequencing. Precedence-constrained binary decisions — extract blocks in the order that maximises net present value.</p>
+    </div>
+    <div class="uc-card">
+      <h3>🏥 Healthcare</h3>
+      <p>Nurse scheduling, operating-room allocation, staff rostering. Preference-based assignment with coverage constraints — satisfied staff, covered shifts.</p>
+    </div>
+    <div class="uc-card">
+      <h3>💧 Water</h3>
+      <p>Pump scheduling, reservoir operations, distribution network optimisation. Time-slotted binary decisions with wear penalties — minimise cost, protect equipment.</p>
+    </div>
+    <div class="uc-card">
+      <h3>📦 Supply Chain</h3>
+      <p>Warehouse assignment, inventory allocation, multi-echelon network design. Cost-minimising SKU-to-warehouse mapping with capacity coupling.</p>
+    </div>
+  </div>
+</section>
+
+<!-- BENCHMARKS -->
+<section id="benchmarks" class="wrap">
+  <h2>Real benchmarks, not marketing</h2>
+  <p class="sec-sub">Every number below comes from production executions — actual solver runs, measured in milliseconds. No synthetic data. <a href="/benchmarks" style="font-weight:600;">Live endpoint →</a></p>
+  <div class="bench-table-wrap">
+    <table class="bench-table">
+      <tr><th>Solver</th><th>Mode</th><th>Runs</th><th>Avg</th><th>Min</th><th>Max</th></tr>
+      <tr><td><code>brute-force</code></td><td><span class="tag live">classical</span></td><td>5</td><td>75 ms</td><td>16 ms</td><td>278 ms</td></tr>
+      <tr><td><code>qaoa-local</code></td><td><span class="tag">hybrid</span></td><td>3</td><td>19 ms</td><td>19 ms</td><td>20 ms</td></tr>
+      <tr><td><code>rigetti</code></td><td><span class="tag">quantum</span></td><td>3</td><td>28.9 s</td><td>13.6 s</td><td>38.9 s</td></tr>
+      <tr><td><code>ibm</code></td><td><span class="tag">quantum</span></td><td>2</td><td>32.1 s</td><td>29.8 s</td><td>34.4 s</td></tr>
+    </table>
+  </div>
+  <p class="note">Quantum runtimes include real QPU queue time + execution. 10 benchmark evidence rows recorded. <a href="/benchmarks">Full breakdown →</a></p>
+</section>
+
+<!-- TRUST -->
+<section id="trust" class="wrap">
+  <h2>Built for production</h2>
+  <div class="trust-grid">
+    <div class="trust-item">
+      <h3>🔐 No API keys</h3>
+      <p>Authentication is the payment itself. An agent signs a 402 challenge with its wallet — no secrets to rotate, no credentials to leak.</p>
+    </div>
+    <div class="trust-item">
+      <h3>🛡 Payment safety</h3>
+      <p>Problems are validated <em>before</em> the 402 challenge is issued. If your problem is unrunnable, you are never charged. Loss-making requests are refused.</p>
+    </div>
+    <div class="trust-item">
+      <h3>⚛ Quantum safety</h3>
+      <p>Quantum backends are only recommended when measured benchmark evidence exists for your problem family. The API never promotes quantum when classical is cheaper and proven.</p>
+    </div>
+    <div class="trust-item">
+      <h3>🔒 Backend privacy</h3>
+      <p>You send a QUBO matrix. You get a solution. The underlying provider, routing logic, and infrastructure are abstracted — your problems are your business.</p>
+    </div>
+  </div>
+</section>
+
+<!-- TRY API CTA -->
+<section id="cta" class="wrap" style="text-align:center;padding:3rem 0;">
+  <h2 style="font-size:1.8rem;margin-bottom:0.5rem;">Try it now — free</h2>
+  <p style="color:var(--muted);max-width:48ch;margin:0 auto 1.5rem;">Post a QUBO problem, get a live estimate in milliseconds. No signup, no API key, no payment.</p>
+  <div style="display:flex;gap:0.8rem;justify-content:center;flex-wrap:wrap;">
+    <a class="btn dark" href="/v1/trial" style="font-size:1rem;padding:0.8rem 1.8rem;">POST /v1/trial — free solve</a>
+    <a class="btn" href="/docs" style="font-size:1rem;padding:0.8rem 1.8rem;">Read the docs</a>
+  </div>
+  <p style="margin-top:1rem;font-size:0.82rem;color:var(--dim);">10 free solves per hour. For production: $0.05–$1.50 per call, x402, USDC on Base.</p>
 </section>
 
 <footer class="foot wrap">
