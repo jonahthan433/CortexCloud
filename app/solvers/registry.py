@@ -7,6 +7,8 @@ when their SDKs are absent — each one's availability() decides.
 
 from __future__ import annotations
 
+import threading
+import time
 from typing import Iterable
 
 from app.core.config import settings
@@ -91,25 +93,50 @@ def mode_has_available_solver(mode: str) -> bool:
     """Money-path pre-settle check: does the mode have an executable solver?
 
     Used by the x402 middleware guard so a buyer is never charged for a mode
-    with no available backend (e.g. quantum while all QPUs are offline)."""
+    with no available backend (e.g. quantum while all QPUs are offline).
+    'auto' has no solver list of its own — it routes across all modes, so
+    it is satisfiable when ANY mode has an available solver."""
     try:
-        for s in for_mode(mode):
-            if s.availability().available:
-                return True
+        modes = [mode] if mode != "auto" else ("classical", "hybrid", "quantum")
+        for m in modes:
+            for s in for_mode(m):
+                if s.availability().available:
+                    return True
     except Exception:
         return False
     return False
 
 
+# Availability probes hit AWS/IBM per call (measured 1.8-15.4s each) and are
+# called synchronously from async handlers — a cold /health stalls the whole
+# event loop. TTL cache only the READ paths (health/backends/capabilities);
+# the money path (mode_has_available_solver) and the runner call
+# s.availability() directly and stay fresh. ponytail: TTL 60s, one cold probe
+# per window still blocks the loop — move probes to a thread executor if it
+# ever matters.
+_AVAIL_TTL = 60.0
+_avail_cache: dict[str, tuple[float, SolverAvailability]] = {}
+_avail_lock = threading.Lock()
+
+
 def availability(s: Solver) -> SolverAvailability:
-    return s.availability()
+    key = s.spec.id  # stable backend identity; solvers() builds fresh objects per call
+    now = time.monotonic()
+    with _avail_lock:
+        hit = _avail_cache.get(key)
+        if hit is not None and now - hit[0] < _AVAIL_TTL:
+            return hit[1]
+    a = s.availability()
+    with _avail_lock:
+        _avail_cache[key] = (time.monotonic(), a)
+    return a
 
 
 def backend_dict(s: Solver) -> dict:
     """Agent-readable /v1/backends entry. 'available' for a quantum
     backend means its own credential + capability check passed; live
     execution additionally requires QUANTUM_LIVE_EXECUTION=true."""
-    a = s.availability()
+    a = availability(s)
     base = {
         "id": s.spec.id,
         "name": s.spec.name,
@@ -130,7 +157,7 @@ def availability_summary() -> dict:
     """/health payload: alive backend count per mode."""
     out = {}
     for s in solvers():
-        a = s.availability()
+        a = availability(s)
         out[s.spec.mode] = out.get(s.spec.mode, {"available": 0, "total": 0})
         out[s.spec.mode]["total"] += 1
         if a.available:
