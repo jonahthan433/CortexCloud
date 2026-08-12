@@ -388,15 +388,19 @@ class X402Middleware(BaseHTTPMiddleware):
                         # more assets are accepted.
                         "extra": {"name": "USD Coin", "version": "2"},
                     },
-                    {
-                        "scheme": "exact",
-                        "network": settings.X402_NETWORK,
-                        "asset": USDC_ON_BASE,
-                        "amount": str(required),
-                        "payTo": settings.WALLET_ADDRESS_2 or settings.WALLET_ADDRESS,
-                        "maxTimeoutSeconds": 60,
-                        "extra": {"name": "USD Coin", "version": "2"},
-                    }
+                    # ponytail: only advertise a second payee when it exists;
+                    # duplicate identical accepts entries fail x402scan L3 validation.
+                    *([
+                        {
+                            "scheme": "exact",
+                            "network": settings.X402_NETWORK,
+                            "asset": USDC_ON_BASE,
+                            "amount": str(required),
+                            "payTo": settings.WALLET_ADDRESS_2,
+                            "maxTimeoutSeconds": 60,
+                            "extra": {"name": "USD Coin", "version": "2"},
+                        }
+                    ] if settings.WALLET_ADDRESS_2 and settings.WALLET_ADDRESS_2 != settings.WALLET_ADDRESS else []),
                 ],
                 "extensions": {
                     "bazaar": {
