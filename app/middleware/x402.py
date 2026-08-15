@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import hmac
 import json
 import logging
 import time
@@ -270,6 +271,15 @@ def _input_schema(path: str) -> dict:
 
 class X402Middleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        # Enterprise single-tenant gate: a configured PRIVATE_API_KEY replaces
+        # blockchain settlement entirely. Constant-time compare; /health stays
+        # open for load-balancer probes.
+        if settings.PRIVATE_API_KEY:
+            if request.url.path != "/health":
+                supplied = request.headers.get("x-api-key", "")
+                if not hmac.compare_digest(supplied, settings.PRIVATE_API_KEY):
+                    return JSONResponse(status_code=401, content={"error": "invalid or missing API key"})
+
         # Skip if x402 is disabled
         if not settings.X402_ENABLED:
             return await call_next(request)

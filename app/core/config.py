@@ -94,6 +94,10 @@ class Settings(BaseSettings):
     # Gate for /internal/metrics (revenue aggregates). Leave unset to
     # disable the endpoint entirely — never expose money figures publicly.
     INTERNAL_TOKEN: Optional[str] = Field(default=None, env="INTERNAL_TOKEN")
+    # Enterprise single-tenant mode: when set, EVERY request (except /health)
+    # must present this static key as `x-api-key`. Overrides x402 payment
+    # settlement for private deployments (set X402_ENABLED=false alongside).
+    PRIVATE_API_KEY: Optional[str] = Field(default=None, env="PRIVATE_API_KEY")
 
     @model_validator(mode="after")
     def enforce_secrets_in_production(self) -> "Settings":

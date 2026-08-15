@@ -1,0 +1,11 @@
+# CortexCloud MCP server (Streamable HTTP, x402 pay-per-call)
+FROM node:20-alpine
+
+WORKDIR /opt/mcp
+COPY mcp/mcp-bundle.cjs .
+
+ENV PORT=3100 \
+    NODE_ENV=production
+
+EXPOSE 3100
+CMD ["node", "mcp-bundle.cjs"]
