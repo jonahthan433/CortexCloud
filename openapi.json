@@ -3,7 +3,12 @@
   "info": {
     "title": "CortexCloud Optimization Network",
     "description": "Optimization infrastructure for AI agents \u2014 discover, pay for, and execute classical, hybrid, or quantum optimization through a single API.",
-    "version": "2.0.0"
+    "version": "2.0.0",
+    "contact": {
+      "email": "hello@cortexcloud.org",
+      "url": "https://api.cortexcloud.org/docs"
+    },
+    "x-guidance": "CortexCloud is a pay-per-call QUBO/Ising optimization API. POST /v1/optimize is the only paid route (x402, USDC on Base); every other endpoint is free and callable without credentials."
   },
   "paths": {
     "/v1/optimize": {
@@ -43,6 +48,20 @@
               }
             }
           }
+        },
+        "x-payment-info": {
+          "pricingMode": "fixed",
+          "price": "0.05",
+          "minPrice": "0.05",
+          "maxPrice": "1.503",
+          "currency": "USD",
+          "protocols": [
+            "x402",
+            "mpp"
+          ],
+          "intent": "charge",
+          "method": "exact",
+          "description": "Pay per solve: classical $0.05, hybrid $0.10, quantum $1.503. Settlement in USDC on Base via x402."
         }
       }
     },
@@ -99,7 +118,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/v1/jobs/{job_id}": {
@@ -144,7 +164,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/v1/examples": {
@@ -168,7 +189,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/v1/backends": {
@@ -192,7 +214,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/v1/capabilities": {
@@ -216,7 +239,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/v1/track": {
@@ -312,7 +336,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/.well-known/x402.json": {
@@ -332,7 +357,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/.well-known/x402": {
@@ -353,7 +379,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/.well-known/agentsearch.txt": {
@@ -374,7 +401,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/llms.txt": {
@@ -394,7 +422,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/.well-known/bazaar": {
@@ -414,7 +443,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/pubkey": {
@@ -434,7 +464,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/usage": {
@@ -475,7 +506,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/x402/v1/receipts": {
@@ -539,7 +571,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/health": {
@@ -558,7 +591,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     }
   },

@@ -1,4 +1,9 @@
 import asyncio
+import os
+import sys
+
+# `python deploy/db_init.py` puts deploy/ on sys.path, not the repo root.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy.ext.asyncio import create_async_engine
 

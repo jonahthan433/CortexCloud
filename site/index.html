@@ -15,8 +15,8 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="CortexCloud — Optimization infrastructure for autonomous agents">
 <meta name="twitter:description" content="Pay-per-call optimization API for AI agents. Classical, hybrid, real quantum. x402 + MPP, USDC on Base.">
-<meta name="theme-color" content="#fafafa">
-<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#0a0a0b">
+<meta name="color-scheme" content="dark">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -40,8 +40,8 @@
 </script>
 <style>
   :root {
-    --bg: #fafafa; --ink: #18181b; --muted: #71717a; --dim: #a1a1aa;
-    --line: #e4e4e7; --line-d: #3f3f46; --panel: #18181b; --panel2: #27272a;
+    --bg: #0a0a0b; --ink: #f4f4f5; --muted: #a1a1aa; --dim: #71717a;
+    --line: rgba(255,255,255,0.08); --line-d: rgba(255,255,255,0.16); --panel: #121214; --panel2: #1a1a1d;
     --emerald: #10b981; --emerald-l: #34d399; --blue: #60a5fa; --redl: #f87171; --amber: #fbbf24;
     --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   }
@@ -49,8 +49,8 @@
   html { scroll-behavior: smooth; scroll-padding-top: 64px; }
   body { font-family: "Geist", ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.6; -webkit-font-smoothing: antialiased; }
   a { color: inherit; text-decoration: none; }
-  code { font-family: var(--mono); font-size: 0.9em; background: #f4f4f5; border: 1px solid var(--line); border-radius: 5px; padding: 0.12em 0.4em; }
-  .skip-link { position: absolute; left: -999px; top: 0; background: var(--ink); color: #fff; padding: 0.5rem 1rem; border-radius: 0 0 8px 0; z-index: 50; }
+  code { font-family: var(--mono); font-size: 0.9em; background: var(--panel2); border: 1px solid var(--line); border-radius: 5px; padding: 0.12em 0.4em; }
+  .skip-link { position: absolute; left: -999px; top: 0; background: var(--emerald); color: #04120c; padding: 0.5rem 1rem; border-radius: 0 0 8px 0; z-index: 50; }
   .skip-link:focus { left: 0; }
   :focus-visible { outline: 2px solid var(--emerald); outline-offset: 2px; border-radius: 4px; }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 0 1.5rem; }
@@ -61,14 +61,20 @@
   /* Buttons */
   .btn { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.62rem 1.15rem; border-radius: 8px; font-weight: 700; font-size: 0.92rem; border: 1px solid var(--line); color: var(--ink); background: transparent; transition: all 0.15s; cursor: pointer; font-family: inherit; }
   .btn:hover { border-color: var(--ink); }
-  .btn.dark { background: var(--ink); border-color: var(--ink); color: #fff; border-bottom: 2px solid var(--emerald); }
+  .btn.dark { background: var(--emerald); border-color: var(--emerald); color: #04120c; border-bottom: 2px solid #0b8a63; }
   .btn.dark:hover { border-bottom-color: var(--emerald-l); }
   .btn.outline-dark { border: 1px solid var(--line-d); color: #e4e4e7; }
   .btn.outline-dark:hover { background: #e4e4e7; color: var(--ink); }
   /* Hero */
-  header.hero { padding: 3.2rem 0 2rem; }
-  .hero h1 { font-size: clamp(2.1rem, 5.2vw, 3.3rem); font-weight: 800; letter-spacing: -0.035em; line-height: 1.08; max-width: 17ch; }
+  header.hero { padding: 3.2rem 0 2rem; position: relative; z-index: 0; }
+  header.hero::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background-image: radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px);
+    background-size: 22px 22px;
+    -webkit-mask-image: radial-gradient(120% 90% at 20% 0%, black 0%, transparent 70%);
+    mask-image: radial-gradient(120% 90% at 20% 0%, black 0%, transparent 70%); }
+  .hero h1 { font-size: clamp(2.4rem, 5vw, 4rem); font-weight: 800; letter-spacing: -0.035em; line-height: 1.06; max-width: 17ch; }
   .hero h1 .mark { background: linear-gradient(90deg, #059669, #10b981); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .eyebrow { display: inline-block; font-family: var(--mono); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--emerald); border: 1px solid rgba(16,185,129,0.35); background: rgba(16,185,129,0.08); border-radius: 999px; padding: 0.3rem 0.85rem; margin-bottom: 0.9rem; }
   .hero .sub { color: var(--muted); font-size: 1.08rem; max-width: 58ch; margin: 1rem 0 1.4rem; }
   .hero-cta { display: flex; gap: 0.8rem; flex-wrap: wrap; }
   .hero-meta { margin-top: 1.4rem; display: flex; gap: 0.6rem; flex-wrap: wrap; }
@@ -121,31 +127,34 @@
   h2 { font-size: 1.45rem; font-weight: 700; letter-spacing: -0.02em; }
   .sec-sub { color: var(--muted); max-width: 62ch; margin: 0.5rem 0 1.5rem; }
   .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem; counter-reset: step; }
-  .step { border: 1px solid var(--line); border-radius: 12px; padding: 1.2rem; background: #fff; }
+  .step { border: 1px solid var(--line); border-radius: 12px; padding: 1.2rem; background: var(--panel); }
   .step h3 { font-size: 1rem; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.5rem; }
   .step h3::before { counter-increment: step; content: counter(step, decimal-leading-zero); font-family: var(--mono); font-size: 0.72rem; font-weight: 600; color: var(--emerald); }
   .step p { color: var(--muted); font-size: 0.9rem; }
   .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
-  .card { border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem; background: #fff; }
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem; background: var(--panel); transition: border-color 0.15s, transform 0.15s; }
+  .card:hover { border-color: var(--line-d); transform: translateY(-2px); }
   .card h3 { font-size: 1rem; margin-bottom: 0.3rem; display: flex; align-items: center; gap: 0.5rem; }
   .card .price { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.02em; }
   .card .price small { font-size: 0.78rem; color: var(--dim); font-weight: 500; }
   .card p { color: var(--muted); font-size: 0.9rem; margin: 0.4rem 0 0.8rem; }
   .tag { display: inline-block; border-radius: 999px; padding: 0.14rem 0.6rem; font-size: 0.7rem; font-weight: 700; }
   .tag.live { background: rgba(16,185,129,0.12); color: #059669; border: 1px solid rgba(16,185,129,0.35); }
-  .tag.free { background: #f4f4f5; color: var(--muted); border: 1px solid var(--line); }
-  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.92rem; background: #fff; }
+  .tag.free { background: var(--panel2); color: var(--muted); border: 1px solid var(--line); }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.92rem; background: var(--panel); }
   th, td { text-align: left; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--line); }
   th { color: var(--muted); font-weight: 600; font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.05em; }
   td b { font-weight: 600; }
   .note { color: var(--muted); font-size: 0.84rem; margin-top: 0.5rem; }
   .badges { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1.2rem; }
-  .pwr { display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid var(--line); border-radius: 999px; padding: 0.3rem 0.8rem; font-size: 0.76rem; font-weight: 600; color: var(--muted); background: #fff; }
+  .pwr { display: inline-flex; align-items: center; gap: 0.35rem; border: 1px solid var(--line); border-radius: 999px; padding: 0.3rem 0.8rem; font-size: 0.76rem; font-weight: 600; color: var(--muted); background: var(--panel); }
   .pwr .bdot { width: 7px; height: 7px; border-radius: 50%; background: var(--emerald); }
   .foot { padding: 2.4rem 0 3.2rem; color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--line); }
   .foot a { color: var(--muted); }
   .foot a:hover { color: var(--ink); }
-  @media (max-width: 760px) {
+  button, a { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  @media (min-width: 1200px) { .wrap { max-width: 1180px; } }
+  @media (max-width: 900px) {
     header.hero { padding: 2rem 0 1.4rem; }
     .console-body { grid-template-columns: 1fr; }
     .ep-list { border-right: none; border-bottom: 1px solid var(--line-d); max-height: 208px; }
@@ -155,6 +164,8 @@
     .field textarea, .field input { font-size: 16px; }
     .btn { min-height: 46px; }
     .wrap { padding: 0 1.1rem; }
+    table { display: block; overflow-x: auto; white-space: nowrap; }
+    .hero .sub { font-size: 1rem; }
   }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
@@ -162,8 +173,8 @@
 
   /* Use Cases Grid */
   .usecase-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
-  .uc-card { border: 1px solid var(--line); border-radius: 12px; padding: 1.2rem; background: #fff; transition: border-color 0.15s; }
-  .uc-card:hover { border-color: var(--emerald); }
+  .uc-card { border: 1px solid var(--line); border-radius: 12px; padding: 1.2rem; background: var(--panel); transition: border-color 0.15s, transform 0.15s; }
+  .uc-card:hover { border-color: var(--emerald); transform: translateY(-2px); }
   .uc-card h3 { font-size: 0.95rem; margin-bottom: 0.4rem; }
   .uc-card p { font-size: 0.82rem; color: var(--muted); line-height: 1.5; margin-bottom: 0.6rem; }
 
@@ -176,7 +187,7 @@
 
   /* Trust Grid */
   .trust-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
-  .trust-item { border: 1px solid var(--line); border-radius: 12px; padding: 1.2rem; background: #fff; }
+  .trust-item { border: 1px solid var(--line); border-radius: 12px; padding: 1.2rem; background: var(--panel); }
   .trust-item h3 { font-size: 0.92rem; margin-bottom: 0.35rem; }
   .trust-item p { font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
 
@@ -186,17 +197,18 @@
   .nav-links a:hover { color: var(--ink); }
 
   /* CTA highlight */
-  #cta { background: linear-gradient(180deg, #f0fdf4 0%, var(--bg) 100%); border-radius: 20px; margin-top: 1.5rem; }
+  #cta { background: linear-gradient(180deg, rgba(16,185,129,0.07) 0%, var(--bg) 100%); border-radius: 20px; margin-top: 1.5rem; }
 </style>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
 <main id="main">
 <header class="hero wrap">
+  <p class="eyebrow">Agent-native infrastructure · x402 pay-per-call</p>
   <h1>CortexCloud</h1>
-  <p class="sub">Classical, hybrid, and real quantum solvers behind one pay-per-call API. No API keys, no signup — an agent estimates for free, gets an exact USDC price, pays, and polls for the solution.</p>
+  <p class="sub">Classical, hybrid, and real quantum solvers behind one pay-per-call API. Agents discover it via MCP and x402/MPP, estimate for free, pay per call in USDC on Base. No API keys, no signup — an agent estimates, gets an exact price, pays, and polls for the solution.</p>
   <div class="hero-cta">
-    <a class="btn dark" href="#explorer">Run a live estimate — free</a>
+    <a class="btn dark" href="/v1/trial">Try a free solve</a>
     <a class="btn" href="/docs">Read the API reference</a>
   </div>
   <div class="hero-meta">
@@ -205,71 +217,6 @@
     <span class="chip">Quantum <b>$1.503</b></span>
   </div>
 </header>
-
-<section class="wrap" id="explorer" style="padding-top:0.5rem;">
-  <div class="console" role="region" aria-label="Interactive API explorer">
-    <div class="console-top"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:0.5rem;font-family:var(--mono);">api.cortexcloud.org — live explorer (same-origin, real responses)</span></div>
-    <div class="console-body">
-      <div class="ep-list" role="tablist" aria-label="Endpoints">
-        <div class="ep" data-ep="estimate" aria-selected="true" role="tab" tabindex="0">
-          <span class="method post">POST</span><span class="path">/v1/estimate</span><span class="price free">free</span>
-          <span class="desc">Recommended solver, runtime &amp; exact price</span>
-        </div>
-        <div class="ep" data-ep="optimize" role="tab" tabindex="0">
-          <span class="method post">POST</span><span class="path">/v1/optimize</span><span class="price">from $0.05</span>
-          <span class="desc">Paid solve — returns the 402 payment challenge</span>
-        </div>
-        <div class="ep" data-ep="jobs" role="tab" tabindex="0">
-          <span class="method get">GET</span><span class="path">/v1/jobs/{job_id}</span><span class="price free">free</span>
-          <span class="desc">Poll a submitted job until it completes</span>
-        </div>
-        <div class="ep" data-ep="backends" role="tab" tabindex="0">
-          <span class="method get">GET</span><span class="path">/v1/backends</span><span class="price free">free</span>
-          <span class="desc">Solver backends with live availability</span>
-        </div>
-        <div class="ep" data-ep="capabilities" role="tab" tabindex="0">
-          <span class="method get">GET</span><span class="path">/v1/capabilities</span><span class="price free">free</span>
-          <span class="desc">Modes, limits, providers, payment terms</span>
-        </div>
-        <div class="ep" data-ep="examples" role="tab" tabindex="0">
-          <span class="method get">GET</span><span class="path">/v1/examples</span><span class="price free">free</span>
-          <span class="desc">Canonical agent examples with schemas</span>
-        </div>
-      </div>
-      <div class="ep-main">
-        <div class="ep-row">
-          <span class="method post" id="r-method">POST</span>
-          <span class="url" id="r-url">/v1/estimate</span>
-          <span class="x402-tag" id="r-402" hidden>x402 · PAID</span>
-          <button class="send" id="r-send">Send</button>
-        </div>
-        <div class="field" id="f-param" hidden>
-          <label for="param-input">job_id</label>
-          <input id="param-input" value="00000000-0000-0000-0000-000000000000" spellcheck="false" aria-label="job_id">
-        </div>
-        <div class="field" id="f-body">
-          <label for="body-input">Request body</label>
-          <textarea id="body-input" spellcheck="false" aria-label="Request body">{&quot;problem_type&quot;:&quot;qubo&quot;,&quot;n&quot;:6,&quot;data&quot;:{&quot;linear&quot;:[1,-2,3,-4,2,-1],&quot;quadratic&quot;:{&quot;0,1&quot;:-1.5,&quot;1,2&quot;:2.0,&quot;2,3&quot;:-0.5,&quot;3,4&quot;:1.0,&quot;4,5&quot;:-2.0}}}</textarea>
-        </div>
-        <div>
-          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem;">
-            <label style="font-size:0.66rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:#71717a;">curl</label>
-            <button class="copy-btn" id="curl-copy">Copy</button>
-          </div>
-          <pre id="curl-pre" style="margin:0;background:#101012;border:1px solid var(--line-d);border-radius:7px;padding:0.6rem;font-family:var(--mono);font-size:0.72rem;color:#d4d4d8;overflow-x:auto;white-space:pre-wrap;word-break:break-all;"></pre>
-        </div>
-        <div>
-          <div class="resp-head">
-            <span style="font-size:0.66rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:#71717a;">Response</span>
-            <span class="resp-status" id="r-status" hidden></span>
-          </div>
-          <div class="resp-body placeholder" id="r-body" role="status" aria-live="polite">Press Send to call the production API…</div>
-          <p class="resp-note" id="r-note" hidden></p>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
 
 <section id="how" class="wrap">
   <h2>How an agent uses it</h2>
@@ -298,36 +245,10 @@
     <div class="card">
       <h3>Quantum <span class="tag live">LIVE</span></h3>
       <div class="price">$1.503</div>
-      <p><code>quantum</code> — real QPU hardware, 1024 shots per run. Recommended only on measured quality evidence, never on marketing. benchmark evidence, never on marketing.</p>
+      <p><code>quantum</code> — real QPU hardware, 1024 shots per run. Recommended only on measured benchmark evidence, never on marketing.</p>
     </div>
   </div>
   <p class="note">Backend availability is checked live: <a href="/health">/health</a> currently reports 2 classical, 1 hybrid and 3 quantum backends online.</p>
-</section>
-
-<section id="payments" class="wrap">
-  <h2>Agent-native payments</h2>
-  <p class="sec-sub">No API keys. No billing portal. No human in the loop. The protocol negotiates the price; the agent pays per call — via <b>x402</b> (USDC on Base) or <b>MPP</b> (Tempo). Same pattern registered with x402scan and the AgentCash Bazaar.</p>
-  <table>
-    <tr><th>Property</th><th>CortexCloud</th></tr>
-    <tr><td>Authentication</td><td>None required — payments are the auth</td></tr>
-    <tr><td>Schemes</td><td><b>x402</b> (HTTP 402 + signed settlement) and <b>MPP</b> (Tempo), USDC on Base, chain eip155:8453</td></tr>
-    <tr><td>Discovery</td><td><code>/.well-known/x402</code>, <code>/.well-known/x402.json</code>, AgentCash Bazaar, MCP registry <code>io.github.jonahthan433/cortexcloud</code></td></tr>
-    <tr><td>Billing</td><td>Per successful call, exact amount quoted before execution</td></tr>
-    <tr><td>Safety</td><td>Invalid requests rejected <b>before</b> settlement; no charge for unrunnable jobs; loss-making requests refused, never subsidized</td></tr>
-  </table>
-</section>
-
-<section id="pricing" class="wrap">
-  <h2>Transparent pricing</h2>
-  <p class="sec-sub">The estimate endpoint quotes the exact charge before you pay. Unit economics published in the open — because infrastructure pricing should survive contact with the real world.</p>
-  <table>
-    <tr><th>Mode</th><th>Solver / backend</th><th>Price</th></tr>
-    <tr><td><b>classical</b></td><td><code>brute-force</code> (exact, n≤20) · <code>simulated-annealing</code> (n&gt;20, up to 5,000)</td><td><b>$0.05 / $0.10 / $0.25</b> by size</td></tr>
-    <tr><td><b>hybrid</b></td><td><code>Hybrid QAOA</code> (QAOA + classical optimization loop)</td><td><b>$0.10</b></td></tr>
-    <tr><td><b>quantum</b></td><td><code>real QPU</code> — quantum hardware, 1024 shots</td><td><b>$1.503</b></td></tr>
-    <tr><td>estimate</td><td><code>POST /v1/estimate</code> — analyze + recommend</td><td><b>free</b></td></tr>
-  </table>
-  <p class="note">Every amount above is what a real 402 challenge returns today. Exact prices are quoted live by POST /v1/estimate and charged exactly as quoted via the 402 payment challenge.</p>
 </section>
 
 <section id="docs" class="wrap">
@@ -335,106 +256,14 @@
   <p class="sec-sub">From landing to first paid call without creating an account.</p>
   <div class="grid3">
     <div class="card"><h3>API reference</h3><p>Interactive OpenAPI docs — every endpoint, schema and the x402 payment flow, rendered by Swagger UI.</p><a class="btn dark" href="/docs" style="padding:0.5rem 1rem;font-size:0.84rem;">Open the reference</a></div>
-    <div class="card"><h3>MCP</h3><p>Connect Claude, Cursor, or Codex to the 4-tool MCP server with one command.</p><pre style="font-size:0.72rem;margin:0.5rem 0 0.8rem;background:#f4f4f5;border:1px solid var(--line);border-radius:7px;padding:0.6rem;overflow-x:auto;"><code style="background:none;border:none;padding:0;">claude mcp add cortexcloud --transport http https://api.cortexcloud.org/mcp</code></pre><a class="btn" href="https://github.com/jonahthan433/CortexCloudAPI" rel="noopener">MCP docs on GitHub</a></div>
+    <div class="card"><h3>MCP</h3><p>Connect Claude, Cursor, or Codex to the 4-tool MCP server with one command.</p><div style="display:flex;align-items:center;gap:0.5rem;margin:0.5rem 0 0.8rem;"><pre id="mcp-pre" style="flex:1;font-size:0.72rem;margin:0;background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:0.6rem;overflow-x:auto;"><code style="background:none;border:none;padding:0;">claude mcp add cortexcloud --transport http https://api.cortexcloud.org/mcp</code></pre><button class="copy-btn" id="mcp-copy">Copy</button></div><a class="btn" href="https://github.com/jonahthan433/CortexCloudAPI" rel="noopener">MCP docs on GitHub</a></div>
     <div class="card"><h3>Examples</h3><p>Copy-paste request/response demos for scheduling, portfolio allocation, and routing — every one a free estimate.</p><a class="btn" href="/v1/examples">Open examples</a></div>
   </div>
-  <p class="note" style="margin-top:1.2rem;">Discovery surface: <a href="/llms.txt">llms.txt</a> · <a href="/.well-known/x402.json">x402.json</a> · <a href="/.well-known/bazaar">Bazaar</a> · <a href="/.well-known/agentsearch.txt">agentsearch.txt</a> · <a href="/openapi.json">OpenAPI</a> · <a href="/health">status</a></p>
+  <p class="note" style="margin-top:1.2rem;">Discovery surface: <a href="/llms.txt">llms.txt</a> · <a href="/.well-known/x402.json">x402.json</a> · <a href="/.well-known/bazaar">Bazaar</a> · <a href="/.well-known/agentsearch.txt">agentsearch.txt</a> · <a href="/openapi.json">OpenAPI</a> · <a href="/health">status</a> · <a href="https://x402scan.com" rel="noopener">x402scan listing</a></p>
   <div class="badges">
     <span class="pwr"><span class="bdot"></span>Powered by x402</span>
     <span class="pwr"><span class="bdot"></span>Powered by MPP (Tempo)</span>
   </div>
-</section>
-
-<!-- USE CASES -->
-<section id="usecases" class="wrap">
-  <h2>Problems CortexCloud solves</h2>
-  <p class="sec-sub">One API. Eight industries. Formulate your problem as QUBO/Ising, estimate for free, solve from $0.05.</p>
-  <div class="usecase-grid">
-    <div class="uc-card">
-      <h3>📊 Finance</h3>
-      <p>Portfolio selection, capital allocation, risk-minimising rebalancing. Mean-variance optimisation with cardinality constraints — cardinality-constrained Markowitz in one API call.</p>
-      <a class="btn" href="/v1/examples" style="font-size:0.78rem;">See portfolio example →</a>
-    </div>
-    <div class="uc-card">
-      <h3>🚚 Logistics</h3>
-      <p>Vehicle routing, fleet dispatch, last-mile delivery optimisation. Time-indexed QUBO encoding — minimise total distance while respecting capacity constraints.</p>
-      <a class="btn" href="/v1/examples" style="font-size:0.78rem;">See routing example →</a>
-    </div>
-    <div class="uc-card">
-      <h3>⚡ Energy</h3>
-      <p>Generator unit commitment, economic dispatch, grid load balancing. Binary on/off decisions with startup costs — profit-maximising schedules across time periods.</p>
-    </div>
-    <div class="uc-card">
-      <h3>🌾 Agriculture</h3>
-      <p>Crop allocation, field planning, harvest scheduling. Adjacency constraints and disease-risk modelling — maximise yield while respecting rotation rules.</p>
-    </div>
-    <div class="uc-card">
-      <h3>⛏ Mining</h3>
-      <p>Open-pit cutoff grade optimisation, block extraction sequencing. Precedence-constrained binary decisions — extract blocks in the order that maximises net present value.</p>
-    </div>
-    <div class="uc-card">
-      <h3>🏥 Healthcare</h3>
-      <p>Nurse scheduling, operating-room allocation, staff rostering. Preference-based assignment with coverage constraints — satisfied staff, covered shifts.</p>
-    </div>
-    <div class="uc-card">
-      <h3>💧 Water</h3>
-      <p>Pump scheduling, reservoir operations, distribution network optimisation. Time-slotted binary decisions with wear penalties — minimise cost, protect equipment.</p>
-    </div>
-    <div class="uc-card">
-      <h3>📦 Supply Chain</h3>
-      <p>Warehouse assignment, inventory allocation, multi-echelon network design. Cost-minimising SKU-to-warehouse mapping with capacity coupling.</p>
-    </div>
-  </div>
-</section>
-
-<!-- BENCHMARKS -->
-<section id="benchmarks" class="wrap">
-  <h2>Real benchmarks, not marketing</h2>
-  <p class="sec-sub">Every number below comes from production executions — actual solver runs, measured in milliseconds. No synthetic data. <a href="/benchmarks" style="font-weight:600;">Live endpoint →</a></p>
-  <div class="bench-table-wrap">
-    <table class="bench-table">
-      <tr><th>Solver</th><th>Mode</th><th>Runs</th><th>Avg</th><th>Min</th><th>Max</th></tr>
-      <tr><td><code>brute-force</code></td><td><span class="tag live">classical</span></td><td>5</td><td>75 ms</td><td>16 ms</td><td>278 ms</td></tr>
-      <tr><td><code>qaoa-local</code></td><td><span class="tag">hybrid</span></td><td>3</td><td>19 ms</td><td>19 ms</td><td>20 ms</td></tr>
-      <tr><td><code>rigetti</code></td><td><span class="tag">quantum</span></td><td>3</td><td>28.9 s</td><td>13.6 s</td><td>38.9 s</td></tr>
-      <tr><td><code>ibm</code></td><td><span class="tag">quantum</span></td><td>2</td><td>32.1 s</td><td>29.8 s</td><td>34.4 s</td></tr>
-    </table>
-  </div>
-  <p class="note">Quantum runtimes include real QPU queue time + execution. 10 benchmark evidence rows recorded. <a href="/benchmarks">Full breakdown →</a></p>
-</section>
-
-<!-- TRUST -->
-<section id="trust" class="wrap">
-  <h2>Built for production</h2>
-  <div class="trust-grid">
-    <div class="trust-item">
-      <h3>🔐 No API keys</h3>
-      <p>Authentication is the payment itself. An agent signs a 402 challenge with its wallet — no secrets to rotate, no credentials to leak.</p>
-    </div>
-    <div class="trust-item">
-      <h3>🛡 Payment safety</h3>
-      <p>Problems are validated <em>before</em> the 402 challenge is issued. If your problem is unrunnable, you are never charged. Loss-making requests are refused.</p>
-    </div>
-    <div class="trust-item">
-      <h3>⚛ Quantum safety</h3>
-      <p>Quantum backends are only recommended when measured benchmark evidence exists for your problem family. The API never promotes quantum when classical is cheaper and proven.</p>
-    </div>
-    <div class="trust-item">
-      <h3>🔒 Backend privacy</h3>
-      <p>You send a QUBO matrix. You get a solution. The underlying provider, routing logic, and infrastructure are abstracted — your problems are your business.</p>
-    </div>
-  </div>
-</section>
-
-<!-- TRY API CTA -->
-<section id="cta" class="wrap" style="text-align:center;padding:3rem 0;">
-  <h2 style="font-size:1.8rem;margin-bottom:0.5rem;">Try it now — free</h2>
-  <p style="color:var(--muted);max-width:48ch;margin:0 auto 1.5rem;">Post a QUBO problem, get a live estimate in milliseconds. No signup, no API key, no payment.</p>
-  <div style="display:flex;gap:0.8rem;justify-content:center;flex-wrap:wrap;">
-    <a class="btn dark" href="/v1/trial" style="font-size:1rem;padding:0.8rem 1.8rem;">POST /v1/trial — free solve</a>
-    <a class="btn" href="/docs" style="font-size:1rem;padding:0.8rem 1.8rem;">Read the docs</a>
-  </div>
-  <p style="margin-top:1rem;font-size:0.82rem;color:var(--dim);">10 free solves per hour. For production: $0.05–$1.50 per call, x402, USDC on Base.</p>
 </section>
 
 <footer class="foot wrap">
@@ -452,106 +281,10 @@ function copyText(txt, btn) {
     btn.textContent = 'Select manually'; setTimeout(function () { btn.textContent = 'Copy'; }, 2000);
   }
 }
-
-// Console explorer — calls the production API same-origin
-(function () {
-  var EPs = {
-    estimate:   {method: 'POST', path: '/v1/estimate',  hasBody: true,
-                 body: '{"problem_type":"qubo","n":6,"data":{"linear":[1,-2,3,-4,2,-1],"quadratic":{"0,1":-1.5,"1,2":2.0,"2,3":-0.5,"3,4":1.0,"4,5":-2.0}}}',
-                 note: 'Free. Returns the recommended solver, mode, runtime and the exact price a paid solve would charge.'},
-    optimize:   {method: 'POST', path: '/v1/optimize',  hasBody: true, paid: true,
-                 body: '{"mode":"auto","problem":{"problem_type":"qubo","n":4,"data":{"0,0":1,"0,1":-1,"1,1":1}}}',
-                 note: 'HTTP 402 is the offer: an agent signs and settles it (x402 or MPP), then polls GET /v1/jobs/{id}. No money moves from this page.'},
-    jobs:       {method: 'GET',  path: '/v1/jobs/{job_id}', hasBody: false, param: 'job_id',
-                 note: 'Poll an optimization job by id. Replace the placeholder with a real job_id from a paid solve.'},
-    backends:   {method: 'GET',  path: '/v1/backends',  hasBody: false,
-                 note: 'Solver backends with per-backend availability, provider and limits.'},
-    capabilities:{method: 'GET', path: '/v1/capabilities', hasBody: false,
-                 note: 'Service capabilities, modes, limits, providers and payment terms.'},
-    examples:   {method: 'GET',  path: '/v1/examples',  hasBody: false,
-                 note: 'Canonical agent examples with schemas, constraints and pricing.'}
-  };
-  var cur = 'estimate';
-  var methodEl = document.getElementById('r-method'), urlEl = document.getElementById('r-url'),
-      tagEl = document.getElementById('r-402'), sendEl = document.getElementById('r-send'),
-      paramF = document.getElementById('f-param'), bodyF = document.getElementById('f-body'),
-      paramI = document.getElementById('param-input'), bodyI = document.getElementById('body-input'),
-      curlPre = document.getElementById('curl-pre'), curlCopy = document.getElementById('curl-copy'),
-      stEl = document.getElementById('r-status'), bodyOut = document.getElementById('r-body'),
-      noteEl = document.getElementById('r-note');
-
-  function render() {
-    var ep = EPs[cur];
-    methodEl.textContent = ep.method;
-    methodEl.className = 'method ' + ep.method.toLowerCase();
-    urlEl.textContent = ep.path;
-    tagEl.hidden = !ep.paid;
-    paramF.hidden = !ep.param;
-    bodyF.hidden = !ep.hasBody;
-    buildCurl();
-  }
-  function buildCurl() {
-    var ep = EPs[cur], path = ep.path;
-    if (ep.param) path = path.replace('{' + ep.param + '}', paramI.value || ':' + ep.param);
-    var c = 'curl -X ' + ep.method + " 'https://api.cortexcloud.org" + path + "' \\\n  -H 'content-type: application/json'";
-    if (ep.hasBody) c += " \\\n  -d '" + (bodyI.value || '{}') + "'";
-    curlPre.textContent = c;
-  }
-  function setStatus(code) {
-    stEl.hidden = false;
-    stEl.textContent = 'HTTP ' + code;
-    stEl.className = 'resp-status ' + (code === 402 ? 'chal' : (code >= 200 && code < 300 ? 'good' : 'bad'));
-  }
-  function livePath() {
-    var ep = EPs[cur], path = ep.path;
-    return ep.param ? path.replace('{' + ep.param + '}', encodeURIComponent(paramI.value)) : path;
-  }
-
-  document.querySelectorAll('.ep').forEach(function (el) {
-    el.addEventListener('click', function () {
-      document.querySelectorAll('.ep').forEach(function (e) { e.setAttribute('aria-selected', 'false'); });
-      el.setAttribute('aria-selected', 'true');
-      cur = el.dataset.ep; render();
-      bodyOut.className = 'resp-body placeholder'; bodyOut.textContent = 'Press Send to call the production API…';
-      stEl.hidden = true; noteEl.hidden = true;
-    });
-    el.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); el.click(); } });
-  });
-
-  sendEl.addEventListener('click', function () {
-    var ep = EPs[cur];
-    sendEl.disabled = true; sendEl.textContent = 'Working…';
-    var url = livePath(), opts = {method: ep.method, headers: {'content-type': 'application/json'}};
-    if (ep.hasBody) opts.body = bodyI.value || '{}';
-    fetch(url, opts)
-      .then(function (r) { return r.text().then(function (t) { return {ok: r.ok, status: r.status, text: t}; }); })
-      .then(function (x) {
-        setStatus(x.status);
-        var pretty = null;
-        try { pretty = JSON.stringify(JSON.parse(x.text), null, 2); } catch (e) {}
-        bodyOut.className = 'resp-body ' + (x.status === 402 ? '' : (x.ok ? '' : 'err'));
-        bodyOut.textContent = pretty || x.text || '(empty body)';
-        noteEl.hidden = !ep.note; noteEl.innerHTML = ep.note || '';
-        if (x.status === 402) {
-          var j;
-          try { j = JSON.parse(x.text); } catch (e) {}
-          if (j && j.accepts && j.accepts[0]) {
-            var p = j.accepts[0], usd = (parseInt(p.amount, 10) / 1e6).toFixed(2);
-            noteEl.innerHTML = 'This is a live 402 offer: <b>' + usd + ' USDC</b> on <b>' + p.network +
-              '</b> to <b>' + p.payTo.slice(0, 6) + '…' + p.payTo.slice(-4) + '</b>. An agent signs and settles this, then polls GET /v1/jobs/{id}.';
-            noteEl.hidden = false;
-          }
-        }
-      })
-      .catch(function (e) { bodyOut.className = 'resp-body err'; bodyOut.textContent = 'Network error: ' + e.message; })
-      .finally(function () { sendEl.disabled = false; sendEl.textContent = 'Send'; });
-  });
-
-  bodyI.addEventListener('input', buildCurl);
-  paramI.addEventListener('input', buildCurl);
-  curlCopy.addEventListener('click', function () { copyText(curlPre.textContent, curlCopy); });
-  render();
-})();
+document.addEventListener('DOMContentLoaded', function () {
+  var mcpCopy = document.getElementById('mcp-copy');
+  if (mcpCopy) mcpCopy.addEventListener('click', function () { copyText(document.getElementById('mcp-pre').textContent.trim(), mcpCopy); });
+});
 
 // GTM tracking beacon — anonymous visit/referrer capture
 fetch('/v1/track?ref=' + encodeURIComponent(document.referrer)

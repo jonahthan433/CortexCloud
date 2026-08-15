@@ -110,6 +110,10 @@ class Settings(BaseSettings):
             "WALLET_ADDRESS", "CDP_WALLET_SECRET",
             "X402_FACILITATOR_API_KEY_ID", "X402_FACILITATOR_API_KEY_SECRET",
         ]
+        # Private single-tenant mode needs no wallet: the static API key
+        # replaces blockchain settlement entirely.
+        if self.PRIVATE_API_KEY:
+            critical = ["PRIVATE_API_KEY"]
         for var in critical:
             if getattr(self, var, None) in (None, ""):
                 raise ValueError(f"[S7] ENV=production requires {var} in environment.")
