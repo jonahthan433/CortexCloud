@@ -12,6 +12,7 @@ from fastapi import Query, APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
+from app.core.receipt import job_payload
 from app.database.session import AsyncSessionLocal
 from app.models import OptimizeJob
 from app.optimizer.estimator import estimate
@@ -30,6 +31,11 @@ class OptimizeRequest(BaseModel):
     mode: str = Field(
         default="auto",
         description="auto | classical | hybrid | quantum. auto returns the best evidence-backed recommendation for your problem.",
+    )
+    webhook_url: str | None = Field(
+        default=None,
+        max_length=512,
+        description="Optional: POST the final job payload (with signed receipt) to this URL on completion.",
     )
 
     class Config:
@@ -54,8 +60,10 @@ async def optimize(req: OptimizeRequest, request: Request):
         raise HTTPException(status_code=422, detail=f"mode must be one of auto|classical|hybrid|quantum, got {req.mode!r}")
     if req.problem.n > 5000:
         raise HTTPException(status_code=422, detail="n exceeds 5000 variables")
+    if req.webhook_url and not req.webhook_url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=422, detail="webhook_url must be http(s)")
     price = effective_price_usd(req.mode, n=req.problem.n)
-    job_id = await create_job(req.problem, req.mode, price)
+    job_id = await create_job(req.problem, req.mode, price, webhook_url=req.webhook_url)
     schedule(job_id)
     return {
         "job_id": job_id,
@@ -81,20 +89,7 @@ async def get_job(job_id: str) -> dict:
         job = await db.get(OptimizeJob, job_id)
         if job is None:
             raise HTTPException(status_code=404, detail="job not found")
-        return {
-            "job_id": job.id,
-            "status": job.status,
-            "mode": job.mode,
-            "problem_type": job.problem_type,
-            "n": job.n,
-            "backend": job.backend,
-            "algorithm": job.algorithm,
-            "price_usd": float(job.price_usd) if job.price_usd is not None else None,
-            "result": job.result,
-            "error": job.error,
-            "created_at": job.created_at.isoformat() if job.created_at else None,
-            "finished_at": job.finished_at.isoformat() if job.finished_at else None,
-        }
+        return job_payload(job)
 
 
 def _examples_payload() -> dict:

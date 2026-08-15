@@ -98,6 +98,9 @@ class Settings(BaseSettings):
     # must present this static key as `x-api-key`. Overrides x402 payment
     # settlement for private deployments (set X402_ENABLED=false alongside).
     PRIVATE_API_KEY: Optional[str] = Field(default=None, env="PRIVATE_API_KEY")
+    # Signs execution receipts (HMAC-SHA256) attached to final job payloads.
+    # Optional: unset => receipts emit signed:false (hash-verifiable only).
+    RECEIPT_SIGNING_KEY: Optional[str] = Field(default=None, env="RECEIPT_SIGNING_KEY")
 
     @model_validator(mode="after")
     def enforce_secrets_in_production(self) -> "Settings":

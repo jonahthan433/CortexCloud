@@ -89,6 +89,12 @@ def create_app(override_openapi: bool = True) -> FastAPI:
     application.include_router(discovery_router, tags=["Discovery"])
     application.include_router(bazaar_router, tags=["Bazaar / MCP"])
 
+    # Free domain presets + dry-run simulation (v1.3)
+    from app.api.presets import router as presets_router
+    application.include_router(presets_router)
+    from app.api.simulate import router as simulate_router
+    application.include_router(simulate_router)
+
     # Internal-only metrics (revenue). 503 unless INTERNAL_TOKEN is set.
     from app.api.internal import router as internal_router
     application.include_router(internal_router, tags=["Internal"])

@@ -73,7 +73,8 @@ async def pick_solver(mode: str, problem, qubo):
     return registry.by_id(sel["recommended"]["solver_id"])
 
 
-async def create_job(problem: ProblemInput, mode: str, price_usd: float | None) -> str:
+async def create_job(problem: ProblemInput, mode: str, price_usd: float | None,
+                  webhook_url: str | None = None) -> str:
     job_id = str(uuid.uuid4())
     async with AsyncSessionLocal() as db:
         db.add(
@@ -82,12 +83,45 @@ async def create_job(problem: ProblemInput, mode: str, price_usd: float | None) 
                 problem_type=problem.problem_type,
                 n=problem.n,
                 mode=_clean_mode(mode),
-                request={"problem": problem.model_dump(), "mode": mode},
+                request={"problem": problem.model_dump(), "mode": mode,
+             **( {"webhook_url": webhook_url} if webhook_url else {} )},
                 price_usd=price_usd,
             )
         )
         await db.commit()
     return job_id
+
+
+def _fire_webhook(job) -> None:
+    """Fire-and-forget completion webhook. One retry, then drop.
+
+    ponytail: no retry queue/backoff; the signed receipt inside the payload
+    is the audit trail, not delivery. Add at-least-once when a customer
+    needs guaranteed delivery.
+    """
+    url = (job.request or {}).get("webhook_url")
+    if not url:
+        return
+    from app.core.http import shared_client
+    from app.core.receipt import job_payload
+
+    async def _post() -> None:
+        payload = job_payload(job)
+        client = shared_client("webhook", timeout=10.0)
+        for attempt in (1, 2):
+            try:
+                r = await client.post(
+                    url, json=payload,
+                    headers={"X-Cortexcloud-Event": f"job.{job.status}"},
+                )
+                if r.status_code < 400:
+                    return
+                logger.warning(f"webhook {url} -> {r.status_code} (attempt {attempt})")
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"webhook {url} failed (attempt {attempt}): {e}")
+
+    import asyncio
+    asyncio.get_event_loop().create_task(_post())
 
 
 def schedule(job_id: str) -> None:
@@ -114,6 +148,7 @@ async def run_job(job_id: str) -> None:
             job.error = "no available solver for requested mode"
             job.finished_at = _now()
             await db.commit()
+            _fire_webhook(job)
             return
 
         # Hard quantum spending cap: an autonomous agent must never be able
@@ -126,6 +161,7 @@ async def run_job(job_id: str) -> None:
             job.error = cap_error
             job.finished_at = _now()
             await db.commit()
+            _fire_webhook(job)
             return
 
         result = await asyncio.to_thread(solver.solve, qubo, job.n)
@@ -167,6 +203,7 @@ async def run_job(job_id: str) -> None:
             job.error = result.error
         job.finished_at = _now()
         await db.commit()
+        _fire_webhook(job)
 
 
 def quantum_cost_cap_error(solver, qubo, n: int) -> str | None:
