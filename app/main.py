@@ -34,6 +34,17 @@ async def lifespan(app: FastAPI):
             logger.info(f"Requeued {n} stale job(s) left by a previous worker")
     except Exception as e:  # noqa: BLE001
         logger.error(f"Startup requeue failed (continuing): {e}")
+    # Pre-warm provider availability off-loop so the first /health after boot
+    # is fast instead of triggering 15-45s of cloud discovery in-band.
+    try:
+        import asyncio as _asyncio
+        from app.solvers import registry as _registry
+
+        _asyncio.get_event_loop().create_task(
+            _asyncio.to_thread(_registry.availability_summary)
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"Startup availability pre-warm failed (continuing): {e}")
     yield
     logger.info("Shutting down CortexCloud Optimization Network...")
 
@@ -162,11 +173,16 @@ def create_app(override_openapi: bool = True) -> FastAPI:
         except Exception:  # noqa: BLE001
             pass
         from app.solvers import registry
+        import asyncio as _asyncio
+        # availability_summary() probes cloud providers (IBM/Braket discovery
+        # can take 15s+) — never run it on the event loop or /health becomes
+        # a self-DoS that blocks every other request.
+        backends = await _asyncio.to_thread(registry.availability_summary)
         return {
             "status": "healthy" if db_status == "healthy" else "degraded",
             "database": db_status,
             "mcp": "running" if _mcp_alive() else "down",
-            "backends": registry.availability_summary(),
+            "backends": backends,
         }
 
     def _mcp_alive() -> bool:

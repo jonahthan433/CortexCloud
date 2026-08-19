@@ -61,7 +61,11 @@ async def pick_solver(mode: str, problem, qubo):
     from app.solvers.quantum import router
 
     bench = 0 if mode == "quantum" else await benchmark_evidence(problem)
-    sel = router.select(
+    # router.select() is sync and may initialize quantum providers (Qiskit
+    # account discovery takes ~15s on first call) — run it off the event
+    # loop so a cold provider never blocks polling/health.
+    sel = await asyncio.to_thread(
+        router.select,
         problem_type=problem.problem_type,
         qubo=qubo,
         n=problem.n,
