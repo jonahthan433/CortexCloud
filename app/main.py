@@ -159,6 +159,14 @@ def create_app(override_openapi: bool = True) -> FastAPI:
     async def _sitemap():
         return FileResponse(os.path.join(SITE_DIR, "sitemap.xml"), media_type="application/xml")
 
+    @application.get("/benchmarks.html", include_in_schema=False, tags=["System"])
+    async def benchmarks_page():
+        return FileResponse(os.path.join(SITE_DIR, "benchmarks.html"), media_type="text/html")
+
+    @application.get("/changelog", include_in_schema=False, tags=["System"])
+    async def changelog_page():
+        return FileResponse(os.path.join(SITE_DIR, "changelog.html"), media_type="text/html")
+
     @application.get("/health", status_code=status.HTTP_200_OK, tags=["System"])
     async def health_check():
         db_status = "unhealthy"

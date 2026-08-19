@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Changelog — CortexCloud</title>
+<meta name="description" content="CortexCloud changelog: what changed, when, and why. Backend availability, new solver results, API fixes.">
+<meta name="robots" content="index, follow">
+<style>
+  :root {
+    --bg: #0a0a0b; --ink: #f4f4f5; --muted: #a1a1aa; --dim: #71717a;
+    --line: rgba(255,255,255,0.08); --line-d: rgba(255,255,255,0.16); --panel: #121214; --panel2: #1a1a1d;
+    --emerald: #10b981; --emerald-l: #34d399; --blue: #60a5fa; --amber: #fbbf24;
+    --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Geist", ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  a { color: var(--emerald-l); text-decoration: none; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 2.5rem 1.5rem; }
+  .meta { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--emerald); margin-bottom: 0.8rem; }
+  h1 { font-size: clamp(1.8rem, 4vw, 2.4rem); letter-spacing: -0.03em; margin-bottom: 2rem; }
+  .entry { border-left: 1px solid var(--line-d); padding: 0 0 2rem 1.5rem; margin-left: 0.5rem; position: relative; }
+  .entry::before { content: ''; position: absolute; left: -4px; top: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--emerald); }
+  .date { font-family: var(--mono); font-size: 0.72rem; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; }
+  .entry h2 { font-size: 1.05rem; margin: 0.25rem 0 0.4rem; }
+  .entry p { color: var(--muted); font-size: 0.9rem; margin-bottom: 0.35rem; }
+  .entry ul { color: var(--muted); font-size: 0.9rem; padding-left: 1.2rem; margin-top: 0.4rem; }
+  .entry li { margin-bottom: 0.2rem; }
+  .tag { display: inline-block; border-radius: 999px; padding: 0.08rem 0.5rem; font-size: 0.66rem; font-weight: 700; margin-right: 0.4rem; vertical-align: 1px; }
+  .tag.new { background: rgba(16,185,129,0.12); color: var(--emerald-l); border: 1px solid rgba(16,185,129,0.35); }
+  .tag.fix { background: rgba(96,165,250,0.12); color: var(--blue); border: 1px solid rgba(96,165,250,0.35); }
+  .tag.perf { background: rgba(251,191,36,0.12); color: var(--amber); border: 1px solid rgba(251,191,36,0.35); }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="meta">CortexCloud · Changelog</div>
+  <h1>What changed</h1>
+
+  <div class="entry">
+    <div class="date">2026-08-19</div>
+    <h2><span class="tag perf">perf</span>Event loop stays responsive during provider warm-up</h2>
+    <p>Solver selection and health checks no longer block the API during cold-start quantum-provider discovery. Startup pre-warms availability in the background; /health answers in milliseconds.</p>
+  </div>
+
+  <div class="entry">
+    <div class="date">2026-08-18</div>
+    <h2><span class="tag new">new</span>Domain presets, dry-run simulation, webhooks, execution receipts</h2>
+    <ul>
+      <li>POST /v1/solvers/portfolio · /v1/solvers/bin-packing · /v1/solvers/routing — plain constraints to QUBO, free</li>
+      <li>POST /v1/simulate — feasibility + confidence before you pay</li>
+      <li>webhook_url on /v1/optimize — solution pushed on completion</li>
+      <li>Signed execution receipts on every final job payload (HMAC-SHA256)</li>
+    </ul>
+  </div>
+
+  <div class="entry">
+    <div class="date">2026-08-17</div>
+    <h2><span class="tag new">new</span>Enterprise single-tenant bundle</h2>
+    <p>Dockerfile + docker-compose + PRIVATE_API_KEY mode for private deployments. Same API, no blockchain settlement required.</p>
+  </div>
+
+  <div class="entry">
+    <div class="date">2026-08-16</div>
+    <h2><span class="tag fix">fix</span>x402scan visibility + OpenAPI compliance</h2>
+    <p>All routes now declare auth mode (security: [], x-payment-info on /v1/optimize); duplicate payment options removed. Official x402 validator warnings reduced 34 to 1.</p>
+  </div>
+
+  <p style="margin-top:2rem; color:var(--dim); font-size:0.85rem;">Full history in the <a href="https://github.com/jonahthan433/CortexCloudAPI" rel="noopener">GitHub repository</a>. · <a href="/">Homepage</a> · <a href="/benchmarks.html">Benchmarks</a></p>
+</main>
+</body>
+</html>
