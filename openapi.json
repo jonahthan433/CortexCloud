@@ -4,11 +4,13 @@
     "title": "CortexCloud Optimization Network",
     "description": "Optimization infrastructure for AI agents \u2014 discover, pay for, and execute classical, hybrid, or quantum optimization through a single API.",
     "version": "2.0.0",
+    "x-guidance": "CortexCloud \u2014 optimization infrastructure for AI agents. Discover, pay for, and execute classical, hybrid, or quantum optimization through a single API. POST /v1/estimate is free. POST /v1/optimize returns HTTP 402 with an x402 PaymentRequirements challenge (USDC on Base, chain 8453). Sign the challenge with your wallet and resend with the payment-signature header. Poll GET /v1/jobs/{job_id}. No API keys, no subscriptions.",
+    "x-apisguru-categories": [
+      "ai-ml"
+    ],
     "contact": {
-      "email": "hello@cortexcloud.org",
-      "url": "https://api.cortexcloud.org/docs"
-    },
-    "x-guidance": "CortexCloud is a pay-per-call QUBO/Ising optimization API. POST /v1/optimize is the only paid route (x402, USDC on Base); every other endpoint is free and callable without credentials."
+      "email": "team@cortexcloud.org"
+    }
   },
   "paths": {
     "/v1/optimize": {
@@ -47,31 +49,39 @@
                 }
               }
             }
+          },
+          "402": {
+            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
           }
         },
+        "security": [
+          {
+            "x402": []
+          }
+        ],
         "x-payment-info": {
           "price": {
+            "mode": "fixed",
             "currency": "USD",
-            "mode": "dynamic",
-            "min": "0.05",
-            "max": "1.503"
+            "amount": "0.050000"
           },
           "protocols": [
             {
-              "x402": {
-                "network": "eip155:8453",
-                "asset": "USDC"
-              }
+              "x402": {}
             },
             {
               "mpp": {
                 "method": "tempo",
                 "intent": "charge",
-                "currency": "USD"
+                "currency": "0x20C000000000000000000000b9537d11c60E8b50"
               }
             }
           ],
-          "description": "Pay per solve: classical $0.05, hybrid $0.10, quantum $1.503. USDC on Base."
+          "scheme": "x402",
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "price_atomic_usdc": "50000",
+          "decimals": 6
         }
       }
     },
@@ -711,6 +721,134 @@
         "security": []
       }
     },
+    "/x402/v1/pubkey": {
+      "get": {
+        "tags": [
+          "x402 Audit & Trust",
+          "x402"
+        ],
+        "summary": "Get Pubkey",
+        "operationId": "get_pubkey_x402_v1_pubkey_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/x402/v1/usage": {
+      "get": {
+        "tags": [
+          "x402 Audit & Trust",
+          "x402"
+        ],
+        "summary": "Usage",
+        "operationId": "usage_x402_v1_usage_get",
+        "parameters": [
+          {
+            "name": "address",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Address"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/x402/v1/receipts": {
+      "get": {
+        "tags": [
+          "x402 Audit & Trust",
+          "x402"
+        ],
+        "summary": "Receipts",
+        "operationId": "receipts_x402_v1_receipts_get",
+        "parameters": [
+          {
+            "name": "address",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Address"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 25,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -1016,6 +1154,21 @@
         ],
         "title": "ValidationError"
       }
+    },
+    "securitySchemes": {
+      "x402": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "x402 payment: obtain a 402 PaymentRequirements challenge, answer with a wallet authorization, pass it back in the X-PAYMENT signature header."
+      }
     }
+  },
+  "servers": [
+    {
+      "url": "https://api.cortexcloud.org"
+    }
+  ],
+  "x-logo": {
+    "url": "https://api.cortexcloud.org/cortex-logo.png"
   }
 }
