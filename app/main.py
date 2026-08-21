@@ -90,10 +90,6 @@ def create_app(override_openapi: bool = True) -> FastAPI:
 
     application.include_router(optimization_router, tags=["Optimization"])
 
-    # Problem-domain encoders + simulate (free). Reconciled from prod OpenAPI.
-    from app.api import solvers as solvers_router  # noqa: E402
-    application.include_router(solvers_router.router, tags=["Solvers"])
-
     # Additive /v1/quantum/* namespace — aliases of the optimization handlers.
     # Keeps /v1/optimize etc. intact for backward compatibility.
     from app.api.quantum import router as quantum_router
