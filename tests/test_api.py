@@ -12,7 +12,7 @@ async def test_estimate_free(client, qb_small):
     body = r.json()
     assert body["problem"]["n"] == 4
     assert body["recommendation"]["mode"] in ("classical", "hybrid", "quantum")
-    assert "estimated_price_usd" in body["recommendation"]
+    assert "cortexcloud_price_usd" in body["recommendation"]
     # n=4 must NEVER recommend simulated-annealing over brute-force
     assert body["recommendation"]["solver_id"] == "brute-force"
     assert body["evidence"]["basis"] in ("model", "measured")
