@@ -60,6 +60,10 @@ FREE_ROUTES = {
     "GET /v1/backends": "List solver backends and availability (free).",
     "GET /v1/capabilities": "Service capabilities, limits, payment terms (free).",
     "GET /v1/examples": "Canonical portfolio/assignment/scheduling/routing/QUBO examples with schemas, constraints and pricing (free).",
+    "POST /v1/simulate": "Dry-run a problem (free) — feasibility and confidence score before paying for a solve.",
+    "POST /v1/solvers/portfolio": "Build a cardinality-constrained Markowitz QUBO from returns/covariance (free).",
+    "POST /v1/solvers/bin-packing": "Build a bin-packing QUBO from item weights and bin capacity (free).",
+    "POST /v1/solvers/routing": "Build a TSP tour QUBO from a distance matrix (free).",
 }
 
 

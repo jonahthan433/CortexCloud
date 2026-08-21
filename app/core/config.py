@@ -94,6 +94,13 @@ class Settings(BaseSettings):
     # Gate for /internal/metrics (revenue aggregates). Leave unset to
     # disable the endpoint entirely — never expose money figures publicly.
     INTERNAL_TOKEN: Optional[str] = Field(default=None, env="INTERNAL_TOKEN")
+    # Enterprise single-tenant mode: when set, EVERY request (except /health)
+    # must present this static key as `x-api-key`. Overrides x402 payment
+    # settlement for private deployments (set X402_ENABLED=false alongside).
+    PRIVATE_API_KEY: Optional[str] = Field(default=None, env="PRIVATE_API_KEY")
+    # Signs execution receipts (HMAC-SHA256) attached to final job payloads.
+    # Optional: unset => receipts emit signed:false (hash-verifiable only).
+    RECEIPT_SIGNING_KEY: Optional[str] = Field(default=None, env="RECEIPT_SIGNING_KEY")
 
     @model_validator(mode="after")
     def enforce_secrets_in_production(self) -> "Settings":
@@ -106,6 +113,10 @@ class Settings(BaseSettings):
             "WALLET_ADDRESS", "CDP_WALLET_SECRET",
             "X402_FACILITATOR_API_KEY_ID", "X402_FACILITATOR_API_KEY_SECRET",
         ]
+        # Private single-tenant mode needs no wallet: the static API key
+        # replaces blockchain settlement entirely.
+        if self.PRIVATE_API_KEY:
+            critical = ["PRIVATE_API_KEY"]
         for var in critical:
             if getattr(self, var, None) in (None, ""):
                 raise ValueError(f"[S7] ENV=production requires {var} in environment.")

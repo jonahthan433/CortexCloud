@@ -1,26 +1,55 @@
-version: '3.8'
-
 services:
-  db:
+  postgres:
     image: postgres:16-alpine
-    container_name: cortexcloud-db
-    restart: always
-    network_mode: host
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: a375954df141f6c2e29e2232b1b27d9b2d228f9c178a6ea6
-      POSTGRES_DB: cortexcloud
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-cortexcloud}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d cortexcloud"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-cortexcloud}"]
       interval: 5s
-      timeout: 5s
-      retries: 5
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  db-init:
+    build: .
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["python", "deploy/db_init.py"]
+    restart: "no"
+
+  api:
+    build: .
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    environment:
+      PORT: "${MCP_PORT:-3100}"
+      CORTEXCLOUD_BASE: "${CORTEXCLOUD_BASE:-https://api.cortexcloud.org}"
+      CORTEXCLOUD_PAYTO: "${CORTEXCLOUD_PAYTO:-}"
+      EVM_PRIVATE_KEY: "${EVM_PRIVATE_KEY:-}"
+    ports:
+      - "${MCP_PORT:-3100}:3100"
+    restart: unless-stopped
 
 volumes:
-  postgres_data:
-
-# No Redis: the Optimization Network keeps jobs, payments, usage and
-# benchmarks in PostgreSQL only. Deploy via systemd (cortexcloud.service);
-# `docker compose up -d db` is only for a fresh local database.
+  pgdata:

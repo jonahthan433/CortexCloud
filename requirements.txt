@@ -34,3 +34,5 @@ uvicorn==0.51.0
 uvloop==0.22.1
 x402[fastapi,evm,extensions]
 pympp[tempo]
+
+prometheus-client==0.26.0

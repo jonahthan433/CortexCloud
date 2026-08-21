@@ -1,30 +1,29 @@
-FROM python:3.12-slim as builder
+# CortexCloud API — production image (FastAPI + local classical/hybrid solvers)
+FROM python:3.12-slim
 
-WORKDIR /code
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install build dependencies for libraries requiring compilation (e.g. greenlet, cryptography)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libpq-dev \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /opt/cortexcloud
 
+# No apt-get: python:3.12-slim is DNS-independent and the healthcheck
+# uses the stdlib (urllib) instead of installing curl.
 COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-FROM python:3.12-slim as runner
+COPY app ./app
+COPY site ./site
+COPY deploy ./deploy
+COPY openapi.json .
 
-WORKDIR /code
-
-# Copy installed site-packages from builder stage
-COPY --from=builder /root/.local /root/.local
-COPY . /code
-
-# Make sure scripts in .local/bin are executable and on PATH
-ENV PATH=/root/.local/bin:$PATH
-ENV PYTHONUNBUFFERED=1
+# Non-root runtime user (uid 10001; unprivileged in the container)
+RUN useradd -r -u 10001 cortex && chown -R cortex:cortex /opt/cortexcloud
+USER cortex
 
 EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"
 
-# Run FastAPI with Uvicorn in production mode
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-server-header"]

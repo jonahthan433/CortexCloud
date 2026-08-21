@@ -34,6 +34,17 @@ async def lifespan(app: FastAPI):
             logger.info(f"Requeued {n} stale job(s) left by a previous worker")
     except Exception as e:  # noqa: BLE001
         logger.error(f"Startup requeue failed (continuing): {e}")
+    # Pre-warm provider availability off-loop so the first /health after boot
+    # is fast instead of triggering 15-45s of cloud discovery in-band.
+    try:
+        import asyncio as _asyncio
+        from app.solvers import registry as _registry
+
+        _asyncio.get_event_loop().create_task(
+            _asyncio.to_thread(_registry.availability_summary)
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"Startup availability pre-warm failed (continuing): {e}")
     yield
     logger.info("Shutting down CortexCloud Optimization Network...")
 
@@ -98,11 +109,17 @@ def create_app(override_openapi: bool = True) -> FastAPI:
     application.include_router(discovery_router, tags=["Discovery"])
     application.include_router(bazaar_router, tags=["Bazaar / MCP"])
 
+    # Free domain presets + dry-run simulation (v1.3)
+    from app.api.presets import router as presets_router
+    application.include_router(presets_router)
+    from app.api.simulate import router as simulate_router
+    application.include_router(simulate_router)
+
     # Internal-only metrics (revenue). 503 unless INTERNAL_TOKEN is set.
     from app.api.internal import router as internal_router
     application.include_router(internal_router, tags=["Internal"])
 
-    if settings.X402_ENABLED and settings.WALLET_ADDRESS:
+    if (settings.X402_ENABLED and settings.WALLET_ADDRESS) or settings.PRIVATE_API_KEY:
         try:
             from app.middleware.x402 import X402Middleware
             from app.middleware.x402_rate_limit import X402RateLimitMiddleware
@@ -151,6 +168,14 @@ def create_app(override_openapi: bool = True) -> FastAPI:
     async def _sitemap():
         return FileResponse(os.path.join(SITE_DIR, "sitemap.xml"), media_type="application/xml")
 
+    @application.get("/benchmarks.html", include_in_schema=False, tags=["System"])
+    async def benchmarks_page():
+        return FileResponse(os.path.join(SITE_DIR, "benchmarks.html"), media_type="text/html")
+
+    @application.get("/changelog", include_in_schema=False, tags=["System"])
+    async def changelog_page():
+        return FileResponse(os.path.join(SITE_DIR, "changelog.html"), media_type="text/html")
+
     @application.get("/health", status_code=status.HTTP_200_OK, tags=["System"])
     async def health_check():
         db_status = "unhealthy"
@@ -165,11 +190,16 @@ def create_app(override_openapi: bool = True) -> FastAPI:
         except Exception:  # noqa: BLE001
             pass
         from app.solvers import registry
+        import asyncio as _asyncio
+        # availability_summary() probes cloud providers (IBM/Braket discovery
+        # can take 15s+) — never run it on the event loop or /health becomes
+        # a self-DoS that blocks every other request.
+        backends = await _asyncio.to_thread(registry.availability_summary)
         return {
             "status": "healthy" if db_status == "healthy" else "degraded",
             "database": db_status,
             "mcp": "running" if _mcp_alive() else "down",
-            "backends": registry.availability_summary(),
+            "backends": backends,
         }
 
     def _mcp_alive() -> bool:

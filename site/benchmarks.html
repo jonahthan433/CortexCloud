@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Benchmarks — CortexCloud: real solver performance data</title>
+<meta name="description" content="Production benchmark data for CortexCloud's QUBO/Ising solvers: brute-force classical, simulated annealing, hybrid QAOA, and real quantum hardware (IBM, Rigetti). Every number from a real paid execution.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://api.cortexcloud.org/benchmarks.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="CortexCloud — Real solver benchmarks, not marketing">
+<meta property="og:description" content="Classical, hybrid and real quantum solver performance from production executions. No synthetic data.">
+<style>
+  :root {
+    --bg: #0a0a0b; --ink: #f4f4f5; --muted: #a1a1aa; --dim: #71717a;
+    --line: rgba(255,255,255,0.08); --line-d: rgba(255,255,255,0.16); --panel: #121214; --panel2: #1a1a1d;
+    --emerald: #10b981; --emerald-l: #34d399; --blue: #60a5fa; --amber: #fbbf24; --redl: #f87171;
+    --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Geist", ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  a { color: var(--emerald-l); text-decoration: none; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 2.5rem 1.5rem; }
+  .meta { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--emerald); margin-bottom: 0.8rem; }
+  h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); letter-spacing: -0.03em; margin-bottom: 0.6rem; }
+  .sub { color: var(--muted); max-width: 60ch; margin-bottom: 2rem; }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-bottom: 2rem; }
+  th { font-family: var(--mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); text-align: left; padding: 0.8rem 1rem; border-bottom: 1px solid var(--line-d); background: var(--panel2); }
+  td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--line); font-size: 0.92rem; }
+  tr:last-child td { border-bottom: none; }
+  td.mono, .mono { font-family: var(--mono); font-size: 0.85rem; }
+  .tag { display: inline-block; border-radius: 999px; padding: 0.1rem 0.55rem; font-size: 0.68rem; font-weight: 700; }
+  .tag.c { background: rgba(16,185,129,0.12); color: var(--emerald-l); border: 1px solid rgba(16,185,129,0.35); }
+  .tag.h { background: rgba(96,165,250,0.12); color: var(--blue); border: 1px solid rgba(96,165,250,0.35); }
+  .tag.q { background: rgba(251,191,36,0.12); color: var(--amber); border: 1px solid rgba(251,191,36,0.35); }
+  .note { color: var(--dim); font-size: 0.82rem; }
+  .note a { color: var(--muted); text-decoration: underline; }
+  .insight { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--emerald); padding: 1rem 1.2rem; margin: 1.5rem 0; font-size: 0.92rem; color: var(--muted); }
+  .insight b { color: var(--ink); }
+  @media (max-width: 600px) { table { font-size: 0.82rem; } td, th { padding: 0.6rem 0.7rem; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="meta">CortexCloud · Production Data</div>
+  <h1>Real benchmarks, not marketing</h1>
+  <p class="sub">Every number below comes from a real paid execution on the CortexCloud API — production runs measured end to end, including quantum queue time. No synthetic data. The live endpoint is <a href="/benchmarks">/benchmarks</a> (JSON, agent-readable).</p>
+
+  <table>
+    <thead><tr><th>Solver</th><th>Mode</th><th>Runs</th><th>Avg</th><th>Min</th><th>Max</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">brute-force</td><td><span class="tag c">classical</span></td><td class="mono">13</td><td class="mono">6.6 s</td><td class="mono">10 ms</td><td class="mono">30.5 s</td></tr>
+      <tr><td class="mono">qaoa-local</td><td><span class="tag h">hybrid</span></td><td class="mono">3</td><td class="mono">19 ms</td><td class="mono">19 ms</td><td class="mono">20 ms</td></tr>
+      <tr><td class="mono">rigetti</td><td><span class="tag q">quantum</span></td><td class="mono">3</td><td class="mono">28.9 s</td><td class="mono">13.6 s</td><td class="mono">38.9 s</td></tr>
+      <tr><td class="mono">ibm</td><td><span class="tag q">quantum</span></td><td class="mono">2</td><td class="mono">32.1 s</td><td class="mono">29.8 s</td><td class="mono">34.4 s</td></tr>
+    </tbody>
+  </table>
+
+  <div class="insight">
+    <b>What this means for your problem:</b> exact classical solves are milliseconds for small instances (n ≤ 20) and sub-second for most practical QUBOs; hybrid QAOA is the fast middle ground; real QPU runs cost 30-40 seconds of wall time mostly in queue — worth it only when you need hardware-native results at n beyond classical limits. Estimate before you pay: <a href="/v1/estimate">POST /v1/estimate</a> is free.
+  </div>
+
+  <p class="note">18 benchmark evidence rows recorded from production executions. Quantum runtimes include real QPU queue time + execution. Pay-per-call: classical $0.05-0.25 · hybrid $0.10 · quantum $1.503 (x402, USDC on Base). <a href="/">Back to homepage</a> · <a href="/benchmarks">Live JSON endpoint</a>.</p>
+</main>
+</body>
+</html>

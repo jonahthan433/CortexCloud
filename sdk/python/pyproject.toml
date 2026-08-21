@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cortexcloud"
+version = "0.1.0"
+description = "Pay-per-call QUBO/Ising optimization for AI agents — x402 USDC-on-Base, no API keys"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+dependencies = ["httpx>=0.27", "eth-account>=0.13"]
+
+[project.urls]
+Homepage = "https://api.cortexcloud.org"
+Repository = "https://github.com/jonahthan433/CortexCloudAPI"
+
+[tool.setuptools.packages.find]
+include = ["cortexcloud*"]

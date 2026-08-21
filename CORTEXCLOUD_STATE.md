@@ -75,9 +75,9 @@ MCP rebuild (from the source repo on the Hermes host):
 
 ## Live snapshot
 
-- commit: `21e9235` (2026-08-08T16:09Z UTC)
-- services: API=active MCP=active gateway=active
-- prices (list / est provider cost / effective): classical $0.05 / $0.00 / $0.05; hybrid $0.10 / $0.00 / $0.10; quantum $0.85 / $0.35 / $0.85
+- commit: `c1e0dd3` (2026-08-17T05:01Z UTC)
+- services: API=active MCP=active
+- prices (list / est provider cost / effective): classical $0.05 / $0.00 / $0.05; hybrid $0.10 / $0.00 / $0.10; quantum $0.85 / $0.75 / $1.50
 - markup: 2.0x
-- benchmark_rows: 1   payments: 0   revenue_usd: 0.000000
+- benchmark_rows: 18   payments: 21   revenue_usd: 7.253000
 - live QPU execution: off by default (QUANTUM_LIVE_EXECUTION=false)
