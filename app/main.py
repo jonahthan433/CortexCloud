@@ -78,6 +78,11 @@ def create_app(override_openapi: bool = True) -> FastAPI:
     from app.x402.discovery import router as discovery_router
 
     application.include_router(optimization_router, tags=["Optimization"])
+
+    # Additive /v1/quantum/* namespace — aliases of the optimization handlers.
+    # Keeps /v1/optimize etc. intact for backward compatibility.
+    from app.api.quantum import router as quantum_router
+    application.include_router(quantum_router)
     from app.api.track import router as track_router
     from app.api.trial import router as trial_router
     application.include_router(trial_router, tags=["Trial"])
