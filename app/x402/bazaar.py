@@ -109,6 +109,30 @@ _TOOLS: dict[str, dict] = {
         "input_schema": {"type": "object", "properties": {"chain": {"type": "string", "default": "ethereum"}, "block": {"type": "string", "default": "latest"}}},
         "example": {"chain": "ethereum", "block": "latest"}, "free": False,
     },
+    "cortex_ml_image_generate": {
+        "method": "POST", "path": "/v1/ml/image-generate",
+        "description": "Text-to-image generation (fal.ai primary, Replicate fallback; SDXL/Flux). x402-paid USDC on Base.",
+        "input_schema": {"type": "object", "properties": {"prompt": {"type": "string"}, "model": {"type": "string", "enum": ["sdxl", "flux"], "default": "sdxl"}, "n": {"type": "integer", "default": 1}, "size": {"type": "string", "default": "1024x1024"}}, "required": ["prompt"]},
+        "example": {"prompt": "a serene lake at sunrise, oil painting style"}, "free": False,
+    },
+    "cortex_ml_image_understand": {
+        "method": "POST", "path": "/v1/ml/image-understand",
+        "description": "Vision: caption / OCR / describe an image (Gemini vision via OpenRouter). x402-paid USDC on Base.",
+        "input_schema": {"type": "object", "properties": {"image_url": {"type": "string"}, "image_b64": {"type": "string"}, "prompt": {"type": "string", "default": "Describe this image in detail."}}, "required": []},
+        "example": {"image_url": "https://example.com/cat.jpg", "prompt": "What is in this image?"}, "free": False,
+    },
+    "cortex_ml_rerank": {
+        "method": "POST", "path": "/v1/ml/rerank",
+        "description": "Result reranking by relevance (Cohere primary, Jina fallback). x402-paid USDC on Base.",
+        "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "documents": {"type": "array", "items": {"type": "string"}}, "model": {"type": "string", "enum": ["rerank-v3", "rerank"], "default": "rerank-v3"}, "top_n": {"type": "integer"}}, "required": ["query", "documents"]},
+        "example": {"query": "best pizza", "documents": ["Pizza hut menu", "How to fix a bike", "Top 10 pizzerias"]}, "free": False,
+    },
+    "cortex_ml_estimate": {
+        "method": "POST", "path": "/v1/ml/estimate",
+        "description": "Free: predict the USDC price for an ML request before paying.",
+        "input_schema": {"type": "object", "properties": {"prompt": {"type": "string"}, "documents": {"type": "array", "items": {"type": "string"}}, "image_url": {"type": "string"}}},
+        "example": {"prompt": "a cat"}, "free": True,
+    },
 }
 
 

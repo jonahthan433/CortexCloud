@@ -82,6 +82,13 @@ class Settings(BaseSettings):
     # Behind DATA_ENABLED (default False) — staging only until production
     # validation is approved. No other providers (Helius/Birdeye/Blocknative) yet.
     DATA_ENABLED: bool = Field(default=False, env="DATA_ENABLED")
+    # ML API: image-generate/image-understand (fal primary, Replicate fallback),
+    # rerank (Cohere), Jina where useful. Behind ML_ENABLED (default False).
+    ML_ENABLED: bool = Field(default=False, env="ML_ENABLED")
+    FAL_KEY: Optional[str] = Field(default=None, env="FAL_KEY")
+    REPLICATE_API_KEY: Optional[str] = Field(default=None, env="REPLICATE_API_KEY")
+    COHERE_API_KEY: Optional[str] = Field(default=None, env="COHERE_API_KEY")
+    JINA_API_KEY: Optional[str] = Field(default=None, env="JINA_API_KEY")
     ALCHEMY_API_KEY: Optional[str] = Field(default=None, env="ALCHEMY_API_KEY")
     COINGECKO_API_KEY: Optional[str] = Field(default=None, env="COINGECKO_API_KEY")
     OPENROUTER_API_KEY: Optional[str] = Field(default=None, env="OPENROUTER_API_KEY")

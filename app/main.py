@@ -109,7 +109,8 @@ def create_app(override_openapi: bool = True) -> FastAPI:
     application.include_router(ai_router, tags=["AI"])
     application.include_router(research_router, tags=["Research"])
     from app.api.data import router as data_router
-    application.include_router(data_router, tags=["Data"])
+    from app.api.ml import router as ml_router
+    application.include_router(ml_router, tags=["ML"])
 
     application.include_router(discovery_router, tags=["Discovery"])
     application.include_router(bazaar_router, tags=["Bazaar / MCP"])

@@ -408,3 +408,119 @@ DATA_CHAINS = {
 }
 DEFAULT_CHAIN = "ethereum"
 
+# ---------------------------------------------------------------------------
+# ML API (Tier 1) — image-generate / image-understand / rerank.
+#
+# VERIFIED published provider rates (Aug 2026, data not logic):
+#   - fal.ai SDXL: ~$0.0015-0.004 /image; Flux.1: ~$0.01-0.03 /image (per-call).
+#   - Replicate (fallback) SDXL: ~$0.002-0.005 /image; similar Flux.
+#   - Cohere rerank-v3: ~$0.001 /1k docs ranked; Jina rerank ~$0.001 /1k.
+#   - Gemini vision (image-understand) via OpenRouter: ~$0.0003 /call.
+# Charged price = pegged(floor-aware) provider cost (same model as AI/Data),
+# so margins auto-peg and a provider reprice is a one-line table edit.
+# ---------------------------------------------------------------------------
+PROVIDER_PRICING["fal:sdxl"] = ProviderPricing("fal.ai SDXL", per_call=0.003)
+PROVIDER_PRICING["fal:flux"] = ProviderPricing("fal.ai Flux.1", per_call=0.02)
+PROVIDER_PRICING["replicate:sdxl"] = ProviderPricing("Replicate SDXL", per_call=0.004)
+PROVIDER_PRICING["replicate:flux"] = ProviderPricing("Replicate Flux.1", per_call=0.025)
+PROVIDER_PRICING["cohere:rerank"] = ProviderPricing("Cohere rerank-v3", per_call=0.001)
+PROVIDER_PRICING["jina:rerank"] = ProviderPricing("Jina rerank", per_call=0.001)
+PROVIDER_PRICING["openrouter:gemini-vision"] = ProviderPricing("Gemini 2.5 Flash vision", 0.30, 2.50)
+
+
+class FalImage(BaseProvider):
+    slug = "fal"
+    models = (("sdxl", "fal:sdxl"), ("flux", "fal:flux"))
+
+    def estimate_cost(self, model: str | None = None, **_kw) -> ProviderCost:
+        key = "fal:flux" if (model or "sdxl") == "flux" else "fal:sdxl"
+        return ProviderCost(PROVIDER_PRICING[key].per_call, key)
+
+
+class ReplicateImage(BaseProvider):
+    slug = "replicate"
+    models = (("sdxl", "replicate:sdxl"), ("flux", "replicate:flux"))
+
+    def estimate_cost(self, model: str | None = None, **_kw) -> ProviderCost:
+        key = "replicate:flux" if (model or "sdxl") == "flux" else "replicate:sdxl"
+        return ProviderCost(PROVIDER_PRICING[key].per_call, key)
+
+
+class CohereRerank(BaseProvider):
+    slug = "cohere"
+    models = (("rerank-v3", "cohere:rerank"),)
+
+    def estimate_cost(self, docs: int = 0, **_kw) -> ProviderCost:
+        return ProviderCost(PROVIDER_PRICING["cohere:rerank"].per_call, "cohere:rerank")
+
+
+class JinaRerank(BaseProvider):
+    slug = "jina"
+    models = (("rerank", "jina:rerank"),)
+
+    def estimate_cost(self, docs: int = 0, **_kw) -> ProviderCost:
+        return ProviderCost(PROVIDER_PRICING["jina:rerank"].per_call, "jina:rerank")
+
+
+class GeminiVision(BaseProvider):
+    slug = "openrouter"
+    models = (("gemini-2.5-flash", "openrouter:gemini-vision"),)
+
+    def estimate_cost(self, model: str | None = None, input_tokens: int = 0, output_tokens: int = 0, **_kw) -> ProviderCost:
+        return ProviderCost(
+            PROVIDER_PRICING["openrouter:gemini-vision"].input_per_1m / 1_000_000 * (input_tokens or 300)
+            + PROVIDER_PRICING["openrouter:gemini-vision"].output_per_1m / 1_000_000 * (output_tokens or 200),
+            "openrouter:gemini-vision",
+        )
+
+
+ML_PROVIDERS = {
+    "image-generate": (FalImage(), ReplicateImage()),   # primary, fallback
+    "image-understand": GeminiVision(),
+    "rerank": (CohereRerank(), JinaRerank()),           # primary, fallback
+}
+
+
+def ml_provider_cost_usd(endpoint: str, model: str | None = None, docs: int = 0, input_tokens: int = 0, output_tokens: int = 0) -> float:
+    """Estimated provider cost USD for an ML endpoint (public, recomputable)."""
+    prov = ML_PROVIDERS.get(endpoint)
+    if prov is None:
+        return 0.0
+    primary = prov[0] if isinstance(prov, tuple) else prov
+    if endpoint == "rerank":
+        return round(primary.estimate_cost(docs=docs).provider_cost_usd, 8)
+    if endpoint == "image-understand":
+        return round(primary.estimate_cost(input_tokens=input_tokens, output_tokens=output_tokens).provider_cost_usd, 8)
+    return round(primary.estimate_cost(model=model).provider_cost_usd, 8)
+
+
+def ml_price_usd(endpoint: str, model: str | None = None, docs: int = 0, input_tokens: int = 0, output_tokens: int = 0) -> float:
+    """Charged price = pegged(floor-aware) provider cost. Floor => $0.004 (gen) / rerank $0.006."""
+    floor = 0.006 if endpoint == "rerank" else 0.004
+    return pegged_price(ml_provider_cost_usd(endpoint, model, docs, input_tokens, output_tokens), floor)
+
+
+# Endpoint -> cache TTL (seconds). Image-gen is uncacheable (per-request);
+# understand/rerank are deterministic on input -> short TTL.
+ML_TTL_S = {
+    "image-generate": 0,
+    "image-understand": 15,
+    "rerank": 30,
+}
+
+
+# Register ML paid routes + free estimate in the single source of truth.
+ROUTE_PRICING.update({
+    "POST /v1/ml/image-generate": f"${ml_price_usd('image-generate', 'sdxl'):.3f}",
+    "POST /v1/ml/image-understand": f"${ml_price_usd('image-understand'):.3f}",
+    "POST /v1/ml/rerank": f"${ml_price_usd('rerank'):.3f}",
+})
+ROUTE_DESCRIPTIONS.update({
+    "POST /v1/ml/image-generate": "Text-to-image generation (fal.ai primary, Replicate fallback; SDXL/Flux). x402-paid, USDC on Base.",
+    "POST /v1/ml/image-understand": "Vision: caption / OCR / describe an image (Gemini vision via OpenRouter). x402-paid, USDC on Base.",
+    "POST /v1/ml/rerank": "Result reranking by relevance (Cohere primary, Jina fallback). x402-paid, USDC on Base.",
+})
+FREE_ROUTES.update({
+    "POST /v1/ml/estimate": "Free: predict the USDC price for an ML request before paying.",
+})
+
