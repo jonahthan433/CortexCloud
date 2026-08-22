@@ -165,18 +165,24 @@ def _stamp(body: dict, endpoint: str, provider_cost: float) -> dict:
     return body
 
 
-async def _alchemy_get(endpoint: str, network: str, path: str, params: dict) -> tuple[int, dict]:
-    params = {k: v for k, v in params.items() if v is not None}
-    url = f"{ALCHEMY_BASE.format(network=network)}/{path}"
-    # Alchemy authenticates via the Authorization: Bearer <key> header.
-    # The ?apiKey= query form 401s on g.alchemy.com for this account.
-    headers = {"Authorization": f"Bearer {settings.ALCHEMY_API_KEY}"}
+async def _alchemy_rpc(network: str, method: str, params: list) -> tuple[int, dict]:
+    """Alchemy Enhanced/JSON-RPC APIs are POSTed to /v2 as {"method","params"}.
+    Authenticated via Authorization: Bearer <key> header."""
+    url = f"{ALCHEMY_BASE.format(network=network)}/v2"
+    body = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
+    headers = {
+        "Authorization": f"Bearer {settings.ALCHEMY_API_KEY}",
+        "Content-Type": "application/json",
+    }
     async with httpx.AsyncClient(timeout=20.0) as c:
-        r = await c.get(url, params=params, headers=headers)
+        r = await c.post(url, json=body, headers=headers)
     try:
         data = r.json() if r.content else {}
     except Exception:
         data = {}
+    # JSON-RPC errors come back as HTTP 200 with {"error": {...}}
+    if r.status_code == 200 and isinstance(data, dict) and data.get("error"):
+        return 502, data
     return r.status_code, data
 
 
@@ -203,12 +209,13 @@ async def token_balances(req: TokenBalancesRequest, request: Request):
         hit["cache_hit"] = True
         return _stamp(hit, endpoint, provider_cost)
     # Alchemy Token Balances (plural) endpoint
-    status, data = await _alchemy_get(
-        endpoint, network, "v2/getTokenBalances", {"address": req.address, "pageSize": req.max_tokens}
+    status, data = await _alchemy_rpc(
+        network, "alchemy_getTokenBalances",
+        [req.address, req.tokens if req.tokens else "DEFAULT_TOKENS", {"maxCount": req.max_tokens}],
     )
     if status != 200:
         return JSONResponse(status_code=status or 502, content={"error": "upstream_alchemy", "detail": json.dumps(data)[:500]})
-    balances = data.get("tokenBalances", [])
+    balances = data.get("result", {}).get("tokenBalances", [])
     # Normalize: Alchemy returns hex tokenBalances; convert to decimal strings.
     out = {
         "address": req.address,
@@ -265,13 +272,14 @@ async def token_price(req: TokenPriceRequest, request: Request):
             return JSONResponse(status_code=400, content={"error": "bad_chain", "detail": str(e)})
         if e := _need_alchemy():
             return e
-        status, data = await _alchemy_get(
-            endpoint, network, "v1/getTokenMetadata", {"address": req.contract.lower()}
+        status, data = await _alchemy_rpc(
+            network, "alchemy_getTokenMetadata", [{"address": req.contract.lower()}]
         )
-        if status == 200 and data:
+        if status == 200 and data.get("result"):
+            res = data["result"]
             out = {"contract": req.contract.lower(), "chain": req.chain,
-                   "symbol": data.get("symbol"), "name": data.get("name"),
-                   "decimals": data.get("decimals"), "provider": "alchemy", "cache_hit": False}
+                   "symbol": res.get("symbol"), "name": res.get("name"),
+                   "decimals": res.get("decimals"), "provider": "alchemy", "cache_hit": False}
             _cached_set(endpoint, cache_key, out)
             return _stamp(out, endpoint, provider_cost)
         return JSONResponse(status_code=status or 502, content={"error": "upstream", "detail": json.dumps(data)[:500]})
@@ -296,13 +304,14 @@ async def nft_ownership(req: NFTOwnershipRequest, request: Request):
         hit = dict(hit)
         hit["cache_hit"] = True
         return _stamp(hit, endpoint, provider_cost)
-    status, data = await _alchemy_get(
-        endpoint, network, "v3/getNFTsForOwner",
-        {"owner": req.address, "pageSize": req.page_size, "withMetadata": "true"}
+    status, data = await _alchemy_rpc(
+        network, "alchemy_getNFTsForOwner",
+        [{"owner": req.address, "pageSize": req.page_size, "withMetadata": True}],
     )
     if status != 200:
         return JSONResponse(status_code=status or 502, content={"error": "upstream_alchemy", "detail": json.dumps(data)[:500]})
-    owned = data.get("ownedNfts", [])
+    result = data.get("result", {})
+    owned = result.get("ownedNfts", [])
     out = {
         "address": req.address,
         "chain": req.chain,
@@ -338,13 +347,17 @@ async def tx_history(req: TxHistoryRequest, request: Request):
         hit = dict(hit)
         hit["cache_hit"] = True
         return _stamp(hit, endpoint, provider_cost)
-    params = {"address": req.address, "maxCount": str(req.limit), "category": ["external", "erc20", "erc721", "erc1155"]}
+    params = [{
+        "fromAddress": req.address,
+        "maxCount": str(req.limit),
+        "category": ["external", "erc20", "erc721", "erc1155"],
+    }]
     if req.from_block is not None:
-        params["fromBlock"] = str(req.from_block)
-    status, data = await _alchemy_get(endpoint, network, "v2/getAssetTransfers", params)
+        params[0]["fromBlock"] = str(req.from_block)
+    status, data = await _alchemy_rpc(network, "alchemy_getAssetTransfers", params)
     if status != 200:
         return JSONResponse(status_code=status or 502, content={"error": "upstream_alchemy", "detail": json.dumps(data)[:500]})
-    txs = data.get("transfers", [])
+    txs = data.get("result", {}).get("transfers", [])
     out = {
         "address": req.address,
         "chain": req.chain,
@@ -379,13 +392,14 @@ async def gas_oracle(chain: str = DEFAULT_CHAIN):
         hit = dict(hit)
         hit["cache_hit"] = True
         return _stamp(hit, endpoint, provider_cost)
-    status, data = await _alchemy_get(endpoint, network, "v2/gasPrice", {})
+    status, data = await _alchemy_rpc(network, "eth_gasPrice", [])
     if status != 200:
         return JSONResponse(status_code=status or 502, content={"error": "upstream_alchemy", "detail": json.dumps(data)[:500]})
+    res = data.get("result")
     out = {
         "chain": chain,
-        "base_fee_gwei": data.get("baseFeePerGas"),
-        "priority_fee_gwei": data.get("maxPriorityFeePerGas"),
+        "base_fee_gwei": res,
+        "priority_fee_gwei": None,
         "cache_hit": False,
     }
     _cached_set(endpoint, cache_key, out)
@@ -410,16 +424,17 @@ async def block(chain: str = DEFAULT_CHAIN, block: str = "latest"):
         hit = dict(hit)
         hit["cache_hit"] = True
         return _stamp(hit, endpoint, provider_cost)
-    status, data = await _alchemy_get(endpoint, network, "v2/getBlock", {"blockNumber": block})
+    status, data = await _alchemy_rpc(network, "eth_getBlockByNumber", [str(block), False])
     if status != 200:
         return JSONResponse(status_code=status or 502, content={"error": "upstream_alchemy", "detail": json.dumps(data)[:500]})
+    res = data.get("result", {})
     out = {
         "chain": chain,
-        "number": data.get("number"),
-        "hash": data.get("hash"),
-        "timestamp": data.get("timestamp"),
-        "tx_count": len(data.get("transactions", [])),
-        "parent_hash": data.get("parentHash"),
+        "number": res.get("number"),
+        "hash": res.get("hash"),
+        "timestamp": res.get("timestamp"),
+        "tx_count": len(res.get("transactions", [])),
+        "parent_hash": res.get("parentHash"),
         "cache_hit": False,
     }
     _cached_set(endpoint, cache_key, out)
