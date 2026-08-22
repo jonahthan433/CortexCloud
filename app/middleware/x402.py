@@ -545,6 +545,22 @@ class X402Middleware(BaseHTTPMiddleware):
                 price_str = f"${data_price_usd(_ep, _calls):.6f}"
                 request.state.provider_cost_usd = round(data_provider_cost_usd(_ep, _calls), 6)
                 request.state.category = "data"
+            elif path.startswith("/v1/ml/"):
+                from app.x402.pricing import ml_price_usd, ml_provider_cost_usd
+                _ep = path.split("/")[-1]  # image-generate | image-understand | rerank
+                data = data if isinstance(data, dict) else {}
+                if _ep == "rerank":
+                    _docs = len(data.get("documents") or []) or 1
+                    price_str = f"${ml_price_usd('rerank', docs=_docs):.6f}"
+                    request.state.provider_cost_usd = round(ml_provider_cost_usd("rerank", docs=_docs), 6)
+                elif _ep == "image-generate":
+                    _m = data.get("model") or "sdxl"
+                    price_str = f"${ml_price_usd('image-generate', _m):.6f}"
+                    request.state.provider_cost_usd = round(ml_provider_cost_usd("image-generate", _m), 6)
+                else:  # image-understand
+                    price_str = f"${ml_price_usd('image-understand'):.6f}"
+                    request.state.provider_cost_usd = round(ml_provider_cost_usd("image-understand"), 6)
+                request.state.category = "ml"
 
         required = usd_to_usdc_atomic(price_str)
 
