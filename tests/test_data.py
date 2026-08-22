@@ -191,10 +191,10 @@ async def test_cache_isolated_per_address_and_endpoint(monkeypatch):
 
     calls = {"n": 0}
 
-    async def fake_alchemy_get(ep, net, path, params):
+    async def fake_alchemy_rpc(network, method, params):
         calls["n"] += 1
-        return 200, {"tokenBalances": [{"contractAddress": "0x" + "c" * 40, "tokenBalance": "0x10"}]}
-    monkeypatch.setattr(dataroute, "_alchemy_get", fake_alchemy_get)
+        return 200, {"result": {"tokenBalances": [{"contractAddress": "0x" + "c" * 40, "tokenBalance": "0x10"}]}}
+    monkeypatch.setattr(dataroute, "_alchemy_rpc", fake_alchemy_rpc)
 
     transport = __import__("httpx").ASGITransport(app=__import__("app.main", fromlist=["create_app"]).create_app(True))
     async with __import__("httpx").AsyncClient(transport=transport, base_url="http://t") as c:
@@ -223,10 +223,10 @@ async def test_cache_ttl_respected(monkeypatch):
     dataroute._CACHES["token-balances"]._ttl = 0
     calls = {"n": 0}
 
-    async def fake(ep, net, path, params):
+    async def fake(network, method, params):
         calls["n"] += 1
-        return 200, {"tokenBalances": []}
-    monkeypatch.setattr(dataroute, "_alchemy_get", fake)
+        return 200, {"result": {"tokenBalances": []}}
+    monkeypatch.setattr(dataroute, "_alchemy_rpc", fake)
     transport = __import__("httpx").ASGITransport(app=__import__("app.main", fromlist=["create_app"]).create_app(False))
     async with __import__("httpx").AsyncClient(transport=transport, base_url="http://t") as c:
         j = {"address": "0x" + "9" * 40}
