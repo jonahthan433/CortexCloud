@@ -305,7 +305,7 @@ async def nft_ownership(req: NFTOwnershipRequest, request: Request):
         hit["cache_hit"] = True
         return _stamp(hit, endpoint, provider_cost)
     status, data = await _alchemy_rpc(
-        network, "alchemy_getNFTsForOwner",
+        network, "alchemy_getNFTs",
         [{"owner": req.address, "pageSize": req.page_size, "withMetadata": True}],
     )
     if status != 200:
