@@ -558,8 +558,9 @@ class X402Middleware(BaseHTTPMiddleware):
                     price_str = f"${ml_price_usd('image-generate', _m):.6f}"
                     request.state.provider_cost_usd = round(ml_provider_cost_usd("image-generate", _m), 6)
                 else:  # image-understand
-                    price_str = f"${ml_price_usd('image-understand'):.6f}"
-                    request.state.provider_cost_usd = round(ml_provider_cost_usd("image-understand"), 6)
+                    _vm = data.get("model") or settings.ML_VISION_MODEL
+                    price_str = f"${ml_price_usd('image-understand', _vm):.6f}"
+                    request.state.provider_cost_usd = round(ml_provider_cost_usd("image-understand", _vm), 6)
                 request.state.category = "ml"
 
         required = usd_to_usdc_atomic(price_str)

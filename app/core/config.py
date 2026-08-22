@@ -85,6 +85,9 @@ class Settings(BaseSettings):
     # ML API: image-generate/image-understand (fal primary, Replicate fallback),
     # rerank (Cohere), Jina where useful. Behind ML_ENABLED (default False).
     ML_ENABLED: bool = Field(default=False, env="ML_ENABLED")
+    # Vision model for image-understand (OpenRouter). Default paid gemini;
+    # set to a ':free' OpenRouter multimodal model for validation (cost $0).
+    ML_VISION_MODEL: str = Field(default="google/gemini-2.5-flash", env="ML_VISION_MODEL")
     FAL_KEY: Optional[str] = Field(default=None, env="FAL_KEY")
     REPLICATE_API_KEY: Optional[str] = Field(default=None, env="REPLICATE_API_KEY")
     COHERE_API_KEY: Optional[str] = Field(default=None, env="COHERE_API_KEY")

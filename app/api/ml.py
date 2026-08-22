@@ -184,7 +184,7 @@ async def _openrouter_vision(req: ImageUnderstandRequest, api_key: str, input_to
         content.append({"type": "image_url", "image_url": {"url": req.image_url}})
     elif req.image_b64:
         content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{req.image_b64}"}})
-    payload = {"model": "google/gemini-2.5-flash", "messages": [{"role": "user", "content": content}]}
+    payload = {"model": settings.ML_VISION_MODEL, "messages": [{"role": "user", "content": content}]}
     async with httpx.AsyncClient(timeout=_HTTPX_TIMEOUT) as c:
         r = await c.post(url, headers=headers, json=payload)
     if r.status_code != 200:

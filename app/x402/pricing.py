@@ -18,6 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
+from app.core.config import settings
 # ---------------------------------------------------------------------------
 # AI + Research expansion pricing.
 #
@@ -467,6 +468,9 @@ class GeminiVision(BaseProvider):
     models = (("gemini-2.5-flash", "openrouter:gemini-vision"),)
 
     def estimate_cost(self, model: str | None = None, input_tokens: int = 0, output_tokens: int = 0, **_kw) -> ProviderCost:
+        # Free OpenRouter multimodal models (id endswith ':free') cost $0.
+        if (model or settings.ML_VISION_MODEL).endswith(":free"):
+            return ProviderCost(0.0, "openrouter:gemini-vision:free")
         return ProviderCost(
             PROVIDER_PRICING["openrouter:gemini-vision"].input_per_1m / 1_000_000 * (input_tokens or 300)
             + PROVIDER_PRICING["openrouter:gemini-vision"].output_per_1m / 1_000_000 * (output_tokens or 200),
