@@ -118,7 +118,7 @@ async def test_image_understand_cache_hit(monkeypatch):
         calls["n"] += 1
         return 200, {"text": "a red cat"}, "openrouter", 0.0003
 
-    monkeypatch.setattr(mlroute, "_gemini_vision", fake_vision)
+    monkeypatch.setattr(mlroute, "_openrouter_vision", fake_vision)
     transport = ASGITransport(app=create_app(True))
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         r1 = await client.post("/v1/ml/image-understand", json={"image_url": "https://x/cat.jpg", "prompt": "describe"})
