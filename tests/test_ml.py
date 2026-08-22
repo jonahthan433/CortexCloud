@@ -105,8 +105,10 @@ async def test_rerank_fallback_jina(client, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_image_understand_cache_hit(client, monkeypatch):
+async def test_image_understand_cache_hit(monkeypatch):
     import app.api.ml as mlroute
+    from app.main import create_app
+    from httpx import ASGITransport, AsyncClient
     monkeypatch.setattr("app.core.config.settings.ML_ENABLED", True)
     monkeypatch.setattr("app.core.config.settings.X402_ENABLED", False)
     monkeypatch.setattr("app.core.config.settings.OPENROUTER_API_KEY", "or-x")
@@ -117,8 +119,10 @@ async def test_image_understand_cache_hit(client, monkeypatch):
         return 200, {"text": "a red cat"}, "openrouter", 0.0003
 
     monkeypatch.setattr(mlroute, "_gemini_vision", fake_vision)
-    r1 = await client.post("/v1/ml/image-understand", json={"image_url": "https://x/cat.jpg", "prompt": "describe"})
-    r2 = await client.post("/v1/ml/image-understand", json={"image_url": "https://x/cat.jpg", "prompt": "describe"})
+    transport = ASGITransport(app=create_app(True))
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        r1 = await client.post("/v1/ml/image-understand", json={"image_url": "https://x/cat.jpg", "prompt": "describe"})
+        r2 = await client.post("/v1/ml/image-understand", json={"image_url": "https://x/cat.jpg", "prompt": "describe"})
     assert r1.status_code == 200 and r2.status_code == 200
     assert calls["n"] == 1  # second served from cache
     assert r2.json()["cache_hit"] is True
