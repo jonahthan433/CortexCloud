@@ -167,10 +167,12 @@ def _stamp(body: dict, endpoint: str, provider_cost: float) -> dict:
 
 async def _alchemy_get(endpoint: str, network: str, path: str, params: dict) -> tuple[int, dict]:
     params = {k: v for k, v in params.items() if v is not None}
-    params["apiKey"] = settings.ALCHEMY_API_KEY
     url = f"{ALCHEMY_BASE.format(network=network)}/{path}"
+    # Alchemy authenticates via the Authorization: Bearer <key> header.
+    # The ?apiKey= query form 401s on g.alchemy.com for this account.
+    headers = {"Authorization": f"Bearer {settings.ALCHEMY_API_KEY}"}
     async with httpx.AsyncClient(timeout=20.0) as c:
-        r = await c.get(url, params=params)
+        r = await c.get(url, params=params, headers=headers)
     try:
         data = r.json() if r.content else {}
     except Exception:
