@@ -108,6 +108,8 @@ def create_app(override_openapi: bool = True) -> FastAPI:
     from app.api.research import router as research_router
     application.include_router(ai_router, tags=["AI"])
     application.include_router(research_router, tags=["Research"])
+    from app.api.data import router as data_router
+    application.include_router(data_router, tags=["Data"])
 
     application.include_router(discovery_router, tags=["Discovery"])
     application.include_router(bazaar_router, tags=["Bazaar / MCP"])
@@ -122,7 +124,7 @@ def create_app(override_openapi: bool = True) -> FastAPI:
     from app.api.internal import router as internal_router
     application.include_router(internal_router, tags=["Internal"])
 
-    if (settings.X402_ENABLED and settings.WALLET_ADDRESS) or settings.PRIVATE_API_KEY:
+    if settings.X402_ENABLED or settings.PRIVATE_API_KEY:
         try:
             from app.middleware.x402 import X402Middleware
             from app.middleware.x402_rate_limit import X402RateLimitMiddleware

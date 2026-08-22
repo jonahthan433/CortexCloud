@@ -28,12 +28,20 @@ from app.main import create_app  # noqa: E402
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def _create_test_tables():
-    """Create schema in the scratch DB once per session."""
+    """Create schema in the scratch DB once per session.
+
+    No-ops when Postgres is unreachable so unit/cache/money-path tests can
+    run without a DB; DB-backed tests are guarded individually. The full
+    suite runs on CT105 staging where Postgres exists.
+    """
     import app.models  # noqa: F401  (populate Base.metadata before create_all)
     from app.database.session import Base, engine
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    except Exception:  # noqa: BLE001
+        pass  # no PG here; DB-backed tests skip individually
     yield
 
 
@@ -41,11 +49,13 @@ async def _create_test_tables():
 async def _clean_tables():
     from sqlalchemy import text
 
-    async with AsyncSessionLocal() as db:
-        for t in ("x402_nonces", "benchmarks", "x402_payments", "opt_executions", "opt_jobs"):
-            await db.execute(text(f"TRUNCATE {t} RESTART IDENTITY CASCADE"))
-        await db.commit()
-    yield
+    try:
+        async with AsyncSessionLocal() as db:
+            for t in ("x402_nonces", "benchmarks", "x402_payments", "opt_executions", "opt_jobs"):
+                await db.execute(text(f"TRUNCATE {t} RESTART IDENTITY CASCADE"))
+            await db.commit()
+    except Exception:  # noqa: BLE001
+        pass  # no PG here; nothing to clean
 
 
 @pytest.fixture

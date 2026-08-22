@@ -334,7 +334,101 @@ INPUT_EXAMPLES = {
     "/v1/ai/transcribe": {"audio_b64": "UklGRg...", "mime": "audio/wav"},
     "/v1/research/search": {"query": "latest quantum error correction results", "count": 5, "freshness": "pw"},
     "/v1/research/answer": {"query": "What advances in topological qubits happened in 2026?"},
+    "/v1/data/token-balances": {"address": "0x0000000000000000000000000000000000000000", "chain": "ethereum"},
+    "/v1/data/token-price": {"id": "ethereum"},
+    "/v1/data/nft-ownership": {"address": "0x0000000000000000000000000000000000000000", "chain": "ethereum"},
+    "/v1/data/tx-history": {"address": "0x0000000000000000000000000000000000000000", "chain": "ethereum", "limit": 25},
 }
+# Data GET query schemas (gas-oracle, block) for the bazaar extension.
+INPUT_SCHEMAS = {
+    **INPUT_SCHEMAS,
+    "/v1/data/token-balances": {
+        "type": "object",
+        "properties": {
+            "address": {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$"},
+            "chain": {"type": "string", "default": "ethereum"},
+            "tokens": {"type": "array", "items": {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$"}},
+            "max_tokens": {"type": "integer", "minimum": 1, "maximum": 200, "default": 50},
+        },
+        "required": ["address"],
+    },
+    "/v1/data/token-price": {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "contract": {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$"},
+            "chain": {"type": "string", "default": "ethereum"},
+        },
+    },
+    "/v1/data/nft-ownership": {
+        "type": "object",
+        "properties": {
+            "address": {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$"},
+            "chain": {"type": "string", "default": "ethereum"},
+            "page_size": {"type": "integer", "minimum": 1, "maximum": 100, "default": 100},
+        },
+        "required": ["address"],
+    },
+    "/v1/data/tx-history": {
+        "type": "object",
+        "properties": {
+            "address": {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$"},
+            "chain": {"type": "string", "default": "ethereum"},
+            "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 25},
+            "from_block": {"type": "integer"},
+        },
+        "required": ["address"],
+    },
+}
+
+
+def _validate_data_body(path: str, data) -> list | None:
+    """Money-path guard for Data POST routes. Rejects malformed bodies BEFORE
+    settlement. Mirrors app.api.data pydantic validators (address format,
+    required fields, bad enum). Returns a FastAPI-style 422 detail list."""
+    import re
+
+    _HEX = re.compile(r"^0x[0-9a-fA-F]{40}$")
+
+    def err(loc, msg):
+        return [{"loc": loc, "msg": msg, "type": "value_error", "input": None}]
+
+    if not isinstance(data, dict):
+        return err(["body"], "Request body must be a JSON object")
+    if path == "/v1/data/token-balances":
+        addr = data.get("address")
+        if not addr or not _HEX.match(str(addr)):
+            return err(["body", "address"], "address must be a 0x-prefixed 40-hex EVM address")
+        toks = data.get("tokens")
+        if toks is not None:
+            if not isinstance(toks, list):
+                return err(["body", "tokens"], "tokens must be a list of contract addresses")
+            for t in toks:
+                if not _HEX.match(str(t)):
+                    return err(["body", "tokens"], f"invalid token contract: {t}")
+        mt = data.get("max_tokens")
+        if mt is not None and (not isinstance(mt, int) or mt < 1 or mt > 200):
+            return err(["body", "max_tokens"], "max_tokens must be 1..200")
+    elif path == "/v1/data/token-price":
+        if not data.get("id") and not data.get("contract"):
+            return err(["body"], "provide 'id' or 'contract'")
+        if data.get("contract") and not _HEX.match(str(data["contract"])):
+            return err(["body", "contract"], "contract must be a 0x-prefixed 40-hex address")
+    elif path == "/v1/data/nft-ownership":
+        addr = data.get("address")
+        if not addr or not _HEX.match(str(addr)):
+            return err(["body", "address"], "address must be a 0x-prefixed 40-hex EVM address")
+        ps = data.get("page_size")
+        if ps is not None and (not isinstance(ps, int) or ps < 1 or ps > 100):
+            return err(["body", "page_size"], "page_size must be 1..100")
+    elif path == "/v1/data/tx-history":
+        addr = data.get("address")
+        if not addr or not _HEX.match(str(addr)):
+            return err(["body", "address"], "address must be a 0x-prefixed 40-hex EVM address")
+        lim = data.get("limit")
+        if lim is not None and (not isinstance(lim, int) or lim < 1 or lim > 100):
+            return err(["body", "limit"], "limit must be 1..100")
+    return None
 
 
 def _validate_optimize_body(data) -> list | None:
@@ -393,6 +487,8 @@ class X402Middleware(BaseHTTPMiddleware):
             return JSONResponse(status_code=503, content={"error": "ai_disabled", "detail": "AI category is disabled on this instance."})
         if path.startswith("/v1/research/") and not (settings.RESEARCH_ENABLED and settings.BRAVE_API_KEY):
             return JSONResponse(status_code=503, content={"error": "research_disabled", "detail": "Research category is disabled (set RESEARCH_ENABLED + BRAVE_API_KEY)."})
+        if path.startswith("/v1/data/") and not settings.DATA_ENABLED:
+            return JSONResponse(status_code=503, content={"error": "data_disabled", "detail": "Data API is disabled on this instance (DATA_ENABLED=false)."})
 
         # Dynamic pricing: read the POST body once (cached on request) for
         # routes whose price depends on the payload. /v1/optimize keys off
@@ -439,6 +535,16 @@ class X402Middleware(BaseHTTPMiddleware):
                 price_str = f"${research_price_usd('answer'):.6f}"
                 request.state.provider_cost_usd = round(RESEARCH_PROVIDERS["answer"].estimate_cost("answer").provider_cost_usd, 6)
                 request.state.category = "research"
+            elif path.startswith("/v1/data/"):
+                from app.x402.pricing import data_price_usd, data_provider_cost_usd
+                _ep = path.split("/")[-1]  # token-balances | token-price | nft-ownership | tx-history
+                # token-price can scale with nothing; others are 1 call unless batch.
+                _calls = 1
+                if _ep == "token-balances" and isinstance(data, dict) and isinstance(data.get("tokens"), list):
+                    _calls = max(1, len(data["tokens"]))
+                price_str = f"${data_price_usd(_ep, _calls):.6f}"
+                request.state.provider_cost_usd = round(data_provider_cost_usd(_ep, _calls), 6)
+                request.state.category = "data"
 
         required = usd_to_usdc_atomic(price_str)
 
@@ -452,14 +558,13 @@ class X402Middleware(BaseHTTPMiddleware):
         # Money-path guard: never settle a request the endpoint would reject.
         # Validate the paid body BEFORE either settle branch (x402 or MPP).
         _ai_paths = {"/v1/ai/chat", "/v1/ai/embed", "/v1/ai/transcribe"}
-        if (path == "/v1/optimize" or path in _ai_paths) and (payment_signature or (mpp and authorization)):
+        _data_paths = {"/v1/data/token-balances", "/v1/data/token-price", "/v1/data/nft-ownership", "/v1/data/tx-history"}
+        if ((path == "/v1/optimize" or path in _ai_paths or path in _data_paths)
+                and (payment_signature or (mpp and authorization))):
             if path == "/v1/optimize":
                 _v_err = _validate_optimize_body(data)
                 if _v_err:
                     return JSONResponse(status_code=422, content={"detail": _v_err})
-                # Availability pre-check: refuse BEFORE settling when the requested
-                # mode has no executable backend (e.g. quantum with all QPUs
-                # offline). 409 = retry later or pick another mode.
                 from app.solvers.registry import mode_has_available_solver
                 _mode = (data.get("mode") or "auto") if isinstance(data, dict) else "auto"
                 if not mode_has_available_solver(_mode):
@@ -467,7 +572,7 @@ class X402Middleware(BaseHTTPMiddleware):
                         status_code=409,
                         content={"error": "no available solver for requested mode", "mode": _mode},
                     )
-            else:
+            elif path in _ai_paths:
                 # AI routes: reject missing required fields + bad enum BEFORE
                 # settling. The full Pydantic check runs in the route after
                 # payment; this just stops billing an obviously-invalid body.
@@ -483,6 +588,10 @@ class X402Middleware(BaseHTTPMiddleware):
                     _m = data.get("model")
                     if _m is not None and _m not in ("gemini-2.5-flash", "gemini-2.0-flash", "gpt-4o-mini"):
                         return JSONResponse(status_code=422, content={"error": "bad_model", "detail": "model not supported"})
+            else:  # Data POST routes: reject malformed addresses/params before billing
+                _derr = _validate_data_body(path, data)
+                if _derr:
+                    return JSONResponse(status_code=422, content={"detail": _derr})
 
         if not payment_signature:
             if mpp and authorization:

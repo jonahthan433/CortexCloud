@@ -92,6 +92,7 @@ async def agentsearch_txt():
         "- GET /v1/backends for solver backends and live availability.",
         "Discovery: https://api.cortexcloud.org/llms.txt, https://api.cortexcloud.org/.well-known/x402.json, https://api.cortexcloud.org/.well-known/bazaar, https://api.cortexcloud.org/.well-known/agentsearch.txt, https://api.cortexcloud.org/openapi.json",
         "Pricing: https://api.cortexcloud.org/v1/capabilities",
+        "# Data API (alchemy/coingecko) is built but DISABLED in production (DATA_ENABLED=false) pending validation. Do not call /v1/data/* — they return 503 until enabled.",
     ])
     return PlainTextResponse(text + "\n", media_type="text/plain; charset=utf-8")
 
@@ -144,6 +145,8 @@ without measured evidence; check /v1/backends for an available=true backend.
 
 - Quantum: n > 5000 variables, or no available=true QPU backend (fails honestly).
 - AI/Research routes when AI_ENABLED / RESEARCH_ENABLED are false (return 503).
+- Data API (/v1/data/*): built but DISABLED in production (DATA_ENABLED=false)
+  pending production validation. Returns 503 until enabled — do not call it yet.
 
 ## Discovery
 

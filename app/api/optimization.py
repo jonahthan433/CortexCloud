@@ -19,7 +19,7 @@ from app.optimizer.estimator import estimate
 from app.optimizer.problem import ProblemInput
 from app.optimizer.runner import create_job, schedule
 from app.solvers import registry
-from app.x402.pricing import FREE_ROUTES, MARKUP, MODE_PRICE_USD, effective_price_usd
+from app.x402.pricing import FREE_ROUTES, MARKUP, MODE_PRICE_USD, effective_price_usd, DATA_CHAINS
 
 logger = logging.getLogger("cortexcloud.api")
 
@@ -160,6 +160,16 @@ async def capabilities() -> dict:
                 "status": "available" if (settings.RESEARCH_ENABLED and settings.BRAVE_API_KEY) else "disabled",
                 "note": "Grounded web search + cited answers via Brave Search API. Enabled when RESEARCH_ENABLED + BRAVE_API_KEY set.",
                 "endpoints": ["/v1/research/search", "/v1/research/answer", "/v1/research/estimate"],
+            },
+            "data": {
+                "status": "available" if settings.DATA_ENABLED else "disabled",
+                "note": "Onchain data via Alchemy (Token/NFT/Transfers/Node) + CoinGecko price. Price pegged to verified Alchemy CU cost (~$0.004 floor).",
+                "endpoints": [
+                    "/v1/data/token-balances", "/v1/data/token-price", "/v1/data/nft-ownership",
+                    "/v1/data/tx-history", "/v1/data/gas-oracle", "/v1/data/block",
+                ],
+                "providers": ["alchemy", "coingecko"],
+                "supported_chains": sorted(set(DATA_CHAINS.keys()) - {"1", "8453", "42161", "137", "10"}),
             },
         },
     }

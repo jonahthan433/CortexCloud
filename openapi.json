@@ -263,6 +263,219 @@
         "security": []
       }
     },
+    "/v1/quantum/estimate": {
+      "post": {
+        "tags": [
+          "quantum (alias)"
+        ],
+        "summary": "Analyze a problem (free) \u2014 alias of /v1/estimate",
+        "operationId": "v1_estimate_v1_quantum_estimate_post",
+        "parameters": [
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "auto",
+              "title": "Mode"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProblemInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response V1 Estimate V1 Quantum Estimate Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/v1/quantum/optimize": {
+      "post": {
+        "tags": [
+          "quantum (alias)"
+        ],
+        "summary": "Solve a QUBO/Ising problem (x402-paid) \u2014 alias of /v1/optimize",
+        "operationId": "optimize_v1_quantum_optimize_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OptimizeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/v1/quantum/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "quantum (alias)"
+        ],
+        "summary": "Poll an optimization job (free) \u2014 alias of /v1/jobs/{id}",
+        "operationId": "get_job_v1_quantum_jobs__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Job V1 Quantum Jobs  Job Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/v1/quantum/backends": {
+      "get": {
+        "tags": [
+          "quantum (alias)"
+        ],
+        "summary": "List solver backends (free) \u2014 alias of /v1/backends",
+        "operationId": "list_backends_v1_quantum_backends_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response List Backends V1 Quantum Backends Get"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/v1/quantum/capabilities": {
+      "get": {
+        "tags": [
+          "quantum (alias)"
+        ],
+        "summary": "Capabilities catalog (free) \u2014 alias of /v1/capabilities",
+        "operationId": "capabilities_v1_quantum_capabilities_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Capabilities V1 Quantum Capabilities Get"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/v1/quantum/examples": {
+      "get": {
+        "tags": [
+          "quantum (alias)"
+        ],
+        "summary": "Canonical examples (free) \u2014 alias of /v1/examples",
+        "operationId": "v1_examples_v1_quantum_examples_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response V1 Examples V1 Quantum Examples Get"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
     "/v1/trial": {
       "post": {
         "tags": [
@@ -424,6 +637,896 @@
           }
         },
         "security": []
+      }
+    },
+    "/v1/ai/estimate": {
+      "post": {
+        "tags": [
+          "AI",
+          "ai"
+        ],
+        "summary": "Ai Estimate",
+        "description": "Free: return predicted token cost + USDC price for a chat request.",
+        "operationId": "ai_estimate_v1_ai_estimate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/v1/ai/chat": {
+      "post": {
+        "tags": [
+          "AI",
+          "ai"
+        ],
+        "summary": "Ai Chat",
+        "operationId": "ai_chat_v1_ai_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+          }
+        },
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.004000"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            },
+            {
+              "mpp": {
+                "method": "tempo",
+                "intent": "charge",
+                "currency": "0x20C000000000000000000000b9537d11c60E8b50"
+              }
+            }
+          ],
+          "scheme": "x402",
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "price_atomic_usdc": "4000",
+          "decimals": 6
+        }
+      }
+    },
+    "/v1/ai/embed": {
+      "post": {
+        "tags": [
+          "AI",
+          "ai"
+        ],
+        "summary": "Ai Embed",
+        "operationId": "ai_embed_v1_ai_embed_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmbedRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+          }
+        },
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.004000"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            },
+            {
+              "mpp": {
+                "method": "tempo",
+                "intent": "charge",
+                "currency": "0x20C000000000000000000000b9537d11c60E8b50"
+              }
+            }
+          ],
+          "scheme": "x402",
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "price_atomic_usdc": "4000",
+          "decimals": 6
+        }
+      }
+    },
+    "/v1/ai/transcribe": {
+      "post": {
+        "tags": [
+          "AI",
+          "ai"
+        ],
+        "summary": "Ai Transcribe",
+        "operationId": "ai_transcribe_v1_ai_transcribe_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranscribeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+          }
+        },
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.004000"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            },
+            {
+              "mpp": {
+                "method": "tempo",
+                "intent": "charge",
+                "currency": "0x20C000000000000000000000b9537d11c60E8b50"
+              }
+            }
+          ],
+          "scheme": "x402",
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "price_atomic_usdc": "4000",
+          "decimals": 6
+        }
+      }
+    },
+    "/v1/research/estimate": {
+      "post": {
+        "tags": [
+          "Research",
+          "research"
+        ],
+        "summary": "Research Estimate",
+        "description": "Free: predicted USDC price for a search/answer request.",
+        "operationId": "research_estimate_v1_research_estimate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/v1/research/search": {
+      "post": {
+        "tags": [
+          "Research",
+          "research"
+        ],
+        "summary": "Research Search",
+        "operationId": "research_search_v1_research_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+          }
+        },
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.006000"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            },
+            {
+              "mpp": {
+                "method": "tempo",
+                "intent": "charge",
+                "currency": "0x20C000000000000000000000b9537d11c60E8b50"
+              }
+            }
+          ],
+          "scheme": "x402",
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "price_atomic_usdc": "6000",
+          "decimals": 6
+        }
+      }
+    },
+    "/v1/research/answer": {
+      "post": {
+        "tags": [
+          "Research",
+          "research"
+        ],
+        "summary": "Research Answer",
+        "operationId": "research_answer_v1_research_answer_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+          }
+        },
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.012000"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            },
+            {
+              "mpp": {
+                "method": "tempo",
+                "intent": "charge",
+                "currency": "0x20C000000000000000000000b9537d11c60E8b50"
+              }
+            }
+          ],
+          "scheme": "x402",
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "price_atomic_usdc": "12000",
+          "decimals": 6
+        }
+      }
+    },
+    "/v1/data/token-balances": {
+      "post": {
+        "tags": [
+          "Data",
+          "data"
+        ],
+        "summary": "Token Balances",
+        "operationId": "token_balances_v1_data_token_balances_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenBalancesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+          }
+        },
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.004000"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            },
+            {
+              "mpp": {
+                "method": "tempo",
+                "intent": "charge",
+                "currency": "0x20C000000000000000000000b9537d11c60E8b50"
+              }
+            }
+          ],
+          "scheme": "x402",
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "price_atomic_usdc": "4000",
+          "decimals": 6
+        }
+      }
+    },
+    "/v1/data/token-price": {
+      "post": {
+        "tags": [
+          "Data",
+          "data"
+        ],
+        "summary": "Token Price",
+        "operationId": "token_price_v1_data_token_price_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenPriceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+          }
+        },
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.004000"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            },
+            {
+              "mpp": {
+                "method": "tempo",
+                "intent": "charge",
+                "currency": "0x20C000000000000000000000b9537d11c60E8b50"
+              }
+            }
+          ],
+          "scheme": "x402",
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "price_atomic_usdc": "4000",
+          "decimals": 6
+        }
+      }
+    },
+    "/v1/data/nft-ownership": {
+      "post": {
+        "tags": [
+          "Data",
+          "data"
+        ],
+        "summary": "Nft Ownership",
+        "operationId": "nft_ownership_v1_data_nft_ownership_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NFTOwnershipRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+          }
+        },
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.004000"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            },
+            {
+              "mpp": {
+                "method": "tempo",
+                "intent": "charge",
+                "currency": "0x20C000000000000000000000b9537d11c60E8b50"
+              }
+            }
+          ],
+          "scheme": "x402",
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "price_atomic_usdc": "4000",
+          "decimals": 6
+        }
+      }
+    },
+    "/v1/data/tx-history": {
+      "post": {
+        "tags": [
+          "Data",
+          "data"
+        ],
+        "summary": "Tx History",
+        "operationId": "tx_history_v1_data_tx_history_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TxHistoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+          }
+        },
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.004000"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            },
+            {
+              "mpp": {
+                "method": "tempo",
+                "intent": "charge",
+                "currency": "0x20C000000000000000000000b9537d11c60E8b50"
+              }
+            }
+          ],
+          "scheme": "x402",
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "price_atomic_usdc": "4000",
+          "decimals": 6
+        }
+      }
+    },
+    "/v1/data/gas-oracle": {
+      "get": {
+        "tags": [
+          "Data",
+          "data"
+        ],
+        "summary": "Gas Oracle",
+        "operationId": "gas_oracle_v1_data_gas_oracle_get",
+        "parameters": [
+          {
+            "name": "chain",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "ethereum",
+              "title": "Chain"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+          }
+        },
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.004000"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            },
+            {
+              "mpp": {
+                "method": "tempo",
+                "intent": "charge",
+                "currency": "0x20C000000000000000000000b9537d11c60E8b50"
+              }
+            }
+          ],
+          "scheme": "x402",
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "price_atomic_usdc": "4000",
+          "decimals": 6
+        }
+      }
+    },
+    "/v1/data/block": {
+      "get": {
+        "tags": [
+          "Data",
+          "data"
+        ],
+        "summary": "Block",
+        "operationId": "block_v1_data_block_get",
+        "parameters": [
+          {
+            "name": "chain",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "ethereum",
+              "title": "Chain"
+            }
+          },
+          {
+            "name": "block",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "latest",
+              "title": "Block"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+          }
+        },
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.004000"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            },
+            {
+              "mpp": {
+                "method": "tempo",
+                "intent": "charge",
+                "currency": "0x20C000000000000000000000b9537d11c60E8b50"
+              }
+            }
+          ],
+          "scheme": "x402",
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "price_atomic_usdc": "4000",
+          "decimals": 6
+        }
       }
     },
     "/.well-known/x402.json": {
@@ -872,6 +1975,22 @@
   },
   "components": {
     "schemas": {
+      "AnswerRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Query",
+            "description": "Question to answer with citations."
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "AnswerRequest"
+      },
       "BinPackingInput": {
         "properties": {
           "item_weights": {
@@ -908,6 +2027,71 @@
         ],
         "title": "BinPackingInput"
       },
+      "ChatRequest": {
+        "properties": {
+          "messages": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Messages",
+            "description": "Chat messages (role/content)."
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "One of: gemini-2.5-flash, gemini-2.0-flash, gpt-4o-mini",
+            "default": "gemini-2.5-flash"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "maximum": 8192.0,
+            "minimum": 1.0,
+            "title": "Max Tokens",
+            "description": "Max output tokens (drives price quote).",
+            "default": 512
+          },
+          "temperature": {
+            "type": "number",
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Temperature",
+            "default": 0.7
+          }
+        },
+        "type": "object",
+        "required": [
+          "messages"
+        ],
+        "title": "ChatRequest"
+      },
+      "EmbedRequest": {
+        "properties": {
+          "input": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 128,
+            "minItems": 1,
+            "title": "Input",
+            "description": "Texts to embed."
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "Embedding model id.",
+            "default": "text-embedding-004"
+          }
+        },
+        "type": "object",
+        "required": [
+          "input"
+        ],
+        "title": "EmbedRequest"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -920,6 +2104,34 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "NFTOwnershipRequest": {
+        "properties": {
+          "address": {
+            "type": "string",
+            "title": "Address",
+            "description": "EVM address (0x-prefixed, 40 hex)."
+          },
+          "chain": {
+            "type": "string",
+            "title": "Chain",
+            "description": "ethereum|base|arbitrum|polygon|optimism or chain id.",
+            "default": "ethereum"
+          },
+          "page_size": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Page Size",
+            "description": "NFTs per page.",
+            "default": 100
+          }
+        },
+        "type": "object",
+        "required": [
+          "address"
+        ],
+        "title": "NFTOwnershipRequest"
       },
       "OptimizeRequest": {
         "properties": {
@@ -1075,6 +2287,134 @@
         ],
         "title": "RoutingInput"
       },
+      "SearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Query",
+            "description": "Search query."
+          },
+          "count": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Count",
+            "description": "Number of results.",
+            "default": 5
+          },
+          "freshness": {
+            "type": "string",
+            "title": "Freshness",
+            "description": "pw (past week) | pm | py | none.",
+            "default": "pw"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "SearchRequest"
+      },
+      "TokenBalancesRequest": {
+        "properties": {
+          "address": {
+            "type": "string",
+            "title": "Address",
+            "description": "EVM address (0x-prefixed, 40 hex)."
+          },
+          "chain": {
+            "type": "string",
+            "title": "Chain",
+            "description": "ethereum|base|arbitrum|polygon|optimism or chain id.",
+            "default": "ethereum"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens",
+            "description": "Optional ERC-20 contract list; omit for all tokens."
+          },
+          "max_tokens": {
+            "type": "integer",
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Max Tokens",
+            "description": "Cap on returned token entries.",
+            "default": 50
+          }
+        },
+        "type": "object",
+        "required": [
+          "address"
+        ],
+        "title": "TokenBalancesRequest"
+      },
+      "TokenPriceRequest": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "CoinGecko coin id, e.g. 'ethereum'."
+          },
+          "contract": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contract",
+            "description": "ERC-20 contract address (with chain) for price-by-contract."
+          },
+          "chain": {
+            "type": "string",
+            "title": "Chain",
+            "description": "Chain for contract-based price.",
+            "default": "ethereum"
+          }
+        },
+        "type": "object",
+        "title": "TokenPriceRequest"
+      },
+      "TranscribeRequest": {
+        "properties": {
+          "audio_b64": {
+            "type": "string",
+            "title": "Audio B64",
+            "description": "Base64-encoded audio (WAV/FLAC/MP3)."
+          },
+          "mime": {
+            "type": "string",
+            "title": "Mime",
+            "default": "audio/wav"
+          }
+        },
+        "type": "object",
+        "required": [
+          "audio_b64"
+        ],
+        "title": "TranscribeRequest"
+      },
       "TrialRequest": {
         "properties": {
           "problem": {
@@ -1113,6 +2453,46 @@
             "problem_type": "qubo"
           }
         }
+      },
+      "TxHistoryRequest": {
+        "properties": {
+          "address": {
+            "type": "string",
+            "title": "Address",
+            "description": "EVM address (0x-prefixed, 40 hex)."
+          },
+          "chain": {
+            "type": "string",
+            "title": "Chain",
+            "description": "ethereum|base|arbitrum|polygon|optimism or chain id.",
+            "default": "ethereum"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Max transactions returned.",
+            "default": 25
+          },
+          "from_block": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Block",
+            "description": "Start block (inclusive)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "address"
+        ],
+        "title": "TxHistoryRequest"
       },
       "ValidationError": {
         "properties": {

@@ -4,7 +4,12 @@ import json
 
 import pytest
 
-MCP_TOOLS = {"cortex_estimate_optimization", "cortex_optimize", "cortex_get_job", "cortex_list_backends"}
+MCP_TOOLS = {
+    "cortex_estimate_optimization", "cortex_optimize", "cortex_get_job", "cortex_list_backends",
+    # Data API (Tier 1) MCP tools
+    "cortex_data_token_balances", "cortex_data_token_price", "cortex_data_nft_ownership",
+    "cortex_data_tx_history", "cortex_data_gas_oracle", "cortex_data_block",
+}
 
 # MCP is served by the standalone cortexcloud-mcp service on :3100, NOT mounted
 # on the API gateway (bazaar discovery advertises https://api.cortexcloud.org/mcp,
