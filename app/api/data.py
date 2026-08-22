@@ -165,6 +165,22 @@ def _stamp(body: dict, endpoint: str, provider_cost: float) -> dict:
     return body
 
 
+async def _alchemy_nft(network: str, owner: str, page_size: int) -> tuple[int, dict]:
+    """Alchemy NFT API is REST (not /v2 JSON-RPC). Bearer auth."""
+    url = f"{ALCHEMY_BASE.format(network=network)}/nft/v3/getNFTsForOwner"
+    params = {"owner": owner, "pageSize": page_size, "withMetadata": "true"}
+    headers = {"Authorization": f"Bearer {settings.ALCHEMY_API_KEY}"}
+    async with httpx.AsyncClient(timeout=20.0) as c:
+        r = await c.get(url, params=params, headers=headers)
+    try:
+        data = r.json() if r.content else {}
+    except Exception:
+        data = {}
+    if r.status_code == 200 and isinstance(data, dict) and data.get("error"):
+        return 502, data
+    return r.status_code, data
+
+
 async def _alchemy_rpc(network: str, method: str, params: list) -> tuple[int, dict]:
     """Alchemy Enhanced/JSON-RPC APIs are POSTed to /v2 as {"method","params"}.
     Authenticated via Authorization: Bearer <key> header."""
@@ -304,14 +320,10 @@ async def nft_ownership(req: NFTOwnershipRequest, request: Request):
         hit = dict(hit)
         hit["cache_hit"] = True
         return _stamp(hit, endpoint, provider_cost)
-    status, data = await _alchemy_rpc(
-        network, "alchemy_getNFTs",
-        [{"owner": req.address, "pageSize": req.page_size, "withMetadata": True}],
-    )
+    status, data = await _alchemy_nft(network, req.address, req.page_size)
     if status != 200:
         return JSONResponse(status_code=status or 502, content={"error": "upstream_alchemy", "detail": json.dumps(data)[:500]})
-    result = data.get("result", {})
-    owned = result.get("ownedNfts", [])
+    owned = data.get("ownedNfts", [])
     out = {
         "address": req.address,
         "chain": req.chain,
