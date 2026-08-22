@@ -111,7 +111,7 @@ async def test_image_understand_cache_hit(monkeypatch):
     from httpx import ASGITransport, AsyncClient
     monkeypatch.setattr("app.core.config.settings.ML_ENABLED", True)
     monkeypatch.setattr("app.core.config.settings.X402_ENABLED", False)
-    monkeypatch.setattr("app.core.config.settings.OPENROUTER_API_KEY", "or-x")
+    monkeypatch.setattr("app.core.config.settings.OPENROUTER_API_KEY", "sk-or-test")
     calls = {"n": 0}
 
     async def fake_vision(req, key, it, ot):
