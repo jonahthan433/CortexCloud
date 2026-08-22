@@ -92,7 +92,7 @@ async def agentsearch_txt():
         "- GET /v1/backends for solver backends and live availability.",
         "Discovery: https://api.cortexcloud.org/llms.txt, https://api.cortexcloud.org/.well-known/x402.json, https://api.cortexcloud.org/.well-known/bazaar, https://api.cortexcloud.org/.well-known/agentsearch.txt, https://api.cortexcloud.org/openapi.json",
         "Pricing: https://api.cortexcloud.org/v1/capabilities",
-        "# Data API (alchemy/coingecko) is built but DISABLED in production (DATA_ENABLED=false) pending validation. Do not call /v1/data/* — they return 503 until enabled.",
+        "# Data API (Alchemy/ CoinGecko) — LIVE: 6 endpoints (/v1/data/*) at $0.004 each, x402-settled. Ready for agent calls.",
     ])
     return PlainTextResponse(text + "\n", media_type="text/plain; charset=utf-8")
 
@@ -112,8 +112,8 @@ CortexCloud — an agent-native API platform. Agents discover, pay for, and
 execute services across six categories: **AI, Research, Data, ML, Automation
 and Quantum**. Every paid endpoint is reachable over x402 (USDC on Base,
 eip155:8453) — no API keys, no subscriptions, permissionless settlement.
-Quantum is one vertical within the broader platform; AI and Research are the
-first expansion beyond it.
+Quantum is one vertical within the broader platform; AI, Research and Data
+are live agent-native API categories on it.
 
 ## Workflow (agent-first)
 
@@ -145,8 +145,9 @@ without measured evidence; check /v1/backends for an available=true backend.
 
 - Quantum: n > 5000 variables, or no available=true QPU backend (fails honestly).
 - AI/Research routes when AI_ENABLED / RESEARCH_ENABLED are false (return 503).
-- Data API (/v1/data/*): built but DISABLED in production (DATA_ENABLED=false)
-  pending production validation. Returns 503 until enabled — do not call it yet.
+- Data API (/v1/data/*): LIVE — 6 endpoints (token-balances, token-price,
+  nft-ownership, tx-history, gas-oracle, block) at $0.004 each, x402-settled
+  over USDC on Base. Use for on-chain data; respect per-wallet rate limits.
 
 ## Discovery
 

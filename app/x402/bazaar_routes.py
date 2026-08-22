@@ -50,8 +50,8 @@ def _endpoint_catalog() -> list[dict]:
 @router.get("/.well-known/bazaar", tags=["x402 Discovery"])
 async def bazaar_root():
     return {
-        "name": "CortexCloud Optimization Network",
-        "description": "Optimization infrastructure for AI agents — discover, pay for, and execute classical, hybrid, or quantum optimization through a single API.",
+        "name": "CortexCloud",
+        "description": "Agent-native API platform — pay-per-call AI, Research, Data, and Quantum services over x402 (USDC on Base). No API keys, no subscriptions. Discover, pay, and execute through one endpoint.",
         "endpoints": _endpoint_catalog(),
         "mcp": {
             "transport": "streamable-http",
