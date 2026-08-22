@@ -157,8 +157,10 @@ def _cached_set(endpoint: str, key: str, value: dict) -> None:
 
 def _stamp(body: dict, endpoint: str, provider_cost: float) -> dict:
     """Attach pricing/cost metadata the client and ledger need."""
-    body["price_usd"] = data_price_usd(endpoint)
+    price = data_price_usd(endpoint)
+    body["price_usd"] = price
     body["provider_cost_usd"] = round(provider_cost, 8)
+    body["margin_usd"] = round(price - provider_cost, 8)
     body["currency"] = "USDC"
     return body
 
