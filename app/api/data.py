@@ -53,7 +53,7 @@ logger = logging.getLogger("cortexcloud.api.data")
 
 router = APIRouter(prefix="/v1/data", tags=["data"])
 
-ALCHEMY_BASE = "https://{network}.gateway.alchemy.com"
+ALCHEMY_BASE = "https://{network}.g.alchemy.com"
 COINGECKO_BASE = "https://api.coingecko.com/api/v3"
 # ponytail: in-process cache (single worker). Swap to Redis by pointing TTLCache
 # at a redis-backed store — same .get/.set API. No provider/route changes needed.
