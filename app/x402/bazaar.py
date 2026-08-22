@@ -73,6 +73,42 @@ _TOOLS: dict[str, dict] = {
         "example": {},
         "free": True,
     },
+    "cortex_data_token_balances": {
+        "method": "POST", "path": "/v1/data/token-balances",
+        "description": "ERC-20 token balances for a wallet on an EVM chain (Alchemy). x402-paid USDC on Base.",
+        "input_schema": {"type": "object", "properties": {"address": {"type": "string"}, "chain": {"type": "string", "default": "ethereum"}, "tokens": {"type": "array", "items": {"type": "string"}}, "max_tokens": {"type": "integer", "default": 50}}, "required": ["address"]},
+        "example": {"address": "0x0000000000000000000000000000000000000000"}, "free": False,
+    },
+    "cortex_data_token_price": {
+        "method": "POST", "path": "/v1/data/token-price",
+        "description": "Spot USD price for a coin (CoinGecko) or token contract (Alchemy). x402-paid USDC on Base.",
+        "input_schema": {"type": "object", "properties": {"id": {"type": "string"}, "contract": {"type": "string"}, "chain": {"type": "string", "default": "ethereum"}}},
+        "example": {"id": "ethereum"}, "free": False,
+    },
+    "cortex_data_nft_ownership": {
+        "method": "POST", "path": "/v1/data/nft-ownership",
+        "description": "NFTs owned by a wallet on an EVM chain (Alchemy). x402-paid USDC on Base.",
+        "input_schema": {"type": "object", "properties": {"address": {"type": "string"}, "chain": {"type": "string", "default": "ethereum"}, "page_size": {"type": "integer", "default": 100}}, "required": ["address"]},
+        "example": {"address": "0x0000000000000000000000000000000000000000"}, "free": False,
+    },
+    "cortex_data_tx_history": {
+        "method": "POST", "path": "/v1/data/tx-history",
+        "description": "Normalized transactions for an address on an EVM chain (Alchemy). x402-paid USDC on Base.",
+        "input_schema": {"type": "object", "properties": {"address": {"type": "string"}, "chain": {"type": "string", "default": "ethereum"}, "limit": {"type": "integer", "default": 25}, "from_block": {"type": "integer"}}, "required": ["address"]},
+        "example": {"address": "0x0000000000000000000000000000000000000000"}, "free": False,
+    },
+    "cortex_data_gas_oracle": {
+        "method": "GET", "path": "/v1/data/gas-oracle",
+        "description": "Current base + priority fee (gas price) for an EVM chain (Alchemy). x402-paid USDC on Base.",
+        "input_schema": {"type": "object", "properties": {"chain": {"type": "string", "default": "ethereum"}}},
+        "example": {"chain": "ethereum"}, "free": False,
+    },
+    "cortex_data_block": {
+        "method": "GET", "path": "/v1/data/block",
+        "description": "Block by number or 'latest' on an EVM chain (Alchemy). x402-paid USDC on Base.",
+        "input_schema": {"type": "object", "properties": {"chain": {"type": "string", "default": "ethereum"}, "block": {"type": "string", "default": "latest"}}},
+        "example": {"chain": "ethereum", "block": "latest"}, "free": False,
+    },
 }
 
 

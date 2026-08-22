@@ -9,7 +9,8 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives import hashes
 from cryptography.exceptions import InvalidSignature
 
-_KEY_PATH = "/opt/CortexCloudAPI/server_ecdsa.key"
+_KEY_DIR = os.environ.get("CORTEXCLOUD_KEY_DIR", "/opt/CortexCloudAPI")
+_KEY_PATH = os.path.join(_KEY_DIR, "server_ecdsa.key")
 _lock = threading.Lock()
 _private_key = None
 

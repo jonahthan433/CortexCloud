@@ -208,6 +208,14 @@ ROUTE_PRICING = {
     # Research category — flat per-call, pegged to Brave cost.
     "POST /v1/research/search": "$0.006",
     "POST /v1/research/answer": "$0.012",
+    # Data API (Tier 1) — all endpoints at the $0.004 floor; provider cost is
+    # far below the floor, so the charged price is the floor (see DATA block).
+    "POST /v1/data/token-balances": "$0.004",
+    "POST /v1/data/token-price": "$0.004",
+    "POST /v1/data/nft-ownership": "$0.004",
+    "POST /v1/data/tx-history": "$0.004",
+    "GET /v1/data/gas-oracle": "$0.004",
+    "GET /v1/data/block": "$0.004",
 }
 
 ROUTE_DESCRIPTIONS = {
@@ -217,6 +225,13 @@ ROUTE_DESCRIPTIONS = {
     "POST /v1/ai/transcribe": "Speech-to-text via Gemini. x402-paid per request.",
     "POST /v1/research/search": "Grounded web search with citations via Brave Search API. x402-paid per call.",
     "POST /v1/research/answer": "Cited answer synthesis via Brave AI-Grounding. x402-paid per call.",
+    # Data API (Tier 1)
+    "POST /v1/data/token-balances": "ERC-20 token balances for a wallet on a chain (Alchemy Token API). x402-paid, USDC on Base.",
+    "POST /v1/data/token-price": "Spot USD price for a token/coin (CoinGecko where free tier suffices, else Alchemy). x402-paid.",
+    "POST /v1/data/nft-ownership": "NFTs owned by a wallet on a chain (Alchemy NFT API). x402-paid, USDC on Base.",
+    "POST /v1/data/tx-history": "Normalized transactions for an address on a chain (Alchemy Transfers API). x402-paid, USDC on Base.",
+    "GET /v1/data/gas-oracle": "Current base fee + priority fee (gas price) for a chain (Alchemy). x402-paid, USDC on Base.",
+    "GET /v1/data/block": "Block by number or 'latest' on a chain (Alchemy). x402-paid, USDC on Base.",
 }
 
 FREE_ROUTES = {
@@ -296,3 +311,100 @@ def usd_to_usdc_atomic(usd_str: str) -> int:
 
 def usdc_atomic_to_usd(atomic: int) -> float:
     return int(atomic) / 1_000_000
+
+
+# ---------------------------------------------------------------------------
+# Data API (Tier 1) — Alchemy primary, CoinGecko where free tier suffices.
+#
+# VERIFIED provider economics (Aug 2026, not invented):
+#   - Alchemy Pay-As-You-Go: $0.45 per 1,000,000 Compute Units (CU);
+#     $0.40/M after 300M CU/mo. Free tier = 30,000,000 CU/mo.
+#     Documented avg ~25 CU per API call -> PAYG marginal ~$0.00001125/call.
+#   - CoinGecko free/Demo: 10,000 calls/mo, ~30-100/min, $0.00.
+# So every Data endpoint's provider cost is well under the $0.004 floor:
+# the charged price IS the floor and margin auto-derives. If Alchemy reprices
+# (CU rate or avg-per-call CU), update PROVIDER_PRICING['alchemy:call'].cost
+# in ONE place and CortexCloud price/margin follow automatically.
+# ---------------------------------------------------------------------------
+
+# Provider cost is expressed as a flat per-call USD figure (avg CU basis).
+# `cost` here = the data field the route passes to estimate_cost(); the helper
+# returns it as provider_cost_usd. Keeps the same data-only table contract as AI.
+PROVIDER_PRICING["alchemy:call"] = ProviderPricing("Alchemy (avg ~25 CU/call)", per_call=0.00001125)
+PROVIDER_PRICING["coingecko:price"] = ProviderPricing("CoinGecko (free tier)", per_call=0.0)
+
+
+class AlchemyData(BaseProvider):
+    """Alchemy Data API (Token/NFT/Transfers/Node). One key, one vendor."""
+    slug = "alchemy"
+    models = (("alchemy", "alchemy:call"),)
+
+    def estimate_cost(self, *a, **_kw) -> ProviderCost:
+        # Flat per-call cost on the avg-CU basis. `calls` lets batch endpoints
+        # scale honestly (e.g. multi-token balance fan-out); default 1.
+        calls = max(1, int(_kw.get("calls", 1)))
+        return ProviderCost(self._cost() * calls,
+                            f"alchemy {calls} call(s) @ {self._cost():.8f}")
+
+    @staticmethod
+    def _cost() -> float:
+        return PROVIDER_PRICING["alchemy:call"].per_call
+
+
+class CoinGeckoData(BaseProvider):
+    """CoinGecko price (free tier where it suffices)."""
+    slug = "coingecko"
+    models = (("coingecko", "coingecko:price"),)
+
+    def estimate_cost(self, *a, **_kw) -> ProviderCost:
+        return ProviderCost(PROVIDER_PRICING["coingecko:price"].per_call, "coingecko free tier")
+
+
+DATA_PROVIDERS = {
+    "token-balances": AlchemyData(),
+    "nft-ownership": AlchemyData(),
+    "tx-history": AlchemyData(),
+    "gas-oracle": AlchemyData(),
+    "block": AlchemyData(),
+    "token-price": CoinGeckoData(),   # CoinGecko free tier; see route for fallback to Alchemy
+}
+
+
+def data_provider_cost_usd(endpoint: str, calls: int = 1) -> float:
+    """Estimated provider cost USD for a Data endpoint (public, recomputable)."""
+    prov = DATA_PROVIDERS.get(endpoint, AlchemyData())
+    return round(prov.estimate_cost(calls=calls).provider_cost_usd, 8)
+
+
+def data_price_usd(endpoint: str, calls: int = 1) -> float:
+    """Charged price = pegged(floor-aware) provider cost. Floor => $0.004."""
+    return pegged_price(data_provider_cost_usd(endpoint, calls))
+
+
+# Endpoint -> cache TTL (seconds). Short, because Data is hot/changing.
+# Per the brief: price 10s, balances 15s, gas 5s, block 5s. Tx/NFT 15s.
+DATA_TTL_S = {
+    "token-price": 10,
+    "token-balances": 15,
+    "nft-ownership": 15,
+    "tx-history": 15,
+    "gas-oracle": 5,
+    "block": 5,
+}
+
+# Canonical chain ids we accept (EVM). Maps caller "chain" -> Alchemy network slug.
+DATA_CHAINS = {
+    "ethereum": "eth-mainnet",
+    "eth": "eth-mainnet",
+    "1": "eth-mainnet",
+    "base": "base-mainnet",
+    "8453": "base-mainnet",
+    "arbitrum": "arb-mainnet",
+    "42161": "arb-mainnet",
+    "polygon": "polygon-mainnet",
+    "137": "polygon-mainnet",
+    "optimism": "opt-mainnet",
+    "10": "opt-mainnet",
+}
+DEFAULT_CHAIN = "ethereum"
+

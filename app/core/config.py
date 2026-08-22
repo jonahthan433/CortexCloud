@@ -78,6 +78,12 @@ class Settings(BaseSettings):
     # PROVIDER_PRICING table so margins auto-peg to provider cost.
     AI_ENABLED: bool = Field(default=False, env="AI_ENABLED")
     RESEARCH_ENABLED: bool = Field(default=False, env="RESEARCH_ENABLED")
+    # Data API (Tier 1): Alchemy primary, CoinGecko where free tier suffices.
+    # Behind DATA_ENABLED (default False) — staging only until production
+    # validation is approved. No other providers (Helius/Birdeye/Blocknative) yet.
+    DATA_ENABLED: bool = Field(default=False, env="DATA_ENABLED")
+    ALCHEMY_API_KEY: Optional[str] = Field(default=None, env="ALCHEMY_API_KEY")
+    COINGECKO_API_KEY: Optional[str] = Field(default=None, env="COINGECKO_API_KEY")
     OPENROUTER_API_KEY: Optional[str] = Field(default=None, env="OPENROUTER_API_KEY")
     GEMINI_API_KEY: Optional[str] = Field(default=None, env="GEMINI_API_KEY")
     BRAVE_API_KEY: Optional[str] = Field(default=None, env="BRAVE_API_KEY")

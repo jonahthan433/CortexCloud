@@ -12,7 +12,7 @@ from __future__ import annotations
 import threading
 import time
 from collections import defaultdict, deque
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 _lock = threading.Lock()
 
@@ -81,7 +81,7 @@ class TTLCache:
 
     def __init__(self, ttl_s: float = 30.0):
         self._ttl = ttl_s
-        self._data: dict[str, tuple[float, object]] = {}
+        self._data: dict[str, tuple[float, Any]] = {}
         self._lock = threading.Lock()
 
     def get(self, key: str):
