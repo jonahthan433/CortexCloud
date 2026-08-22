@@ -275,7 +275,7 @@ OUTPUT_EXAMPLES = {
         "choices": [{"message": {"role": "assistant", "content": "..."}}],
         "usage": {"prompt_tokens": 12, "completion_tokens": 48}, "price_usd": 0.0082,
     },
-    "/v1/ai/embed": {"model": "openrouter/google/text-embedding-004", "data": [{"embedding": [0.01, ...]}], "price_usd": 0.0001},
+    "/v1/ai/embed": {"model": "openrouter/google/text-embedding-004", "data": [{"embedding": [0.01, 0.02, -0.03]}], "price_usd": 0.0001},
     "/v1/ai/transcribe": {"text": "...", "price_usd": 0.002},
     "/v1/research/search": {"query": "quantum annealing", "results": [{"title": "...", "url": "...", "source": "..."}], "price_usd": 0.006},
     "/v1/research/answer": {"query": "...", "sources": [{"title": "...", "url": "..."}], "price_usd": 0.012},
