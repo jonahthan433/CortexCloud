@@ -174,21 +174,24 @@ async def _replicate_generate(req: ImageGenerateRequest, api_key: str):
     return 200, {"images": images, "raw": data}, "replicate"
 
 
-async def _gemini_vision(req: ImageUnderstandRequest, api_key: str, input_tokens: int, output_tokens: int):
-    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
-    parts = [{"text": req.prompt}]
+async def _openrouter_vision(req: ImageUnderstandRequest, api_key: str, input_tokens: int, output_tokens: int):
+    """Image understanding via OpenRouter vision (Gemini 2.5 Flash)."""
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
+               "HTTP-Referer": "https://cortexcloud.org", "X-Title": "CortexCloud"}
+    content = [{"type": "text", "text": req.prompt}]
     if req.image_url:
-        parts.append({"file_data": {"mime_type": "image/jpeg", "file_uri": req.image_url}})
+        content.append({"type": "image_url", "image_url": {"url": req.image_url}})
     elif req.image_b64:
-        parts.append({"inline_data": {"mime_type": "image/jpeg", "data": req.image_b64}})
-    payload = {"contents": [{"parts": parts}]}
+        content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{req.image_b64}"}})
+    payload = {"model": "google/gemini-2.5-flash", "messages": [{"role": "user", "content": content}]}
     async with httpx.AsyncClient(timeout=_HTTPX_TIMEOUT) as c:
-        r = await c.post(url, params={"key": api_key}, json=payload)
+        r = await c.post(url, headers=headers, json=payload)
     if r.status_code != 200:
         return r.status_code, (r.json() if r.content else {"error": r.text[:300]}), "openrouter"
     data = r.json()
     try:
-        text = data["candidates"][0]["content"]["parts"][0]["text"]
+        text = data["choices"][0]["message"]["content"]
     except Exception as e:
         return 502, {"error": "parse_vision", "detail": str(e)[:200]}, "openrouter"
     provider_cost = ml_provider_cost_usd("image-understand", input_tokens=input_tokens, output_tokens=output_tokens)
@@ -296,7 +299,7 @@ async def image_understand(req: ImageUnderstandRequest, request: Request):
         hit = dict(hit)
         hit["cache_hit"] = True
         return _stamp(hit, endpoint, provider_cost, hit.get("provider", "openrouter"))
-    status, data, used, *rest = await _gemini_vision(req, settings.OPENROUTER_API_KEY, input_tokens, 128)
+    status, data, used, *rest = await _openrouter_vision(req, settings.OPENROUTER_API_KEY, input_tokens, 128)
     if status != 200:
         detail = data if isinstance(data, dict) else {"error": str(data)[:300]}
         return JSONResponse(status_code=status or 502, content={"error": "upstream_ml", "detail": str(detail)[:500]})
