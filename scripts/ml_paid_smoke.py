@@ -23,7 +23,7 @@ FWD = {"host": "api.cortexcloud.org", "x-forwarded-proto": "https"}
 
 CALLS = [
     ("POST", "/v1/ml/image-generate", {"prompt": "a serene lake at sunrise, oil painting", "model": "sdxl"}, None),
-    ("POST", "/v1/ml/image-understand", {"image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/240px-PNG_transparency_demonstration_1.png", "prompt": "What is in this image?"}, None),
+    ("POST", "/v1/ml/image-understand", {"image_b64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgYGAAAAAEAAH2FzhVAAAAAElFTkSuQmCC", "prompt": "What color is this image?"}, None),
     ("POST", "/v1/ml/rerank", {"query": "best pizza in town", "documents": ["How to fix a bike", "Top 10 pizzerias downtown", "Pizza recipe book"]}, None),
 ]
 
