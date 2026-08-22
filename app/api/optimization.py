@@ -148,4 +148,18 @@ async def capabilities() -> dict:
             "/openapi.json",
             "/mcp",
         ],
+        "categories": {
+            "quantum": {"status": "available", "vertical": "optimization", "endpoints": ["/v1/optimize", "/v1/estimate"]},
+            "ai": {
+                "status": "available" if settings.AI_ENABLED else "disabled",
+                "note": "Chat/embed/transcribe via OpenRouter + Gemini. Price pegged to provider cost (35% margin).",
+                "endpoints": ["/v1/ai/chat", "/v1/ai/embed", "/v1/ai/transcribe", "/v1/ai/estimate"],
+                "models": ["gemini-2.5-flash", "gemini-2.0-flash", "gpt-4o-mini", "text-embedding-004"],
+            },
+            "research": {
+                "status": "available" if (settings.RESEARCH_ENABLED and settings.BRAVE_API_KEY) else "disabled",
+                "note": "Grounded web search + cited answers via Brave Search API. Enabled when RESEARCH_ENABLED + BRAVE_API_KEY set.",
+                "endpoints": ["/v1/research/search", "/v1/research/answer", "/v1/research/estimate"],
+            },
+        },
     }

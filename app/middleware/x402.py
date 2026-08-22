@@ -22,6 +22,25 @@ from app.x402.pricing import ROUTE_PRICING, ROUTE_DESCRIPTIONS, usd_to_usdc_atom
 logger = logging.getLogger("cortexcloud.middleware.x402")
 
 
+def _resource_url(request, path: str) -> str:
+    """Resource URL for the x402 challenge.
+
+    Prefer the URL the caller actually hit (request.scheme+host) so the
+    signed payment matches the endpoint an agent is calling — correct for
+    both the public domain and any staging host. Fall back to the configured
+    X402_RESOURCE_BASE when the request context is unavailable.
+    """
+    try:
+        if getattr(request, "url", None) is not None:
+            # Honour upstream TLS termination (Cloudflare sets X-Forwarded-Proto).
+            scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+            base = f"{scheme}://{request.url.netloc}"
+            return base.rstrip("/") + path
+    except Exception:
+        pass
+    return settings.X402_RESOURCE_BASE.rstrip("/") + path
+
+
 def _log_request(request, response, start_ns: float) -> None:
     """S6: one JSON log line per paid request + latency histogram."""
     ctx = get_req()
@@ -145,8 +164,14 @@ async def _get_mpp():
     return _mpp_instance
 
 
-async def _record_payment(path: str, payer: str, amount_atomic: int, body_str: str | None, nonce: str | None = None) -> None:
-    """Record a settled payment in PostgreSQL. Telemetry never blocks a payment."""
+async def _record_payment(path: str, payer: str, amount_atomic: int, body_str: str | None,
+                          nonce: str | None = None, provider_cost_usd: float | None = None,
+                          margin_usd: float | None = None, category: str | None = None) -> None:
+    """Record a settled payment in PostgreSQL. Telemetry never blocks a payment.
+    AI/Research routes pass provider_cost/margin/category (read from
+    request.state at the call site) so the usage ledger reports CortexCloud
+    revenue + margin per call. Cost is never hardcoded — it is computed in the
+    route from the advertised rate table."""
     try:
         if not payer:
             return
@@ -160,6 +185,8 @@ async def _record_payment(path: str, payer: str, amount_atomic: int, body_str: s
             n_vars = (_b.get("problem") or {}).get("n")
         except Exception:
             pass
+        if margin_usd is None and provider_cost_usd is not None:
+            margin_usd = round(int(amount_atomic) / 1_000_000 - provider_cost_usd, 6)
         async with AsyncSessionLocal() as _db:
             _db.add(
                 Payment(
@@ -171,6 +198,9 @@ async def _record_payment(path: str, payer: str, amount_atomic: int, body_str: s
                     n_vars=n_vars,
                     nonce=nonce,
                     status="settled",
+                    provider_cost_usd=round(provider_cost_usd, 6) if provider_cost_usd is not None else None,
+                    margin_usd=margin_usd,
+                    category=category,
                 )
             )
             await _db.commit()
@@ -240,6 +270,70 @@ OUTPUT_EXAMPLES = {
         "price_usd": 0.05,
         "poll": "/v1/jobs/3f5c2e6a-9a0b-4c8d-9e7f-1a2b3c4d5e6f",
     },
+    "/v1/ai/chat": {
+        "id": "chatcmpl-...", "model": "openrouter/gemini-2.5-flash",
+        "choices": [{"message": {"role": "assistant", "content": "..."}}],
+        "usage": {"prompt_tokens": 12, "completion_tokens": 48}, "price_usd": 0.0082,
+    },
+    "/v1/ai/embed": {"model": "openrouter/google/text-embedding-004", "data": [{"embedding": [0.01, ...]}], "price_usd": 0.0001},
+    "/v1/ai/transcribe": {"text": "...", "price_usd": 0.002},
+    "/v1/research/search": {"query": "quantum annealing", "results": [{"title": "...", "url": "...", "source": "..."}], "price_usd": 0.006},
+    "/v1/research/answer": {"query": "...", "sources": [{"title": "...", "url": "..."}], "price_usd": 0.012},
+}
+
+# Per-route request schemas for the 402 challenge bazaar extension + the
+# money-path validation guard. Each must satisfy its own example (x402scan
+# hard-errors SCHEMA_INPUT_MISSING / example-must-satisfy-schema).
+INPUT_SCHEMAS = {
+    **INPUT_SCHEMAS,
+    "/v1/ai/chat": {
+        "type": "object",
+        "properties": {
+            "messages": {"type": "array", "items": {"type": "object"}, "minItems": 1},
+            "model": {"type": "string", "enum": ["gemini-2.5-flash", "gemini-2.0-flash", "gpt-4o-mini"], "default": "gemini-2.5-flash"},
+            "max_tokens": {"type": "integer", "minimum": 1, "maximum": 8192, "default": 512},
+            "temperature": {"type": "number", "minimum": 0.0, "maximum": 2.0, "default": 0.7},
+        },
+        "required": ["messages"],
+    },
+    "/v1/ai/embed": {
+        "type": "object",
+        "properties": {
+            "input": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 128},
+            "model": {"type": "string", "default": "text-embedding-004"},
+        },
+        "required": ["input"],
+    },
+    "/v1/ai/transcribe": {
+        "type": "object",
+        "properties": {
+            "audio_b64": {"type": "string"},
+            "mime": {"type": "string", "default": "audio/wav"},
+        },
+        "required": ["audio_b64"],
+    },
+    "/v1/research/search": {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "minLength": 1, "maxLength": 400},
+            "count": {"type": "integer", "minimum": 1, "maximum": 20, "default": 5},
+            "freshness": {"type": "string", "default": "pw"},
+        },
+        "required": ["query"],
+    },
+    "/v1/research/answer": {
+        "type": "object",
+        "properties": {"query": {"type": "string", "minLength": 1, "maxLength": 400}},
+        "required": ["query"],
+    },
+}
+INPUT_EXAMPLES = {
+    **INPUT_EXAMPLES,
+    "/v1/ai/chat": {"messages": [{"role": "user", "content": "Summarize quantum annealing in one sentence."}], "model": "gemini-2.5-flash", "max_tokens": 128},
+    "/v1/ai/embed": {"input": ["CortexCloud agent-native API"], "model": "text-embedding-004"},
+    "/v1/ai/transcribe": {"audio_b64": "UklGRg...", "mime": "audio/wav"},
+    "/v1/research/search": {"query": "latest quantum error correction results", "count": 5, "freshness": "pw"},
+    "/v1/research/answer": {"query": "What advances in topological qubits happened in 2026?"},
 }
 
 
@@ -292,20 +386,59 @@ class X402Middleware(BaseHTTPMiddleware):
         if price_str is None or price_str == "$0.00":
             return await call_next(request)
 
-        # Dynamic pricing for /v1/optimize: price follows the requested
-        # mode (classical 0.05 / hybrid 0.10 / quantum 0.85). Body is read
-        # once and cached on the request — downstream routes reuse it.
-        # Do NOT re-inject request._receive here (starlette 1.x state
-        # machine rejects a second http.request; see SSE comment below).
+        # Feature-flag gate: a disabled category is NEVER billable. Return 503
+        # before any payment challenge so agents discover-but-don't-pay a
+        # service that is offline (honest disable, matches route behavior).
+        if path.startswith("/v1/ai/") and not settings.AI_ENABLED:
+            return JSONResponse(status_code=503, content={"error": "ai_disabled", "detail": "AI category is disabled on this instance."})
+        if path.startswith("/v1/research/") and not (settings.RESEARCH_ENABLED and settings.BRAVE_API_KEY):
+            return JSONResponse(status_code=503, content={"error": "research_disabled", "detail": "Research category is disabled (set RESEARCH_ENABLED + BRAVE_API_KEY)."})
+
+        # Dynamic pricing: read the POST body once (cached on request) for
+        # routes whose price depends on the payload. /v1/optimize keys off
+        # mode+n; AI routes key off token counts. The body is read ONCE here
+        # and reused downstream — never re-inject request._receive (starlette
+        # 1.x state machine rejects a second http.request; see SSE comment).
         body_str = None
-        if method == "POST" and path == "/v1/optimize":
+        if method == "POST":
             try:
                 body = await request.body()
                 data = json.loads(body) if body else {}
                 body_str = body.decode("utf-8", errors="replace") if body else None
-                price_str = price_for_mode((data.get("mode") or "auto"), n=((data.get("problem") or {}).get("n") if isinstance(data, dict) else None))
             except (json.JSONDecodeError, AttributeError, TypeError) as e:
                 logger.warning(f"Failed to parse request body for dynamic pricing: {e}")
+                data = {}
+            if path == "/v1/optimize":
+                price_str = price_for_mode((data.get("mode") or "auto"), n=((data.get("problem") or {}).get("n") if isinstance(data, dict) else None))
+            elif path == "/v1/ai/chat":
+                from app.x402.pricing import ai_chat_price_usd, AI_PROVIDERS
+                _m = (data.get("model") if isinstance(data, dict) else None)
+                _in = sum(len(str(m.get("content", ""))) for m in (data.get("messages") or []) if isinstance(m, dict)) // 4 or 1
+                _out = int((data.get("max_tokens") if isinstance(data, dict) else None) or 512)
+                price_str = f"${ai_chat_price_usd(_m, _in, _out):.6f}"
+                request.state.provider_cost_usd = round(AI_PROVIDERS["chat"].estimate_cost(_m, _in, _out).provider_cost_usd, 6)
+                request.state.category = "ai"
+            elif path == "/v1/ai/embed":
+                from app.x402.pricing import ai_embed_price_usd, AI_PROVIDERS
+                _in = sum(len(t) // 4 for t in (data.get("input") or []) if isinstance(t, str)) or 1
+                price_str = f"${ai_embed_price_usd(_in):.6f}"
+                request.state.provider_cost_usd = round(AI_PROVIDERS["embed"].estimate_cost(input_tokens=_in).provider_cost_usd, 6)
+                request.state.category = "ai"
+            elif path == "/v1/ai/transcribe":
+                from app.x402.pricing import ai_transcribe_price_usd, AI_PROVIDERS
+                price_str = f"${ai_transcribe_price_usd():.6f}"
+                request.state.provider_cost_usd = round(AI_PROVIDERS["transcribe"].estimate_cost().provider_cost_usd, 6)
+                request.state.category = "ai"
+            elif path == "/v1/research/search":
+                from app.x402.pricing import research_price_usd, RESEARCH_PROVIDERS
+                price_str = f"${research_price_usd('web'):.6f}"
+                request.state.provider_cost_usd = round(RESEARCH_PROVIDERS["search"].estimate_cost("web").provider_cost_usd, 6)
+                request.state.category = "research"
+            elif path == "/v1/research/answer":
+                from app.x402.pricing import research_price_usd, RESEARCH_PROVIDERS
+                price_str = f"${research_price_usd('answer'):.6f}"
+                request.state.provider_cost_usd = round(RESEARCH_PROVIDERS["answer"].estimate_cost("answer").provider_cost_usd, 6)
+                request.state.category = "research"
 
         required = usd_to_usdc_atomic(price_str)
 
@@ -316,23 +449,40 @@ class X402Middleware(BaseHTTPMiddleware):
         mpp = await _get_mpp()
         authorization = request.headers.get("authorization")
 
-
         # Money-path guard: never settle a request the endpoint would reject.
         # Validate the paid body BEFORE either settle branch (x402 or MPP).
-        if path == "/v1/optimize" and (payment_signature or (mpp and authorization)):
-            _v_err = _validate_optimize_body(data)
-            if _v_err:
-                return JSONResponse(status_code=422, content={"detail": _v_err})
-            # Availability pre-check: refuse BEFORE settling when the requested
-            # mode has no executable backend (e.g. quantum with all QPUs
-            # offline). 409 = retry later or pick another mode.
-            from app.solvers.registry import mode_has_available_solver
-            _mode = (data.get("mode") or "auto") if isinstance(data, dict) else "auto"
-            if not mode_has_available_solver(_mode):
-                return JSONResponse(
-                    status_code=409,
-                    content={"error": "no available solver for requested mode", "mode": _mode},
-                )
+        _ai_paths = {"/v1/ai/chat", "/v1/ai/embed", "/v1/ai/transcribe"}
+        if (path == "/v1/optimize" or path in _ai_paths) and (payment_signature or (mpp and authorization)):
+            if path == "/v1/optimize":
+                _v_err = _validate_optimize_body(data)
+                if _v_err:
+                    return JSONResponse(status_code=422, content={"detail": _v_err})
+                # Availability pre-check: refuse BEFORE settling when the requested
+                # mode has no executable backend (e.g. quantum with all QPUs
+                # offline). 409 = retry later or pick another mode.
+                from app.solvers.registry import mode_has_available_solver
+                _mode = (data.get("mode") or "auto") if isinstance(data, dict) else "auto"
+                if not mode_has_available_solver(_mode):
+                    return JSONResponse(
+                        status_code=409,
+                        content={"error": "no available solver for requested mode", "mode": _mode},
+                    )
+            else:
+                # AI routes: reject missing required fields + bad enum BEFORE
+                # settling. The full Pydantic check runs in the route after
+                # payment; this just stops billing an obviously-invalid body.
+                _schema = INPUT_SCHEMAS.get(path, {})
+                _req = _schema.get("required", [])
+                _bad = [k for k in _req if not isinstance(data, dict) or k not in data or data.get(k) in (None, "", [])]
+                if _bad:
+                    return JSONResponse(
+                        status_code=422,
+                        content={"detail": [{"loc": ["body", b], "msg": "field required", "type": "missing"} for b in _bad]},
+                    )
+                if path == "/v1/ai/chat":
+                    _m = data.get("model")
+                    if _m is not None and _m not in ("gemini-2.5-flash", "gemini-2.0-flash", "gpt-4o-mini"):
+                        return JSONResponse(status_code=422, content={"error": "bad_model", "detail": "model not supported"})
 
         if not payment_signature:
             if mpp and authorization:
@@ -361,7 +511,11 @@ class X402Middleware(BaseHTTPMiddleware):
                 payer = getattr(credential, "source", None) or ""
                 request.state.x402_payer = payer
                 request.state.x402_start = time.perf_counter()
-                await _record_payment(path, payer, int(required), body_str)
+                await _record_payment(
+                    path, payer, int(required), body_str,
+                    provider_cost_usd=getattr(request.state, "provider_cost_usd", None),
+                    category=getattr(request.state, "category", None),
+                )
                 limited = await _rate_limit(request)
                 if limited:
                     return limited
@@ -379,7 +533,7 @@ class X402Middleware(BaseHTTPMiddleware):
             challenge = {
                 "x402Version": 2,
                 "resource": {
-                    "url": settings.X402_RESOURCE_BASE.rstrip("/") + path,
+                "url": _resource_url(request, path),
                     "description": _PATH_DESCRIPTIONS.get(path, "Access to this resource"),
                     "mimeType": "application/json",
                 },
@@ -489,7 +643,7 @@ class X402Middleware(BaseHTTPMiddleware):
         # header. CDP facilitator schema = TOP-LEVEL resource/method/headers/body
         # (a {payload: {...}} wrapper is rejected: "property resource is missing").
         validation_body = {
-            "resource": settings.X402_RESOURCE_BASE.rstrip("/") + path,
+            "resource": _resource_url(request, path),
             "method": method,
             "headers": {
                 "payment-signature": payment_signature,
@@ -621,7 +775,11 @@ class X402Middleware(BaseHTTPMiddleware):
         # Record the settled payment in PostgreSQL (jobs/payments ledger).
         # Telemetry never blocks a settled payment.
         _payer = getattr(request.state, "x402_payer", None) or (_sig_payload.get("payload") or {}).get("authorization", {}).get("from", "")
-        await _record_payment(path, _payer, int(required), request.state.x402_body, _auth0.get("nonce"))
+        await _record_payment(
+            path, _payer, int(required), request.state.x402_body, _auth0.get("nonce"),
+            provider_cost_usd=getattr(request.state, "provider_cost_usd", None),
+            category=getattr(request.state, "category", None),
+        )
     
         # Payment verified and settled, proceed to request
         limited = await _rate_limit(request)

@@ -70,6 +70,19 @@ class Settings(BaseSettings):
     MAX_OPTIMIZE_VARS: int = Field(default=5000, env="MAX_OPTIMIZE_VARS")
     QAOA_LOCAL_MAX_N: int = Field(default=12, env="QAOA_LOCAL_MAX_N")
 
+    # ---- AI + Research expansion (agent-native API platform) ----
+    # AI category: OpenRouter unified gateway (chat/embed) + Gemini STT.
+    # Research category: Brave Search API (web/answer). Both behind feature
+    # flags; Research stays disabled until BRAVE_API_KEY is provisioned.
+    # No hardcoded provider costs: pricing.py keys advertised rates in a
+    # PROVIDER_PRICING table so margins auto-peg to provider cost.
+    AI_ENABLED: bool = Field(default=False, env="AI_ENABLED")
+    RESEARCH_ENABLED: bool = Field(default=False, env="RESEARCH_ENABLED")
+    OPENROUTER_API_KEY: Optional[str] = Field(default=None, env="OPENROUTER_API_KEY")
+    GEMINI_API_KEY: Optional[str] = Field(default=None, env="GEMINI_API_KEY")
+    BRAVE_API_KEY: Optional[str] = Field(default=None, env="BRAVE_API_KEY")
+    EXA_API_KEY: Optional[str] = Field(default=None, env="EXA_API_KEY")
+
     # Origin Quantum (optional; adapter only activates when both set)
     ORIGINQ_API_TOKEN: Optional[str] = Field(default=None, env="ORIGINQ_API_TOKEN")
     ORIGINQ_BACKEND: Optional[str] = Field(default=None, env="ORIGINQ_BACKEND")

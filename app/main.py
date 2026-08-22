@@ -102,6 +102,13 @@ def create_app(override_openapi: bool = True) -> FastAPI:
     from app.models.referral import Referral  # noqa: F401 (table auto-create)
     application.include_router(track_router, tags=["Tracking"])
 
+    # AI + Research expansion (agent-native platform). Routes self-gate on
+    # AI_ENABLED / RESEARCH_ENABLED; pricing + discovery always advertise them.
+    from app.api.ai import router as ai_router
+    from app.api.research import router as research_router
+    application.include_router(ai_router, tags=["AI"])
+    application.include_router(research_router, tags=["Research"])
+
     application.include_router(discovery_router, tags=["Discovery"])
     application.include_router(bazaar_router, tags=["Bazaar / MCP"])
 

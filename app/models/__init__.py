@@ -74,6 +74,12 @@ class Payment(Base):
     n_vars: Mapped[int | None] = mapped_column(Integer, nullable=True)
     nonce: Mapped[str | None] = mapped_column(String(128), nullable=True)
     status: Mapped[str] = mapped_column(String(16), default="settled")
+    # AI/Research expansion: provider cost + margin + category so the
+    # usage ledger can report CortexCloud revenue/margin per call. Populated
+    # by the x402 middleware from the request body (cost never hardcoded).
+    provider_cost_usd: Mapped[float | None] = mapped_column(Numeric(12, 6), nullable=True)
+    margin_usd: Mapped[float | None] = mapped_column(Numeric(12, 6), nullable=True)
+    category: Mapped[str | None] = mapped_column(String(16), nullable=True)  # quantum|ai|research
 
 
 class Nonce(Base):

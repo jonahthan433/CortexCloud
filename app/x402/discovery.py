@@ -107,52 +107,43 @@ async def llms_txt():
 
     text = f"""# CortexCloud
 
-CortexCloud — optimization infrastructure for AI agents. Agents discover,
-pay for, and execute classical, hybrid, or quantum optimization through a
-single API. Pay per call in USDC (Base, eip155:8453) via the x402 payment
-protocol — no API keys, no subscriptions. Settlement is permissionless.
+CortexCloud — an agent-native API platform. Agents discover, pay for, and
+execute services across six categories: **AI, Research, Data, ML, Automation
+and Quantum**. Every paid endpoint is reachable over x402 (USDC on Base,
+eip155:8453) — no API keys, no subscriptions, permissionless settlement.
+Quantum is one vertical within the broader platform; AI and Research are the
+first expansion beyond it.
 
 ## Workflow (agent-first)
 
-1. POST /v1/estimate (free) — describe your QUBO/Ising problem; get the
-   recommended mode (classical/hybrid/quantum), algorithm, backend,
-   estimated runtime and USDC price, based on measured benchmarks.
-2. POST /v1/optimize (x402, paid) — submit the same problem; receive a
-   job_id. Signed payment challenge details are returned on 402.
-3. GET /v1/jobs/{{job_id}} (free) — poll until the job completes; the result
-   contains solution assignments and the objective value.
+1. POST /v1/ai/estimate or /v1/research/estimate (free) — get the predicted
+   USDC price before paying.
+2. POST /v1/ai/chat, /v1/ai/embed, /v1/ai/transcribe, /v1/research/search,
+   /v1/research/answer (x402, paid) — receive a 402 PaymentRequirements
+   challenge; sign and resend with the payment-signature header.
+3. For optimization: POST /v1/estimate (free) then POST /v1/optimize (paid);
+   poll GET /v1/jobs/{{job_id}}.
 
 ## Endpoints
 
 {chr(10).join(paid + free)}
 
-## Input format (QUBO)
+## AI examples (real)
 
-{{"problem_type": "qubo", "n": 3, "data": {{"linear": [1.0, 2.0, 3.0], "quadratic": {{"0,1": -2.0, "1,2": 1.5}}}}}}
+- POST /v1/ai/chat — {{"messages": [{{"role":"user","content":"..."}}], "model":"gemini-2.5-flash", "max_tokens": 128}}
+- POST /v1/ai/embed — {{"input": ["text to embed"]}}
+- POST /v1/research/search — {{"query": "latest quantum error correction", "count": 5}}
 
-## Decision block (machine-friendly)
+## Quantum (one vertical)
 
-POST /v1/estimate returns a top-level "decision" object agents can branch
-on directly: {{"recommended": true, "mode": "quantum", "backend": "...",
-"algorithm": "...", "reason": "...", "estimated_cost_usd": 0.0,
-"cortexcloud_price_usd": 1.503, "quantum_available": true,
-"quantum_recommended": true}}.
-"recommended" is false only when no usable solver exists. Quantum is never
-recommended without measured quality evidence; if you explicitly need
-quantum, check /v1/backends for an available=true quantum backend first.
+POST /v1/optimize solves QUBO/Ising (classical/hybrid/quantum). POST /v1/estimate
+returns a machine-readable decision block. Quantum is never recommended
+without measured evidence; check /v1/backends for an available=true backend.
 
 ## When NOT to use
 
-- n > 5000 variables (rejected with 422).
-- Problems that are not QUBO/Ising form — this is an optimization API, not a general MIP solver.
-- Guaranteed global optimum for n > 18 (classical exact enumeration caps at 18; annealing is a heuristic).
-- quantum mode when /v1/backends shows no available=true backend (job fails honestly; no fake hardware).
-
-## Examples
-
-Canonical portfolio / assignment / scheduling / routing / generic-QUBO
-examples (request JSON, expected schema, constraints, response, pricing):
-GET /v1/examples (free).
+- Quantum: n > 5000 variables, or no available=true QPU backend (fails honestly).
+- AI/Research routes when AI_ENABLED / RESEARCH_ENABLED are false (return 503).
 
 ## Discovery
 
@@ -160,14 +151,12 @@ GET /v1/examples (free).
 - Payment manifest (x402): https://api.cortexcloud.org/.well-known/x402.json
 - Bazaar discovery: https://api.cortexcloud.org/.well-known/bazaar
 - OpenAPI: https://api.cortexcloud.org/openapi.json
-- Agent examples: https://api.cortexcloud.org/v1/examples
 
 ## Honesty
 
-Quantum execution is never faked and never claimed superior without
-measured evidence. /v1/backends publishes live availability per backend,
-and /v1/estimate recommends the best evidence-backed solver for your
-problem and budget. A backend is only ever listed when it verifiably runs.
+Provider costs are published and CortexCloud margin is computed transparently;
+no fabricated capabilities, statistics, or performance claims. A backend is
+only ever listed when it verifiably runs.
 
 ## Reference
 

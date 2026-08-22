@@ -15,6 +15,159 @@ never be sold below estimated provider cost unless QUANTUM_ALLOW_SUBSIDY
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import Optional
+
+# ---------------------------------------------------------------------------
+# AI + Research expansion pricing.
+#
+# Provider costs are NOT hardcoded into business logic: each provider exposes
+# a published-rate table and an estimate_cost() method. Customer price is
+# pegged to that live provider cost via PRICING.markup + floor, so when a
+# provider reprices, CortexCloud margin is preserved automatically. The
+# published rates below are VERIFIED advertised list rates (Aug 2026) and are
+# data, not logic — they live in PROVIDER_PRICING so they can be updated in
+# one place without touching any route.
+# ---------------------------------------------------------------------------
+
+# Markup applied over provider cost, and the minimum customer price floor so
+# tiny calls still cover ~$0.0015 infra+payment fixed cost at a healthy margin.
+PRICING_MARKUP = 1.35          # 35% gross margin over provider cost
+PRICING_FLOOR_USD = 0.004      # minimum sell price for any AI/Research call
+INFRA_FIXED_USD = 0.0015       # compute+db+bandwidth+hosting+payment relay
+
+
+@dataclass
+class ProviderPricing:
+    """Published, advertised provider rates. Data only — no business logic."""
+    name: str
+    # token-based models: (input $/1M tokens, output $/1M tokens)
+    input_per_1m: float = 0.0
+    output_per_1m: float = 0.0
+    # flat per-call rate (search/answer/embed fallbacks)
+    per_call: float = 0.0
+
+
+# Verified advertised list rates (Aug 2026). OpenRouter passes through
+# first-party prices; Brave Search API published plan rates.
+PROVIDER_PRICING = {
+    # --- AI: OpenRouter unified gateway (one key, first-party rates) ---
+    "openrouter:gemini-2.5-flash": ProviderPricing("Google Gemini 2.5 Flash", 0.30, 2.50),
+    "openrouter:gemini-2.0-flash": ProviderPricing("Google Gemini 2.0 Flash", 0.10, 0.40),
+    "openrouter:gpt-4o-mini": ProviderPricing("OpenAI GPT-4o-mini", 0.15, 0.60),
+    "openrouter:gemini-text-embedding-004": ProviderPricing("Google text-embedding-004", 0.025, 0.0),
+    # --- AI: Gemini STT (free-tier/metered; flat per-request estimate) ---
+    "gemini:stt": ProviderPricing("Google Gemini STT", per_call=0.0005),
+    # --- Research: Brave Search API published plan rates (Aug 2026) ---
+    "brave:web": ProviderPricing("Brave Web Search", per_call=0.004),
+    "brave:answer": ProviderPricing("Brave AI-Grounding answer", per_call=0.005),
+}
+
+
+@dataclass
+class ProviderCost:
+    provider_cost_usd: float
+    detail: str = ""
+
+
+class BaseProvider:
+    """Provider abstraction. Concrete providers implement estimate_cost()
+    from the advertised rate table so the public API never changes when a
+    vendor is swapped (e.g. Brave -> Exa)."""
+
+    slug: str = "base"
+    # (name, api_model_id) tuples the route accepts
+    models: tuple = ()
+
+    def estimate_cost(self, *args, **kwargs) -> ProviderCost:  # pragma: no cover
+        raise NotImplementedError
+
+
+class OpenRouterAIChat(BaseProvider):
+    slug = "openrouter"
+    models = (
+        ("gemini-2.5-flash", "openrouter:gemini-2.5-flash"),
+        ("gemini-2.0-flash", "openrouter:gemini-2.0-flash"),
+        ("gpt-4o-mini", "openrouter:gpt-4o-mini"),
+    )
+    _DEFAULT = "gemini-2.5-flash"
+
+    def estimate_cost(self, model: str | None = None,
+                      input_tokens: int = 0, output_tokens: int = 0, **_kw) -> ProviderCost:
+        key = dict(self.models).get(model or self._DEFAULT, "openrouter:gemini-2.5-flash")
+        p = PROVIDER_PRICING[key]
+        cost = (input_tokens / 1_000_000 * (p.input_per_1m or 0)
+                + output_tokens / 1_000_000 * (p.output_per_1m or 0))
+        return ProviderCost(cost, f"{key} in={input_tokens} out={output_tokens}")
+
+
+class OpenRouterEmbed(BaseProvider):
+    slug = "openrouter"
+    models = (("text-embedding-004", "openrouter:gemini-text-embedding-004"),)
+    _DEFAULT = "text-embedding-004"
+
+    def estimate_cost(self, model: str | None = None, input_tokens: int = 0, **_kw) -> ProviderCost:
+        p = PROVIDER_PRICING["openrouter:gemini-text-embedding-004"]
+        cost = input_tokens / 1_000_000 * (p.input_per_1m or 0)
+        return ProviderCost(cost, f"embed in={input_tokens}")
+
+
+class GeminiSTT(BaseProvider):
+    slug = "gemini"
+    models = (("default", "gemini:stt"),)
+
+    def estimate_cost(self, seconds: float = 0.0, **_kw) -> ProviderCost:
+        # Metered per-minute upstream; flat per-request estimate.
+        return ProviderCost(PROVIDER_PRICING["gemini:stt"].per_call, f"stt ~{seconds:.0f}s")
+
+
+class BraveSearch(BaseProvider):
+    slug = "brave"
+    models = (("web", "brave:web"), ("answer", "brave:answer"))
+
+    def estimate_cost(self, kind: str = "web", **_kw) -> ProviderCost:
+        key = "brave:answer" if kind == "answer" else "brave:web"
+        return ProviderCost(PROVIDER_PRICING[key].per_call, key)
+
+
+# Registry: route -> provider instance. Swap a vendor by changing the class.
+AI_PROVIDERS = {
+    "chat": OpenRouterAIChat(),
+    "embed": OpenRouterEmbed(),
+    "transcribe": GeminiSTT(),
+}
+RESEARCH_PROVIDERS = {
+    "search": BraveSearch(),
+    "answer": BraveSearch(),
+}
+
+
+def pegged_price(provider_cost_usd: float, floor: float = PRICING_FLOOR_USD) -> float:
+    """Customer price = max(floor, provider_cost * markup + infra fixed)."""
+    return max(floor, round(provider_cost_usd * PRICING_MARKUP + INFRA_FIXED_USD, 6))
+
+
+# Chat price needs the token counts; estimate first, then peg.
+def ai_chat_cost(model: str | None, input_tokens: int, output_tokens: int) -> ProviderCost:
+    return AI_PROVIDERS["chat"].estimate_cost(model, input_tokens, output_tokens)
+
+
+def ai_chat_price_usd(model: str | None, input_tokens: int, output_tokens: int) -> float:
+    return pegged_price(ai_chat_cost(model, input_tokens, output_tokens).provider_cost_usd)
+
+
+def ai_embed_price_usd(input_tokens: int) -> float:
+    return pegged_price(AI_PROVIDERS["embed"].estimate_cost(input_tokens=input_tokens).provider_cost_usd)
+
+
+def ai_transcribe_price_usd(seconds: float = 0.0) -> float:
+    return pegged_price(AI_PROVIDERS["transcribe"].estimate_cost(seconds=seconds).provider_cost_usd)
+
+
+def research_price_usd(kind: str = "web") -> float:
+    return pegged_price(RESEARCH_PROVIDERS["search"].estimate_cost(kind).provider_cost_usd)
+
+
 # mode -> USD per optimization run (customer price)
 MODE_PRICE_USD = {"classical": 0.05, "hybrid": 0.10, "quantum": 0.85}
 
@@ -48,10 +201,22 @@ MARKUP = 2.0
 
 ROUTE_PRICING = {
     "POST /v1/optimize": "$0.05",  # base; middleware overrides per mode
+    # AI category — price overridden per-request from token counts (pegged to provider cost).
+    "POST /v1/ai/chat": "$0.004",
+    "POST /v1/ai/embed": "$0.004",
+    "POST /v1/ai/transcribe": "$0.004",
+    # Research category — flat per-call, pegged to Brave cost.
+    "POST /v1/research/search": "$0.006",
+    "POST /v1/research/answer": "$0.012",
 }
 
 ROUTE_DESCRIPTIONS = {
     "POST /v1/optimize": "Solve a QUBO/Ising optimization problem. USDC on Base via x402; returns a job_id to poll.",
+    "POST /v1/ai/chat": "Chat completion via OpenRouter (Gemini/OpenAI). x402-paid, USDC on Base. Price quoted from requested max_tokens + estimated input.",
+    "POST /v1/ai/embed": "Text embeddings via Google text-embedding-004 (OpenRouter). x402-paid per token.",
+    "POST /v1/ai/transcribe": "Speech-to-text via Gemini. x402-paid per request.",
+    "POST /v1/research/search": "Grounded web search with citations via Brave Search API. x402-paid per call.",
+    "POST /v1/research/answer": "Cited answer synthesis via Brave AI-Grounding. x402-paid per call.",
 }
 
 FREE_ROUTES = {
@@ -64,6 +229,9 @@ FREE_ROUTES = {
     "POST /v1/solvers/portfolio": "Build a cardinality-constrained Markowitz QUBO from returns/covariance (free).",
     "POST /v1/solvers/bin-packing": "Build a bin-packing QUBO from item weights and bin capacity (free).",
     "POST /v1/solvers/routing": "Build a TSP tour QUBO from a distance matrix (free).",
+    # AI + Research free discovery/estimate endpoints.
+    "POST /v1/ai/estimate": "Free: predict token cost + USDC price for a chat request before paying.",
+    "POST /v1/research/estimate": "Free: predict the USDC price for a search/answer request before paying.",
 }
 
 

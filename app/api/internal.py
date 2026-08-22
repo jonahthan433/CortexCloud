@@ -7,7 +7,7 @@ Plain /metrics (Prometheus, no revenue) stays public as before.
 from __future__ import annotations
 
 from fastapi import APIRouter, Header, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 
 from app.core.config import settings
 from app.database.session import AsyncSessionLocal
@@ -59,7 +59,7 @@ async def metrics_summary(x_internal_token: str | None = Header(default=None, al
             await db.execute(
                 select(func.coalesce(func.sum(Payment.amount_usd), 0.0)).where(
                     Payment.status == "settled",
-                    Payment.occurred_at >= func.now() - func.interval("24 hours"),
+                    Payment.occurred_at >= func.now() - text("interval '24 hours'"),
                 )
             )
         ).scalar() or 0.0
