@@ -381,6 +381,63 @@ INPUT_SCHEMAS = {
     },
 }
 
+# Automation API (Tier 1) request-body schemas for OpenAPI discovery.
+INPUT_SCHEMAS = {
+    **INPUT_SCHEMAS,
+    "/v1/automation/transform": {
+        "type": "object",
+        "properties": {
+            "data": {},
+            "rules": {"type": "object"},
+            "idempotency_key": {"type": "string"},
+        },
+        "required": ["data"],
+    },
+    "/v1/automation/http-request": {
+        "type": "object",
+        "properties": {
+            "method": {"type": "string", "enum": ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]},
+            "url": {"type": "string"},
+            "headers": {"type": "object"},
+            "body": {},
+            "timeout": {"type": "number"},
+            "idempotency_key": {"type": "string"},
+        },
+        "required": ["url"],
+    },
+    "/v1/automation/webhook": {
+        "type": "object",
+        "properties": {
+            "url": {"type": "string"},
+            "payload": {},
+            "headers": {"type": "object"},
+            "idempotency_key": {"type": "string"},
+        },
+        "required": ["url"],
+    },
+    "/v1/automation/schedule": {
+        "type": "object",
+        "properties": {
+            "url": {"type": "string"},
+            "payload": {},
+            "headers": {"type": "object"},
+            "delay_seconds": {"type": "integer"},
+            "cron": {"type": "string"},
+            "max_retries": {"type": "integer"},
+            "idempotency_key": {"type": "string"},
+        },
+        "required": ["url"],
+    },
+    "/v1/automation/workflow": {
+        "type": "object",
+        "properties": {
+            "steps": {"type": "array", "items": {"type": "object"}},
+            "idempotency_key": {"type": "string"},
+        },
+        "required": ["steps"],
+    },
+}
+
 
 def _validate_data_body(path: str, data) -> list | None:
     """Money-path guard for Data POST routes. Rejects malformed bodies BEFORE
