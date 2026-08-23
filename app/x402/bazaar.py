@@ -109,6 +109,43 @@ _TOOLS: dict[str, dict] = {
         "input_schema": {"type": "object", "properties": {"chain": {"type": "string", "default": "ethereum"}, "block": {"type": "string", "default": "latest"}}},
         "example": {"chain": "ethereum", "block": "latest"}, "free": False,
     },
+    # Automation API (Tier 1)
+    "cortex_automation_estimate": {
+        "method": "POST", "path": "/v1/automation/estimate",
+        "description": "Free: predict the USDC price for an automation request before paying.",
+        "input_schema": {"type": "object", "properties": {"endpoint": {"type": "string", "enum": ["transform", "http-request", "webhook", "schedule", "workflow"]}}},
+        "example": {"endpoint": "workflow"}, "free": True,
+    },
+    "cortex_automation_transform": {
+        "method": "POST", "path": "/v1/automation/transform",
+        "description": "Pure JSON/data transformation (no egress). x402-paid USDC on Base.",
+        "input_schema": {"type": "object", "properties": {"data": {"type": "object"}, "rules": {"type": "object"}}},
+        "example": {"data": {"a": 1, "b": 2}, "rules": {"pick": ["a"]}}, "free": False,
+    },
+    "cortex_automation_http_request": {
+        "method": "POST", "path": "/v1/automation/http-request",
+        "description": "Outbound HTTP/API request via SSRF-guarded egress. x402-paid USDC on Base.",
+        "input_schema": {"type": "object", "properties": {"method": {"type": "string", "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"]}, "url": {"type": "string"}, "headers": {"type": "object"}, "body": {}}},
+        "example": {"method": "GET", "url": "https://api.example.com/health"}, "free": False,
+    },
+    "cortex_automation_webhook": {
+        "method": "POST", "path": "/v1/automation/webhook",
+        "description": "Deliver a signed (HMAC) webhook payload to a URL. x402-paid USDC on Base.",
+        "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "payload": {}, "headers": {"type": "object"}}},
+        "example": {"url": "https://hook.example.com/event", "payload": {"ok": True}}, "free": False,
+    },
+    "cortex_automation_schedule": {
+        "method": "POST", "path": "/v1/automation/schedule",
+        "description": "Persist a delayed/recurring task; CortexCloud fires a signed webhook to your URL later. x402-paid USDC on Base.",
+        "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "payload": {}, "delay_seconds": {"type": "integer"}, "cron": {"type": "string"}, "max_retries": {"type": "integer"}}},
+        "example": {"url": "https://hook.example.com/job", "delay_seconds": 3600}, "free": False,
+    },
+    "cortex_automation_workflow": {
+        "method": "POST", "path": "/v1/automation/workflow",
+        "description": "Sequence up to 10 transform/http/webhook steps (120s cap). x402-paid USDC on Base.",
+        "input_schema": {"type": "object", "properties": {"steps": {"type": "array", "items": {"type": "object"}}}},
+        "example": {"steps": [{"type": "transform", "data": {"a": 1}, "rules": {}}, {"type": "webhook", "url": "https://hook.example.com", "payload": {"a": 1}}]}, "free": False,
+    },
 }
 
 

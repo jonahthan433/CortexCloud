@@ -545,6 +545,26 @@ class X402Middleware(BaseHTTPMiddleware):
                 price_str = f"${data_price_usd(_ep, _calls):.6f}"
                 request.state.provider_cost_usd = round(data_provider_cost_usd(_ep, _calls), 6)
                 request.state.category = "data"
+            elif path.startswith("/v1/automation/"):
+                from app.x402.pricing import automation_price_usd, automation_provider_cost_usd
+                _ep = path.split("/")[-1]  # transform | http-request | webhook | schedule | workflow
+                # Per-endpoint gate: disabled endpoints 503 BEFORE the 402
+                # challenge so no payment is requested (or settled) for them.
+                _auto_gate = {
+                    "transform": settings.AUTOMATION_TRANSFORM_ENABLED,
+                    "http-request": settings.AUTOMATION_HTTP_ENABLED,
+                    "webhook": settings.AUTOMATION_WEBHOOK_ENABLED,
+                    "workflow": settings.AUTOMATION_WORKFLOW_ENABLED,
+                    "schedule": settings.AUTOMATION_SCHEDULE_ENABLED,
+                }.get(_ep, True)
+                if not _auto_gate:
+                    return JSONResponse(
+                        status_code=503,
+                        content={"error": "endpoint_disabled", "detail": f"/v1/automation/{_ep} temporarily disabled"},
+                    )
+                price_str = f"${automation_price_usd(_ep):.6f}"
+                request.state.provider_cost_usd = round(automation_provider_cost_usd(_ep), 6)
+                request.state.category = "automation"
 
         required = usd_to_usdc_atomic(price_str)
 

@@ -150,5 +150,17 @@ class Settings(BaseSettings):
             )
         return self
 
+    # Automation API (Tier 1): transform, http-request, webhook, workflow,
+    # schedule. Self-hosted compute (no external paid provider). Behind
+    # AUTOMATION_ENABLED (default False). Per-endpoint gates mirror ML.
+    AUTOMATION_ENABLED: bool = Field(default=False, env="AUTOMATION_ENABLED")
+    AUTOMATION_TRANSFORM_ENABLED: bool = Field(default=True, env="AUTOMATION_TRANSFORM_ENABLED")
+    AUTOMATION_HTTP_ENABLED: bool = Field(default=True, env="AUTOMATION_HTTP_ENABLED")
+    AUTOMATION_WEBHOOK_ENABLED: bool = Field(default=True, env="AUTOMATION_WEBHOOK_ENABLED")
+    AUTOMATION_WORKFLOW_ENABLED: bool = Field(default=True, env="AUTOMATION_WORKFLOW_ENABLED")
+    AUTOMATION_SCHEDULE_ENABLED: bool = Field(default=True, env="AUTOMATION_SCHEDULE_ENABLED")
+    # HMAC key for signing outbound webhook deliveries (schedule + webhook).
+    AUTOMATION_WEBHOOK_SECRET: str = Field(default="", env="AUTOMATION_WEBHOOK_SECRET")
+
 
 settings = Settings()

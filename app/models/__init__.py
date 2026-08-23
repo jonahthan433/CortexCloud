@@ -115,7 +115,9 @@ class Benchmark(Base):
     quality_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     runtime_ms: Mapped[int] = mapped_column(BigInteger)
     objective: Mapped[float | None] = mapped_column(Numeric(24, 12), nullable=True)
-    provider_cost_usd: Mapped[float | None] = mapped_column(Numeric(18, 10), nullable=True)
     price_usd: Mapped[float | None] = mapped_column(Numeric(18, 10), nullable=True)
     margin_usd: Mapped[float | None] = mapped_column(Numeric(18, 10), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+from app.models.automation import AutoJob  # noqa: E402,F401

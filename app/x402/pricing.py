@@ -216,6 +216,12 @@ ROUTE_PRICING = {
     "POST /v1/data/tx-history": "$0.004",
     "GET /v1/data/gas-oracle": "$0.004",
     "GET /v1/data/block": "$0.004",
+    # Automation API (Tier 1) — self-hosted compute, flat floors.
+    "POST /v1/automation/transform": "$0.004",
+    "POST /v1/automation/http-request": "$0.004",
+    "POST /v1/automation/webhook": "$0.004",
+    "POST /v1/automation/schedule": "$0.010",
+    "POST /v1/automation/workflow": "$0.020",
 }
 
 ROUTE_DESCRIPTIONS = {
@@ -232,6 +238,12 @@ ROUTE_DESCRIPTIONS = {
     "POST /v1/data/tx-history": "Normalized transactions for an address on a chain (Alchemy Transfers API). x402-paid, USDC on Base.",
     "GET /v1/data/gas-oracle": "Current base fee + priority fee (gas price) for a chain (Alchemy). x402-paid, USDC on Base.",
     "GET /v1/data/block": "Block by number or 'latest' on a chain (Alchemy). x402-paid, USDC on Base.",
+    # Automation API (Tier 1)
+    "POST /v1/automation/transform": "Pure JSON/data transformation (no egress). x402-paid, USDC on Base.",
+    "POST /v1/automation/http-request": "Outbound HTTP/API request from a safe, SSRF-guarded egress. x402-paid, USDC on Base.",
+    "POST /v1/automation/webhook": "Deliver a signed (HMAC) webhook payload to a URL. x402-paid, USDC on Base.",
+    "POST /v1/automation/schedule": "Persist a delayed/recurring task; CortexCloud fires a signed webhook to your URL later. x402-paid, USDC on Base.",
+    "POST /v1/automation/workflow": "Sequence up to 10 transform/http/webhook steps (120s cap). x402-paid, USDC on Base.",
 }
 
 FREE_ROUTES = {
@@ -247,6 +259,8 @@ FREE_ROUTES = {
     # AI + Research free discovery/estimate endpoints.
     "POST /v1/ai/estimate": "Free: predict token cost + USDC price for a chat request before paying.",
     "POST /v1/research/estimate": "Free: predict the USDC price for a search/answer request before paying.",
+    # Automation API (Tier 1) free estimate endpoint.
+    "POST /v1/automation/estimate": "Free: predict the USDC price for an automation request before paying.",
 }
 
 
@@ -407,4 +421,31 @@ DATA_CHAINS = {
     "10": "opt-mainnet",
 }
 DEFAULT_CHAIN = "ethereum"
+
+# ---------------------------------------------------------------------------
+# Automation API (Tier 1) — transform, http-request, webhook, workflow, schedule.
+#
+# Self-hosted compute: no external paid provider, so provider_cost ~ $0.
+# Prices are the published floors (transform/http/webhook $0.004, schedule
+# $0.010, workflow $0.020). pegged_price(0.0, floor=X) yields exactly X
+# because max(X, 0*1.35 + 0.0015) = max(X, 0.0015) = X for X >= 0.004.
+# ---------------------------------------------------------------------------
+AUTOMATION_FLOOR = {
+    "transform": 0.004,
+    "http-request": 0.004,
+    "webhook": 0.004,
+    "schedule": 0.010,
+    "workflow": 0.020,
+}
+
+
+def automation_price_usd(endpoint: str) -> float:
+    """Charged price for an automation endpoint (flat floor; provider cost ~$0)."""
+    floor = AUTOMATION_FLOOR.get(endpoint, 0.004)
+    return pegged_price(0.0, floor=floor)
+
+
+def automation_provider_cost_usd(endpoint: str) -> float:
+    """Estimated provider cost USD for an automation endpoint (~$0 self-hosted)."""
+    return 0.0
 
