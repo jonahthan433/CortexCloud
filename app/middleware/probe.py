@@ -20,8 +20,14 @@ class ProbeMiddleware(BaseHTTPMiddleware):
             except Exception:
                 return Response(status_code=204)
             if method == "HEAD":
-                return Response(status_code=resp.status_code,
-                                headers=dict(resp.headers), content=b"")
+                # Drop hop-by-hop length headers: the upstream GET set
+                # Content-Length for its body, but a HEAD response carries no
+                # body — leaving it triggers uvicorn's
+                # "Response content shorter than Content-Length" and resets the
+                # connection (breaks HEAD-based discovery crawlers).
+                h = {k: v for k, v in dict(resp.headers).items()
+                     if k.lower() not in ("content-length", "transfer-encoding")}
+                return Response(status_code=resp.status_code, headers=h, content=b"")
             return Response(status_code=200,
                             headers={"allow": "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS"},
                             content=b"")
