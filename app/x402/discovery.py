@@ -93,6 +93,10 @@ async def agentsearch_txt():
         "Discovery: https://api.cortexcloud.org/llms.txt, https://api.cortexcloud.org/.well-known/x402.json, https://api.cortexcloud.org/.well-known/bazaar, https://api.cortexcloud.org/.well-known/agentsearch.txt, https://api.cortexcloud.org/openapi.json",
         "Pricing: https://api.cortexcloud.org/v1/capabilities",
         "# Data API (Alchemy/ CoinGecko) — LIVE: 6 endpoints (/v1/data/*) at $0.004 each, x402-settled. Ready for agent calls.",
+        "# Automation API (Tier 1) — LIVE: agent-native actions over x402 (USDC on Base).",
+        "#   transform $0.004 (pure JSON shaping, no egress) | http-request $0.004 (SSRF-guarded egress)",
+        "#   webhook $0.004 (HMAC-signed delivery) | schedule $0.010 (persistent delayed/recurring job) | workflow $0.020 (<=10 steps, 120s cap).",
+        "#   POST /v1/automation/estimate (free) for price; paid endpoints return 402 then settle.",
     ])
     return PlainTextResponse(text + "\n", media_type="text/plain; charset=utf-8")
 
@@ -134,6 +138,18 @@ are live agent-native API categories on it.
 - POST /v1/ai/chat — {{"messages": [{{"role":"user","content":"..."}}], "model":"gemini-2.5-flash", "max_tokens": 128}}
 - POST /v1/ai/embed — {{"input": ["text to embed"]}}
 - POST /v1/research/search — {{"query": "latest quantum error correction", "count": 5}}
+
+## Automation (one vertical)
+
+Agent-native actions over x402 (USDC on Base). No shell, fs, browser, or
+infra access — egress is SSRF-guarded (private/metadata IPs blocked),
+webhooks are HMAC-signed. POST /v1/automation/estimate (free) for price.
+
+- POST /v1/automation/transform ($0.004) — {{"data": {{"a": 1, "b": 2}}, "rules": {{"pick": ["a"]}}}}
+- POST /v1/automation/http-request ($0.004) — {{"method": "GET", "url": "https://api.example.com/health"}}
+- POST /v1/automation/webhook ($0.004) — {{"url": "https://hook.example.com", "payload": {{"ok": true}}}}
+- POST /v1/automation/schedule ($0.010) — {{"url": "https://hook.example.com", "delay_seconds": 3600}}
+- POST /v1/automation/workflow ($0.020) — {{"steps": [{{"type": "transform", "data": {{"a": 1}}, "rules": {{}}}}, {{"type": "webhook", "url": "https://hook.example.com", "payload": {{"a": 1}}}}]}}
 
 ## Quantum (one vertical)
 
