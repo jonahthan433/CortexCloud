@@ -52,18 +52,18 @@ def main():
     s, b = call("/v1/automation/http-request", {"method": "GET", "url": "https://api.cortexcloud.org/v1/capabilities", "idempotency_key": "smk-http-1"})
     res.append(ok("http-request 200", s == 200, f"{s} {str(b)[:80]}"))
 
-    # webhook (deliver to a public request-bin-style URL; use CortexCloud itself as a noop sink)
-    s, b = call("/v1/automation/webhook", {"url": "https://api.cortexcloud.org/v1/capabilities", "payload": {"smoke": True}, "idempotency_key": "smk-webhook-1"})
+    # webhook (deliver to a POST+200 in-domain endpoint; proves HMAC-signed delivery)
+    s, b = call("/v1/automation/webhook", {"url": "https://api.cortexcloud.org/v1/automation/estimate", "payload": {"endpoint": "transform"}, "idempotency_key": "smk-webhook-1"})
     res.append(ok("webhook 200", s == 200, f"{s} {str(b)[:80]}"))
 
     # schedule (persists a 1h-delayed job -> Postgres)
-    s, b = call("/v1/automation/schedule", {"url": "https://api.cortexcloud.org/v1/capabilities", "payload": {"smoke": True}, "delay_seconds": 3600, "idempotency_key": "smk-sched-1"})
+    s, b = call("/v1/automation/schedule", {"url": "https://api.cortexcloud.org/v1/automation/estimate", "payload": {"endpoint": "transform"}, "delay_seconds": 3600, "idempotency_key": "smk-sched-1"})
     res.append(ok("schedule 200 + job_id", s == 200 and bool(b.get("job_id")), f"{s} {b}"))
 
-    # workflow (transform -> webhook)
+    # workflow (transform -> webhook to POST+200 endpoint)
     s, b = call("/v1/automation/workflow", {"steps": [
         {"type": "transform", "data": {"a": 1}, "rules": {}},
-        {"type": "webhook", "url": "https://api.cortexcloud.org/v1/capabilities", "payload": {"a": 1}},
+        {"type": "webhook", "url": "https://api.cortexcloud.org/v1/automation/estimate", "payload": {"endpoint": "transform"}},
     ], "idempotency_key": "smk-wf-1"})
     res.append(ok("workflow 200", s == 200, f"{s} {str(b)[:80]}"))
 
