@@ -102,11 +102,23 @@ class RerankRequest(BaseModel):
     top_n: int | None = Field(default=None, ge=1, le=256, description="Return only top N.")
 
 
-def _disabled() -> JSONResponse | None:
+def _disabled(endpoint: str = "") -> JSONResponse | None:
     if not settings.ML_ENABLED:
         return JSONResponse(
             status_code=503,
             content={"error": "ml_disabled", "detail": "ML API not enabled on this instance (ML_ENABLED=false)"},
+        )
+    # Per-endpoint gates: rerank is production-ready; image-generate and
+    # image-understand stay disabled until their providers are funded.
+    gate = {
+        "image-generate": settings.ML_IMAGE_GENERATE_ENABLED,
+        "image-understand": settings.ML_IMAGE_UNDERSTAND_ENABLED,
+        "rerank": settings.ML_RERANK_ENABLED,
+    }.get(endpoint, True)
+    if not gate:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "endpoint_disabled", "detail": f"/v1/ml/{endpoint} is temporarily disabled (provider funding pending)"},
         )
     return None
 
@@ -252,7 +264,7 @@ async def ml_estimate(req: ImageGenerateRequest | ImageUnderstandRequest | Reran
 
 @router.post("/image-generate")
 async def image_generate(req: ImageGenerateRequest, request: Request):
-    if d := _disabled():
+    if d := _disabled("image-generate"):
         return d
     if e := _need(settings.FAL_KEY, "fal.ai", "fal-"):
         # If fal key absent, allow Replicate-only path.
@@ -283,7 +295,7 @@ async def image_generate(req: ImageGenerateRequest, request: Request):
 
 @router.post("/image-understand")
 async def image_understand(req: ImageUnderstandRequest, request: Request):
-    if d := _disabled():
+    if d := _disabled("image-understand"):
         return d
     if not req.image_b64 and not req.image_url:
         return JSONResponse(status_code=400, content={"error": "bad_request", "detail": "provide image_b64 or image_url"})
@@ -313,7 +325,7 @@ async def image_understand(req: ImageUnderstandRequest, request: Request):
 
 @router.post("/rerank")
 async def rerank(req: RerankRequest, request: Request):
-    if d := _disabled():
+    if d := _disabled("rerank"):
         return d
     if e := _need(settings.COHERE_API_KEY, "Cohere", "co-"):
         if not settings.JINA_API_KEY:
