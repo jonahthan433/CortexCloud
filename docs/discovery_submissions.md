@@ -1,40 +1,33 @@
-# CortexCloud — Discovery Directory Submissions (A1)
+# CortexCloud — Discovery Directory Submissions (A1/A browser-form batch)
 # Branding: "CortexCloud — agent-native x402 APIs at api.cortexcloud.org"
-# payTo / payment address: 0x5a0353bc9c75b893a9b5735d3e79f1bd988ea143
-# Rule: NO paid listings, subscriptions, or promoted placement.
+# payTo: 0x5a0353bc9c75b893a9b5735d3e79f1bd988ea143
+# Rule: NO paid listings, subscriptions, or promoted placement. Free only.
 
-## DONE (free, no payment, no browser)
-- [x402-index/x402-discovery-index] GitHub issue #36 — OPEN (pending their 24h verification)
-      URL: https://github.com/x402-index/x402-discovery-index/issues/36
-      Account: existing GitHub (jonahthan433) — no new creds
+## DONE (free, no browser needed — reverse-engineered POST endpoints)
+- [x402-index] GitHub issue #36 — OPEN (awaiting 24h verification)
+      https://github.com/x402-index/x402-discovery-index/issues/36
+- [x402-list] POST /api/v1/submit — HTTP 201, status=pending, 3 endpoints probed OK
+      submission_id: 5bc566a8-622f-43b2-9509-3e0cf0281117
+      payload key lesson: API wants "url" not "service_url"; endpoints as JSON array of /v1/paths
+- [agent-tools.cloud] ALREADY LISTED (passive crawl via our live /.well-known/bazaar)
+      slug: api-cortexcloud-org-bazaar  (confirmed present, no submit needed)
 
-## DEAD / UNREACHABLE (skip)
-- [x402scout.com] — service SUSPENDED (HTTP 503). Skip.
+## DEAD / DOWN (skip)
+- [x402scout.com] — SUSPENDED (HTTP 503). Dead.
+- [402radar.io] — POST /api/radar-submit returns 503 (service degraded). Retried; still down.
 
-## READY — needs browser (Chrome not running) or account — NOT submitted yet
-- [402radar.io] web form https://402radar.io/submit (200) — payload ready
-- [x402-list.com] web form https://x402-list.com/submit (200) — payload ready
-- [agent-tools.cloud] web form https://agent-tools.cloud/submit (200) — payload ready
-      (passive crawl also possible via our live /.well-known/bazaar + x402.json + /mcp)
-- [2s.io learn/x402] catalog — no programmatic submit; web only
-- [MCP registries] smithery.ai / mcp.so / glama.ai/mcp — web forms/accounts
-- [punkpeye/awesome-mcp-servers] GitHub PR — deferred (gh api rate-limited; format TBD)
+## BLOCKED — needs authenticated account login (browser unavailable; account creation not approved)
+- [Smithery] /publish 404, /new 308→login. Needs Smithery account.
+- [mcp.so] unreachable from this IP (curl 000). Needs account/web.
+- [Glama] /mcp/new 404. Needs Glama account.
+- [punkpeye/awesome-mcp-servers] GitHub PR — deferred (gh api rate-limited; format TBD).
 
-## PASSIVE (no action — crawler-based, surfaces already live + 200)
+## PASSIVE (our surfaces live + 200; agent-tools auto-indexed us)
 - /.well-known/x402.json, /.well-known/bazaar, /.well-known/agentsearch.txt,
-  /llms.txt, /openapi.json, /mcp all return 200 (crawlable by agent directories).
+  /llms.txt, /openapi.json, /mcp all 200 → crawlable. agent-tools.cloud confirmed pickup.
 
-## BLOCKERS (environmental, not policy)
-- X search (x_search / xAI Grok): CREDITS EXHAUSTED — cannot run batched search or post.
-- Browser tool: no Chrome running — cannot submit web forms or post to communities.
-- Posting to r/x402 / DEV.to / x402 Discord needs accounts (your click).
-
-## HIGH-INTENT COMMUNITIES FOUND (for when posting unblocked)
-- r/x402 (Reddit), x402 Discord (Coinbase/Cloudflare x402 Foundation),
-  DEV Community x402 thread (dev.to), 2s.io learn/x402, x402 tutorials
-  (Sera, Coinbase CDP docs, DevToolLab), x402 GitBook Discussions.
-
-## Notes
-- All payloads lead with api.cortexcloud.org + "agent-native x402 API platform".
-- No credentials created yet beyond existing GitHub. Record any new account here:
-      (none yet)
+## Note
+Browser/Chrome is NOT available in this runtime (no DISPLAY). Submissions done via
+direct POST to each directory's backend API instead of a browser form — same result,
+no payment, no accounts. MCP registries that require login were not submitted
+(account creation not approved). Re-run when a browser/account is available.
