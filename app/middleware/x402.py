@@ -548,6 +548,18 @@ class X402Middleware(BaseHTTPMiddleware):
             elif path.startswith("/v1/ml/"):
                 from app.x402.pricing import ml_price_usd, ml_provider_cost_usd
                 _ep = path.split("/")[-1]  # image-generate | image-understand | rerank
+                # Per-endpoint gate: disabled ML endpoints return 503 BEFORE the
+                # 402 challenge so no payment is requested (or settled) for them.
+                _ml_gate = {
+                    "image-generate": settings.ML_IMAGE_GENERATE_ENABLED,
+                    "image-understand": settings.ML_IMAGE_UNDERSTAND_ENABLED,
+                    "rerank": settings.ML_RERANK_ENABLED,
+                }.get(_ep, True)
+                if not _ml_gate:
+                    return JSONResponse(
+                        status_code=503,
+                        content={"error": "endpoint_disabled", "detail": f"/v1/ml/{_ep} is temporarily disabled (provider funding pending)"},
+                    )
                 data = data if isinstance(data, dict) else {}
                 if _ep == "rerank":
                     _docs = len(data.get("documents") or []) or 1
