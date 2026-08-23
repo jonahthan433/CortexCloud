@@ -639,6 +639,387 @@
         "security": []
       }
     },
+    "/v1/automation/estimate": {
+      "post": {
+        "tags": [
+          "Automation",
+          "automation"
+        ],
+        "summary": "Estimate",
+        "operationId": "estimate_v1_automation_estimate_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/v1/automation/transform": {
+      "post": {
+        "tags": [
+          "Automation",
+          "automation"
+        ],
+        "summary": "Transform",
+        "operationId": "transform_v1_automation_transform_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransformRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+          }
+        },
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.004000"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            },
+            {
+              "mpp": {
+                "method": "tempo",
+                "intent": "charge",
+                "currency": "0x20C000000000000000000000b9537d11c60E8b50"
+              }
+            }
+          ],
+          "scheme": "x402",
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "price_atomic_usdc": "4000",
+          "decimals": 6
+        }
+      }
+    },
+    "/v1/automation/http-request": {
+      "post": {
+        "tags": [
+          "Automation",
+          "automation"
+        ],
+        "summary": "Http Request",
+        "operationId": "http_request_v1_automation_http_request_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HttpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+          }
+        },
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.004000"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            },
+            {
+              "mpp": {
+                "method": "tempo",
+                "intent": "charge",
+                "currency": "0x20C000000000000000000000b9537d11c60E8b50"
+              }
+            }
+          ],
+          "scheme": "x402",
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "price_atomic_usdc": "4000",
+          "decimals": 6
+        }
+      }
+    },
+    "/v1/automation/webhook": {
+      "post": {
+        "tags": [
+          "Automation",
+          "automation"
+        ],
+        "summary": "Webhook",
+        "operationId": "webhook_v1_automation_webhook_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+          }
+        },
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.004000"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            },
+            {
+              "mpp": {
+                "method": "tempo",
+                "intent": "charge",
+                "currency": "0x20C000000000000000000000b9537d11c60E8b50"
+              }
+            }
+          ],
+          "scheme": "x402",
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "price_atomic_usdc": "4000",
+          "decimals": 6
+        }
+      }
+    },
+    "/v1/automation/schedule": {
+      "post": {
+        "tags": [
+          "Automation",
+          "automation"
+        ],
+        "summary": "Schedule",
+        "operationId": "schedule_v1_automation_schedule_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+          }
+        },
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.010000"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            },
+            {
+              "mpp": {
+                "method": "tempo",
+                "intent": "charge",
+                "currency": "0x20C000000000000000000000b9537d11c60E8b50"
+              }
+            }
+          ],
+          "scheme": "x402",
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "price_atomic_usdc": "10000",
+          "decimals": 6
+        }
+      }
+    },
+    "/v1/automation/workflow": {
+      "post": {
+        "tags": [
+          "Automation",
+          "automation"
+        ],
+        "summary": "Workflow",
+        "operationId": "workflow_v1_automation_workflow_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+          }
+        },
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.020000"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            },
+            {
+              "mpp": {
+                "method": "tempo",
+                "intent": "charge",
+                "currency": "0x20C000000000000000000000b9537d11c60E8b50"
+              }
+            }
+          ],
+          "scheme": "x402",
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "price_atomic_usdc": "20000",
+          "decimals": 6
+        }
+      }
+    },
     "/v1/ai/estimate": {
       "post": {
         "tags": [
@@ -2105,6 +2486,60 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "HttpRequest": {
+        "properties": {
+          "method": {
+            "type": "string",
+            "pattern": "^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)$",
+            "title": "Method",
+            "default": "GET"
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url"
+          },
+          "headers": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Headers"
+          },
+          "body": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "timeout": {
+            "type": "number",
+            "maximum": 30.0,
+            "minimum": 1.0,
+            "title": "Timeout",
+            "default": 30.0
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "HttpRequest"
+      },
       "NFTOwnershipRequest": {
         "properties": {
           "address": {
@@ -2287,6 +2722,73 @@
         ],
         "title": "RoutingInput"
       },
+      "ScheduleRequest": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url"
+          },
+          "payload": {
+            "title": "Payload"
+          },
+          "headers": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Headers"
+          },
+          "delay_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2592000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delay Seconds"
+          },
+          "cron": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cron"
+          },
+          "max_retries": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 0.0,
+            "title": "Max Retries",
+            "default": 3
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "ScheduleRequest"
+      },
       "SearchRequest": {
         "properties": {
           "query": {
@@ -2415,6 +2917,37 @@
         ],
         "title": "TranscribeRequest"
       },
+      "TransformRequest": {
+        "properties": {
+          "data": {
+            "title": "Data",
+            "description": "Arbitrary JSON to shape."
+          },
+          "rules": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Rules",
+            "description": "pick/omit/rename/set."
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "TransformRequest"
+      },
       "TrialRequest": {
         "properties": {
           "problem": {
@@ -2533,6 +3066,72 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WebhookRequest": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url"
+          },
+          "payload": {
+            "title": "Payload"
+          },
+          "headers": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Headers"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "WebhookRequest"
+      },
+      "WorkflowRequest": {
+        "properties": {
+          "steps": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Steps"
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "steps"
+        ],
+        "title": "WorkflowRequest"
       }
     },
     "securitySchemes": {
