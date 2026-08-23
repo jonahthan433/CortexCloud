@@ -338,6 +338,11 @@ INPUT_EXAMPLES = {
     "/v1/data/token-price": {"id": "ethereum"},
     "/v1/data/nft-ownership": {"address": "0x0000000000000000000000000000000000000000", "chain": "ethereum"},
     "/v1/data/tx-history": {"address": "0x0000000000000000000000000000000000000000", "chain": "ethereum", "limit": 25},
+    "/v1/automation/transform": {"data": {"a": 1, "b": 2}, "rules": {"pick": ["a"]}},
+    "/v1/automation/http-request": {"method": "GET", "url": "https://api.cortexcloud.org/v1/capabilities"},
+    "/v1/automation/webhook": {"url": "https://example.com/hook", "payload": {"event": "done"}},
+    "/v1/automation/schedule": {"url": "https://example.com/hook", "delay_seconds": 3600, "payload": {"event": "tick"}},
+    "/v1/automation/workflow": {"steps": [{"type": "transform", "data": {"a": 1}, "rules": {}}, {"type": "webhook", "url": "https://example.com/hook", "payload": {"a": 1}}]},
 }
 # Data GET query schemas (gas-oracle, block) for the bazaar extension.
 INPUT_SCHEMAS = {
