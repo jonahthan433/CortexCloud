@@ -257,8 +257,7 @@ async def _webhook_deliver(url: str, payload: Any, headers: dict, secret: str) -
 # --------------------------------------------------------------------------
 @router.post("/estimate")
 async def estimate(req: Request):
-    if d := _disabled():
-        return d
+    # Free discovery — always available, even when AUTOMATION_ENABLED=false.
     try:
         body = await req.json()
     except Exception:

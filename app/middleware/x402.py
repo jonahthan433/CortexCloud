@@ -546,6 +546,12 @@ class X402Middleware(BaseHTTPMiddleware):
                 request.state.provider_cost_usd = round(data_provider_cost_usd(_ep, _calls), 6)
                 request.state.category = "data"
             elif path.startswith("/v1/automation/"):
+                if not settings.AUTOMATION_ENABLED:
+                    return JSONResponse(
+                        status_code=503,
+                        content={"error": "automation_disabled",
+                                 "detail": "Automation API not enabled (AUTOMATION_ENABLED=false)"},
+                    )
                 from app.x402.pricing import automation_price_usd, automation_provider_cost_usd
                 _ep = path.split("/")[-1]  # transform | http-request | webhook | schedule | workflow
                 # Per-endpoint gate: disabled endpoints 503 BEFORE the 402
