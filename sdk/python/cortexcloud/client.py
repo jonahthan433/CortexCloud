@@ -42,6 +42,12 @@ class CortexCloud:
         self._raise(r)
         return r.json()
 
+    def trial(self, problem: dict, mode: str = "auto") -> dict:
+        """Free no-wallet solve (n<=10). Mirrors POST /v1/trial server route."""
+        r = self._c.post("/v1/trial", json={"problem": problem, "mode": mode})
+        self._raise(r)
+        return r.json()
+
     # ── paid path ─────────────────────────────────────────────────
     def optimize(self, problem: dict, mode: str = "auto",
                  webhook_url: Optional[str] = None) -> dict:
