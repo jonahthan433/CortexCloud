@@ -26,7 +26,7 @@ class TracingMiddleware(BaseHTTPMiddleware):
         token = correlation_id_ctx.set(correlation_id)
         
         start_time = time.perf_counter()
-        logger.info(f"Incoming request: {request.method} {request.url.path} from {request.client.host if request.client else 'unknown'}")
+        logger.info(f"Incoming request: {request.method} {str(request.url)} from {request.client.host if request.client else 'unknown'}")  # ponytail: full URL (incl ?ref=) for GTM attribution; x402 payment secrets are in headers/body, not query
 
         try:
             response = await call_next(request)
