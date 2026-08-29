@@ -5,12 +5,12 @@ Solve real optimization problems by API call — portfolio selection, route plan
 ## Quick start (free, no wallet)
 
 ```bash
-curl -X POST https://api.cortexcloud.org/v1/trial \
-  -H "Content-Type: application/json" \
-  -d '{"problem":"portfolio","n_assets":5,"risk":0.3}'
+curl https://api.cortexcloud.org/v1/examples
 ```
 
-Returns a solved allocation. No wallet, no key.
+Returns worked request/response schemas for every problem type. For a free
+price/feasibility preview of an optimization problem, use `POST /v1/estimate`
+or `POST /v1/simulate` — both free, no wallet.
 
 ## Portfolio Optimization
 
