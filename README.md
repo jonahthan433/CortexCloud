@@ -1,89 +1,59 @@
-# CortexCloud — Optimization Infrastructure for AI Agents
+# CortexCloud
 
-> Automatically solve suitable problems using **classical or quantum** backends
-> and **pay per optimization with x402** (USDC on Base). No API keys, no
-> subscriptions — an agent can go from "discover" to "solved" in three calls.
+Solve real optimization problems by API call — portfolio selection, route planning, and job scheduling, formulated as QUBO and solved on classical, hybrid, or quantum backends. Pay per call in USDC via x402. No API key, no subscription.
 
-**Live endpoint:** `https://api.cortexcloud.org` · **MCP:** `https://api.cortexcloud.org/mcp` · **Manifest:** `/.well-known/x402.json`
-
-## Why it exists
-
-LLMs can *describe* scheduling, routing, portfolio and allocation problems —
-but they can't *solve* them. CortexCloud is the pay-per-call solving layer:
-an agent formulates the problem as QUBO/Ising, we recommend the right solver
-(classical, hybrid, or real quantum hardware), and it pays per run
-with x402 micropayments. No signup, no keys — the wallet is the account.
-
-## Quickstart (agent / developer)
-
-**1. Estimate — free.** Get the recommended mode, algorithm, backend, runtime
-and price for your problem:
+## Quick start (free, no wallet)
 
 ```bash
-curl -s https://api.cortexcloud.org/v1/estimate \
-  -H 'content-type: application/json' \
-  -d '{"problem_type":"qubo","n":4,"data":{"linear":[1,-2,3,-4],"quadratic":{"0,1":-1.5}}}'
+curl -X POST https://api.cortexcloud.org/v1/trial \
+  -H "Content-Type: application/json" \
+  -d '{"problem":"portfolio","n_assets":5,"risk":0.3}'
 ```
 
-**2. Pay & solve — from $0.05.** `POST /v1/optimize` returns an x402
-PaymentRequirements challenge (USDC on Base, chain 8453). Sign with your
-wallet, resend, then poll the job:
+Returns a solved allocation. No wallet, no key.
+
+## Portfolio Optimization
+
+Minimize risk for a target return by selecting asset weights.
 
 ```bash
-curl -s https://api.cortexcloud.org/v1/optimize \
-  -H 'content-type: application/json' \
-  -d '{"problem_type":"qubo","n":4,"data":{"linear":[1,-2,3,-4],"quadratic":{"0,1":-1.5}}}'
-# -> 402 + x402 challenge; settle USDC; resend with X-PAYMENT header
-# -> {"job_id": "..."}
-curl -s https://api.cortexcloud.org/v1/jobs/<job_id>
+curl -X POST https://api.cortexcloud.org/v1/optimize \
+  -H "Content-Type: application/json" \
+  -d '{"problem":"portfolio","returns":[0.12,0.08,0.15],"cov":[[0.04,0.01,0.02],[0.01,0.03,0.01],[0.02,0.01,0.05]],"risk_aversion":0.5}'
 ```
 
-**3. Or connect an MCP client (Claude, Cursor, Codex):**
+Settled in USDC via x402 on Base. Get a free estimate first at `/v1/estimate`.
+
+## Route Planning
+
+Shortest tour across locations (TSP / vehicle routing).
 
 ```bash
-claude mcp add cortexcloud --transport http https://api.cortexcloud.org/mcp
+curl -X POST https://api.cortexcloud.org/v1/optimize \
+  -H "Content-Type: application/json" \
+  -d '{"problem":"routing","coords":[[0,0],[3,4],[6,1],[2,7]]}'
 ```
 
-Four tools: `cortex_estimate_optimization` (free), `cortex_optimize` (paid,
-auto-x402), `cortex_get_job`, `cortex_list_backends`.
+## Job Scheduling
 
-## Endpoints
+Sequence jobs to minimize makespan under precedence and capacity constraints.
 
-| Endpoint | Method | Cost | Purpose |
-|---|---|---|---|
-| `/v1/estimate` | POST | free | analyze a QUBO/Ising, get mode/algorithm/backend/runtime/price |
-| `/v1/optimize` | POST | x402 USDC | solve (classical/hybrid/quantum), returns `job_id` |
-| `/v1/jobs/{id}` | GET | free | poll job status + result |
-| `/v1/backends` | GET | free | list solvers/backends + availability |
-| `/v1/capabilities` | GET | free | what this service is and what it can run |
-| `/v1/examples` | GET | free | canonical portfolio/assignment/scheduling/routing/QUBO examples |
-| `/mcp` | POST | free* | MCP server (Streamable HTTP): 4 tools (`cortex_optimize` paid) |
-| `/.well-known/x402.json` | GET | free | x402 discovery manifest |
-| `/.well-known/bazaar` | GET | free | bazaar/MCP discovery doc |
-| `/openapi.json` | GET | free | OpenAPI 3.1 spec |
+```bash
+curl -X POST https://api.cortexcloud.org/v1/optimize \
+  -H "Content-Type: application/json" \
+  -d '{"problem":"scheduling","jobs":[{"id":1,"dur":3,"deps":[]},{"id":2,"dur":2,"deps":[1]}]}'
+```
 
-## Pricing
+## Payment model
 
-| Mode | Solver | Price |
-|---|---|---|
-| classical | `brute-force` (exact, n≤20) / `simulated-annealing` | $0.05 |
-| hybrid | `Hybrid QAOA` (QAOA + classical optimization loop) | $0.10 |
-| quantum | real QPU hardware (1024 shots per run) | $1.503 |
+Paid endpoints return an x402 `402 Payment Required` with USDC terms on Base.
+Your x402 client settles the per-call price (from $0.05) and retries. No API key,
+no account. Free endpoints: `/v1/trial` and `/v1/estimate`.
 
-Quantum is only recommended with benchmark evidence — never on marketing.
+## Discovery
 
-## Examples
+- Agent terms: `/.well-known/x402.json`
+- LLM docs: `/llms.txt`
+- Examples: `/v1/examples`
 
-See [`examples/`](examples/) for copy-paste scheduling, portfolio and
-delivery-routing problems (free estimates + paid solves).
-
-## Agent discovery
-
-- `llms.txt`, `/.well-known/agentsearch.txt`, `/.well-known/x402.json`, `/.well-known/bazaar`, `/openapi.json`
-- MCP registries: official MCP Registry (`io.github.jonahthan433/cortexcloud`),
-  Smithery, x402scan, mppscan, Poncho, AgentCash
-
-## Development
-
-- Tests: `pytest tests/ -q` (44 passing)
-- State + ops: `CORTEXCLOUD_STATE.md`, `CT105_HARDENING.md`, `MARKETPLACE_LISTINGS.md`, `GTM_PLAN.md`
+Base URL: https://api.cortexcloud.org
