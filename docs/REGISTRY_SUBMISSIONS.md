@@ -64,10 +64,30 @@ every registry: `https://api.cortexcloud.org/mcp`.
 | jobs | **Retrieve the solution** for a submitted job |
 | backends | **List available solvers** and live availability |
 
+## 7. minia2a — minia2a.uk (manual submit, no open API)
+Submit via their "list a service" form / contact (M2M micropayment marketplace,
+173 services, x402 USDC on Base, 5% fee). Paste-ready listing:
+
+- **Name:** CortexCloud
+- **Endpoint:** https://api.cortexcloud.org
+- **Categories:** Automation · Data · Research · AI · Optimization/Quantum
+- **Description:**
+  > Agent-native x402 pay-per-call API platform. Automation (HTTP/webhook/
+  > schedule/workflow), on-chain Data (token prices, balances, blocks, gas via
+  > Alchemy/CoinGecko), Research (search + cited answers), AI (chat/embed/
+  > transcribe), and Optimization/Quantum (QUBO/Ising, classical → real QPU).
+  > Pay per call in USDC on Base — no API keys, no subscription. Free estimate
+  > before every paid call. MCP server at /mcp.
+- **Pricing:** per-call, $0.004 (Data/AI/Automation) → $0.05 (Opt classical) →
+  $1.503 (real quantum). Discovery: /.well-known/x402.json (discoverable:true,
+  in x402 Bazaar), /llms.txt, /openapi.json.
+
 ## Checklist before submitting
 - [x] `curl https://api.cortexcloud.org/health` → 200
 - [x] `/mcp` responds to MCP initialize (verified 0.4.0)
 - [x] `/.well-known/x402.json` has `discoverable: true` (Bazaar-indexed)
 - [x] `llms.txt` full-platform (ML marked preview-only)
-- [ ] Glama / mcp.so / PulseMCP submitted (needs GitHub account)
-- [ ] Smithery description refreshed to full platform
+- [x] Smithery + Official Registry descriptions refreshed to full platform (pushed 37dcde0)
+- [ ] Glama / mcp.so / PulseMCP submitted (needs GitHub account — links in §1-3)
+- [ ] minia2a submitted (paste §7)
+- [ ] Smithery live description re-sync (auto from repo; verify @cortexcloud/mcp)
