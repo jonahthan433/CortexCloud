@@ -113,8 +113,8 @@ async def llms_txt():
     text = f"""# CortexCloud
 
 CortexCloud — an agent-native API platform. Agents discover, pay for, and
-execute services across six categories: **AI, Research, Data, ML, Automation
-and Quantum**. Every paid endpoint is reachable over x402 (USDC on Base,
+execute services across six categories: **AI, Research, Data, Automation,
+Optimization/Quantum** (ML preview only — not generally available). Every paid endpoint is reachable over x402 (USDC on Base,
 eip155:8453) — no API keys, no subscriptions, permissionless settlement.
 Quantum is one vertical within the broader platform; AI, Research and Data
 are live agent-native API categories on it.
