@@ -67,6 +67,49 @@ class CortexCloud:
         self._raise(r)
         return r.json()
 
+    # ── generic paid call (x402 v2) ──────────────────────────────
+    def pay(self, method: str, path: str, json: Optional[dict] = None) -> dict:
+        """Any paid endpoint: 402 challenge -> sign -> settle -> JSON. Needs private_key."""
+        if not self.private_key:
+            raise CortexCloudError(0, "private_key required for paid calls")
+        r = self._c.request(method, path, json=json)
+        if r.status_code == 402:
+            sig = sign_payment(r.json(), self.private_key)
+            r = self._c.request(method, path, json=json,
+                                headers={"payment-signature": sig})
+        self._raise(r)
+        return r.json()
+
+    # ── Data ($0.004) ─────────────────────────────────────────────
+    def token_price(self, symbol: str, currency: str = "usd") -> dict:
+        return self.pay("POST", "/v1/data/token-price", json={"symbol": symbol, "currency": currency})
+
+    def token_balances(self, address: str, chains: list[str] | None = None) -> dict:
+        return self.pay("POST", "/v1/data/token-balances", json={"address": address, "chains": chains or []})
+
+    def block(self, chain: str = "base", number: str = "latest") -> dict:
+        return self.pay("GET", f"/v1/data/block?chain={chain}&number={number}")
+
+    def gas_oracle(self, chain: str = "base") -> dict:
+        return self.pay("GET", f"/v1/data/gas-oracle?chain={chain}")
+
+    # ── Research ($0.006 / $0.012) ────────────────────────────────
+    def research_search(self, query: str, top_k: int = 5) -> dict:
+        return self.pay("POST", "/v1/research/search", json={"query": query, "top_k": top_k})
+
+    def research_answer(self, query: str) -> dict:
+        return self.pay("POST", "/v1/research/answer", json={"query": query})
+
+    # ── Automation ($0.004–$0.020) ────────────────────────────────
+    def http_request(self, url: str, method: str = "GET", headers: dict | None = None,
+                     body: str | None = None) -> dict:
+        return self.pay("POST", "/v1/automation/http-request",
+                        json={"url": url, "method": method, "headers": headers or {}, "body": body})
+
+    # ── AI ($0.004) ───────────────────────────────────────────────
+    def chat(self, prompt: str, model: str = "auto") -> dict:
+        return self.pay("POST", "/v1/ai/chat", json={"prompt": prompt, "model": model})
+
     def job(self, job_id: str) -> dict:
         r = self._c.get(f"/v1/jobs/{job_id}")
         self._raise(r)
@@ -89,3 +132,19 @@ class CortexCloud:
             except Exception:
                 detail = r.text[:200]
             raise CortexCloudError(r.status_code, detail)
+
+    @staticmethod
+    def demo() -> None:
+        """Free-path smoke check (no wallet, no spend). Fails if the API is down."""
+        cc = CortexCloud()
+        prob = {"problem_type": "qubo", "n": 4,
+                "data": {"linear": [1, -2, 3, -4], "quadratic": {"0,1": -1.5}}}
+        est = cc.estimate(prob)
+        assert est.get("recommendation"), "estimate returned no recommendation"
+        tr = cc.trial(prob)
+        assert tr.get("status") in ("succeeded", "completed", "ok"), f"trial: {tr}"
+        print("cortexcloud SDK demo OK — free endpoints reachable, no spend")
+
+
+if __name__ == "__main__":
+    CortexCloud.demo()

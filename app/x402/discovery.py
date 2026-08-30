@@ -41,6 +41,7 @@ def build_manifest(active: bool = True) -> dict:
     return {
         "x402": True,
         "version": 2,
+        "discoverable": True,  # ponytail: lets x402 Bazaar / CDP facilitator auto-index us
         "facilitator": settings.X402_FACILITATOR_URL,
         "merchant_wallet": settings.WALLET_ADDRESS,
         "pricing_currency": "USDC",

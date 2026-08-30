@@ -1,7 +1,9 @@
-"""cortexcloud — pay-per-call QUBO/Ising optimization for AI agents.
+"""cortexcloud — agent-native, pay-per-call API platform (x402, USDC on Base).
 
-No API keys. Estimate free, pay USDC on Base per call via x402, poll for
-the solution. Works from any agent runtime (CrewAI, LangGraph, plain code).
+Six categories: Optimization/Quantum, AI, Research, Data, Automation, MCP.
+No API keys. Free endpoints (estimate/simulate/trial) need no wallet; paid
+endpoints (optimize, token_price, research_answer, http_request, chat, ...)
+settle per call in USDC via x402. Works from any agent runtime.
 """
 from .client import CortexCloud, CortexCloudError  # noqa: F401
 

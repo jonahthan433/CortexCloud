@@ -1,39 +1,46 @@
 # cortexcloud
 
-Pay-per-call **QUBO/Ising optimization** for AI agents. No API keys, no signup —
-an agent estimates for free, pays USDC on Base per call via **x402**, and polls
-for the solution.
+Agent-native, pay-per-call API platform settled by **x402** (USDC on Base). Six
+categories: Optimization/Quantum, AI, Research, Data, Automation, MCP. No API
+keys — free endpoints need no wallet; paid endpoints settle per call.
 
 ```bash
 pip install cortexcloud
 ```
 
-## Quickstart
+## Quickstart (free)
 
 ```python
 from cortexcloud import CortexCloud
 
-cc = CortexCloud()                          # free calls work with no key
+cc = CortexCloud()                       # free calls need no wallet
 est = cc.estimate({"problem_type": "qubo", "n": 6, "data": {...}})
 print(est["recommendation"]["mode"], est["recommendation"]["cortexcloud_price_usd"])
 ```
 
-**Paid solve** (needs a wallet with USDC on Base):
+## Paid call (any category)
 
 ```python
-cc = CortexCloud(private_key="0x...")       # from your secret store
-job = cc.optimize({"problem_type": "qubo", "n": 6, "data": {...}})
+cc = CortexCloud(private_key="0x...")   # Base wallet with USDC
+price = cc.token_price("ETH")            # Data  $0.004
+ans   = cc.research_answer("best L2 for USDC settlement?")  # Research $0.012
+job   = cc.optimize({"problem_type": "qubo", "n": 6, "data": {...}})  # Opt $0.05
 print(cc.wait(job["job_id"]))
 ```
 
-## Agent-friendly surface
+Every paid method handles the x402 v2 flow automatically: 402 challenge →
+EIP-712 sign → settle → JSON. You never touch the payment header.
 
-- `estimate(problem)` — free exact quote (mode, backend, price, runtime)
-- `simulate(problem)` — free dry-run: feasibility + confidence before paying
-- `preset("portfolio" | "bin-packing" | "routing", constraints)` — plain-language
-  constraints → ready-to-solve QUBO (free)
-- `optimize(problem, mode="auto", webhook_url=...)` — pays, submits, returns job
-- `job(id)` / `wait(id)` — poll with signed execution receipts on completion
+## Surfaces
+
+- `estimate / simulate / trial` — free quote, dry-run, no-wallet solve
+- `optimize(problem, mode, webhook_url)` — Optimization/Quantum ($0.05+)
+- `token_price / token_balances / block / gas_oracle` — Data ($0.004)
+- `research_search / research_answer` — Research ($0.006 / $0.012)
+- `http_request(url, method, ...)` — Automation ($0.004)
+- `chat(prompt)` — AI ($0.004)
+- `pay(method, path, json)` — generic escape hatch for any future paid route
+- `job(id) / wait(id)` — poll with signed execution receipts
 
 ## Budget guardrail
 
@@ -43,5 +50,5 @@ if rec["cortexcloud_price_usd"] > 0.25:
     raise SystemExit("over budget")
 ```
 
-See `docs/AGENT_INTEGRATION_GUIDE.md` in the repo for CrewAI/LangGraph wiring,
-error handling, and webhook setup.
+`CortexCloud.demo()` runs the free path as a smoke check (no spend).
+See `docs/AGENT_INTEGRATION_GUIDE.md` for CrewAI/LangGraph/MCP wiring.
