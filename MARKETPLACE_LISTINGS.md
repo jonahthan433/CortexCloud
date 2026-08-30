@@ -13,8 +13,8 @@ as submissions land.
 - Discovery: `/llms.txt` · `/.well-known/x402.json` · `/.well-known/bazaar` · `/.well-known/agentsearch.txt` · `/openapi.json`
 
 ### Descriptions (reuse everywhere)
-- Short: `Pay-per-call QUBO/Ising optimization API for AI agents. Estimate free, solve per run via x402 (USDC on Base). $0.05-$0.25 classical by size, $0.10 hybrid, $1.00 quantum, no API keys.`
-- Long: `CortexCloud Optimization Network — pay-per-call QUBO/Ising optimization for autonomous agents. Estimate for free (decision block: mode, backend, provider cost, price), then solve per run: classical $0.05-0.25 by size, hybrid $0.10, quantum $1.00, paid via x402 in USDC on Base (no API keys, no signup). Quantum QPU execution (Rigetti via Amazon Braket) is opt-in and only recommended with benchmark evidence. MCP server at /mcp (cortex_estimate_optimization, cortex_optimize, cortex_get_job, cortex_list_backends).`
+- Short: `Agent-native x402 API platform (USDC on Base, no API keys). Automation, Data, Research, AI, Optimization/Quantum — pay per call. Start with Automation/Data ($0.004) or Research ($0.006); Optimization/Quantum (QUBO/Ising) is the differentiator.`
+- Long: `CortexCloud — an agent-native, pay-per-use API platform settled by x402 (USDC on Base). Agents call Automation (safe outbound HTTP), Data (on-chain prices/balances/gas), Research (web search + answers), AI, and Optimization/Quantum (QUBO/Ising solvers: scheduling, routing, portfolio) — no API keys, no signup, pay only when it runs. Estimate free, solve per call. Optimization/Quantum spans classical, hybrid, and quantum backends (quantum QPU opt-in, benchmark-gated). MCP server at /mcp.`
 
 ## Submission tracker
 
@@ -37,20 +37,20 @@ as submissions land.
 npm i -g @smithery/cli
 smithery login          # GitHub OAuth (Jonathan)
 smithery mcp publish https://api.cortexcloud.org/mcp -n cortexcloud/cortexcloud
-# metadata prompts: description = short desc above; categories: optimization; tags: x402, qubo, ising, usdc, quantum
+# metadata prompts: description = short desc above; categories: automation, data, research, api, optimization; tags: x402, usdc, agent, automation, data, research, optimization, quantum
 ```
 Verify after publish: `https://smithery.ai/server/cortexcloud/cortexcloud`.
 
 ## Kit 2 — Glama (glama.ai/mcp)
 1. Create account (GitHub OAuth) → glama.ai/mcp/servers → "Submit server".
 2. Server URL: `https://api.cortexcloud.org/mcp` (remote HTTP — Glama probes it).
-3. Name `CortexCloud` · description = short · category `optimization`.
+3. Name `CortexCloud` · description = short · category `agent, automation, api`.
 Verify: `https://glama.ai/mcp/servers/cortexcloud-cortexcloud` (or search "cortexcloud").
 Note: Glama also indexes from the official registry once live (metaregistry).
 
 ## Kit 3 — mcp.so
 Form at `https://mcp.so/submit`: name `cortexcloud`, server URL `https://api.cortexcloud.org/mcp`,
-description = short, category `AI / Optimization`. Verify: `https://mcp.so/servers/cortexcloud` (search "cortexcloud").
+description = short, category `AI / Agent / Automation`. Verify: `https://mcp.so/servers/cortexcloud` (search "cortexcloud").
 
 ## Kit 4 — PulseMCP
 Form at `https://pulsemcp.com` → Submit a server: URL `https://api.cortexcloud.org/mcp`, name `CortexCloud`,
@@ -59,7 +59,7 @@ description = short. Verify: pulsemcp.com search "cortexcloud". (Site is Cloudfl
 ## Kit 5 — awesome-mcp-servers (punkpeye/awesome-mcp-servers)
 PR body / README addition:
 ```
-- [CortexCloud](https://api.cortexcloud.org/mcp) - Pay-per-call QUBO/Ising optimization for AI agents: estimate free, solve per run (classical $0.05-0.25 by size, hybrid $0.10, quantum $1.00) via x402 (USDC on Base). No API keys.
+- [CortexCloud](https://api.cortexcloud.org/mcp) - Agent-native x402 API platform: Automation, Data, Research, AI, Optimization/Quantum. Pay per call in USDC on Base, no API keys. Free estimate, then solve.
 ```
 `gh` is authenticated as jonahthan433 — PR command ready:
 ```bash
@@ -75,8 +75,8 @@ Submit via `https://apis.guru/add-api` — OpenAPI URL: `https://api.cortexcloud
 (the API is machine-readable; apis.guru fetches + validates it). This creates a PR in
 APIs-guru/openapi-directory — approve as jonahthan433. Prepared issue/PR text:
 ```
-Add CortexCloud Optimization Network — pay-per-call QUBO/Ising optimization API over x402 (USDC on Base).
-OpenAPI: https://api.cortexcloud.org/openapi.json (self-maintained, 14 paths, 1 paid x402 operation).
+Add CortexCloud — agent-native x402 API platform (Automation, Data, Research, AI, Optimization/Quantum). Pay per call in USDC on Base.
+OpenAPI: https://api.cortexcloud.org/openapi.json (self-maintained, multi-category endpoints).
 ```
 Verify: apis.guru → search "cortexcloud".
 
@@ -85,7 +85,7 @@ Server metadata (server.json) — verify exact schema in the registry UI at subm
 ```json
 {
   "name": "github.jonahthan433/cortexcloud",
-  "description": "Pay-per-call QUBO/Ising optimization for AI agents over x402 (USDC on Base). Estimate free, solve per run ($0.05-$1.00 by size and mode). Quantum QPU opt-in, benchmark-gated.",
+  "description": "Agent-native x402 API platform: Automation, Data, Research, AI, Optimization/Quantum. Pay per call in USDC on Base, no API keys. Estimate free, solve per run.",
   "version": "0.4.0",
   "remotes": {
     "https://api.cortexcloud.org/mcp": {}
@@ -112,7 +112,7 @@ the registry website. Verify: registry.modelcontextprotocol.io → search "corte
 ## Paid-call watchdog (live 08-08)
 - `cc-paid-call-watch` cron (every 30m, silent unless a new settled payment lands) reads
   `scripts/paid_metrics.py` (read-only settled-payment counters) on CT105 → alerts with
-  total/10 + revenue + per-mode breakdown. Target: first 10 real paid optimization calls.
+  total/10 + revenue + per-mode breakdown. Target: first 10 real external paid calls (any category).
 - Note: `INTERNAL_TOKEN` is unset in prod → `/internal/metrics` returns 503. The watchdog uses
   the DB read path instead; enable INTERNAL_TOKEN later if the revenue endpoint is wanted.
 

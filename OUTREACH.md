@@ -4,23 +4,17 @@ legitimate (no spam, no fabricated metrics). Measure clicks via
 utm_source links (tracked by /v1/track).
 
 ## E3 — Show HN (Hacker News)
-Title: Show HN: Pay-per-call optimization API for AI agents (x402, no API keys)
+Title: Show HN: CortexCloud — agent-native x402 API platform (Automation, Data, Research, Optimization/Quantum)
 
-> I built CortexCloud — optimization infrastructure for AI agents. LLMs can
-> describe scheduling, routing, portfolio and allocation problems but can't
-> solve them; this is a pay-per-call solving layer.
+> I built CortexCloud — an agent-native, pay-per-use API platform settled by x402 (USDC on Base, no API keys). Agents call Automation (safe outbound HTTP), Data (on-chain prices/balances/gas), Research (web search + answers), AI, and Optimization/Quantum (QUBO/Ising solvers for scheduling/routing/portfolio).
 >
-> Agent flow: POST /v1/estimate (free) -> it recommends classical/hybrid/
-> quantum + price -> POST /v1/optimize returns an x402 challenge -> the agent
-> pays USDC on Base per run ($0.05 classical, $0.85 real Rigetti QPU). No
-> signup, no API keys — the wallet is the account. There's an MCP server so
-> Claude/Cursor/Codex can call it directly: claude mcp add cortexcloud --transport http https://api.cortexcloud.org/mcp
+> Easiest to start: Automation and Data at $0.004/call, Research at $0.006. Optimization/Quantum is the technical differentiator — classical, hybrid, and real Rigetti QPU backends, benchmark-gated.
 >
-> Free to try: https://api.cortexcloud.org/?utm_source=hn — the estimate
-> endpoint never charges. Examples: https://github.com/jonahthan433/CortexCloudAPI/tree/main/examples
+> Agent flow: POST /v1/estimate (free) -> recommends mode + price -> paid endpoint returns an x402 challenge -> agent pays USDC on Base per call. No signup, no API keys — the wallet is the account. MCP server so Claude/Cursor/Codex call it directly: claude mcp add cortexcloud --transport http https://api.cortexcloud.org/mcp
 >
-> Why x402: agents need micropayments without accounts. Happy to discuss the
-> QUBO formulation, the benchmark-gated quantum routing, or the MCP tooling.
+> Free to try: https://api.cortexcloud.org/?utm_source=hn — estimate never charges. Examples: https://github.com/jonahthan433/CortexCloudAPI/tree/main/docs
+>
+> Why x402: agents need micropayments without accounts. Happy to discuss the QUBO formulation, the benchmark-gated quantum routing, or the MCP tooling.
 
 ## E4a — r/quantumcomputing
 Title: [P] Pay-per-call QUBO solving with a real Rigetti QPU over x402 — no accounts, USDC on Base

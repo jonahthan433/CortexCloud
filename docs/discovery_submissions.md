@@ -26,6 +26,19 @@
 - /.well-known/x402.json, /.well-known/bazaar, /.well-known/agentsearch.txt,
   /llms.txt, /openapi.json, /mcp all 200 → crawlable. agent-tools.cloud confirmed pickup.
 
+## DONE (this session — seller/agent marketplaces + community + repo)
+- [Agoragentic] POST /api/quickstart (seller "CortexCloud API") 201; POST /api/capabilities
+      201, slug cortexcloud-optimization-network, review_status=pending.
+      Key saved locally: ~/.hermes/secrets/agoragentic.json (chmod 600).
+      Field lesson: endpoint field is `endpoint_url` (not `endpoint`); price is
+      `price_per_unit` (not `price`); required name/description/category/price_per_unit.
+      Trap Shield blocks imperative descriptions — use declarative copy.
+- [PayanAgent] POST /api/v1/agents 201 (walletAddress required = payTo);
+      POST /api/v1/offers 201, offerId kh70jpq4s1bzxh2smc40z8h8mx8ddf22.
+      Key saved locally: ~/.hermes/secrets/payanagent.json. priceCents=5 (not price).
+- [Slack x402 community] announcement posted by user (slack.x402.org) — 2026-08-28.
+- [GitHub README] pushed to jonahthan433/CortexCloudAPI (main, 679a40a).
+
 ## Note
 Browser/Chrome is NOT available in this runtime (no DISPLAY). Submissions done via
 direct POST to each directory's backend API instead of a browser form — same result,

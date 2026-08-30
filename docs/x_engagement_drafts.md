@@ -9,8 +9,8 @@
 ## High-intent reply templates (non-spam, genuinely useful, lead with value)
 # Template A — when a dev asks "how do agents pay for APIs?" / x402 curiosity
 "x402 is the cleanest answer — agents settle USDC on Base per request, no keys.
-We run CortexCloud — agent-native x402 APIs at api.cortexcloud.org (optimization,
-AI, on-chain data, automation). Free /v1/automation/estimate to price first."
+We run CortexCloud — agent-native x402 APIs at api.cortexcloud.org (Automation,
+Data, Research, AI, optimization/quantum). Free /v1/automation/estimate to price first."
 
 # Template B — when someone ships an agent needing tools/MCP
 "If your agent needs callable tools without a backend, our MCP server
@@ -31,7 +31,8 @@ all priced $0.004–$0.02, no subscription. api.cortexcloud.org"
 ## need account/approval to post:
 # r/x402 intro post
 "Sharing CortexCloud — agent-native x402 API platform at api.cortexcloud.org.
-Live categories: QUBO optimization, AI (chat/embed/transcribe), research,
-on-chain data (Alchemy/CoinGecko), and automation (transform/http/webhook/
-schedule/workflow). All x402-settled USDC on Base; MCP at /mcp. Free estimate
-endpoints for agents to price before paying. Feedback welcome."
+Live categories: Automation (http/webhook/schedule/workflow), Data (on-chain
+prices/balances via Alchemy/CoinGecko), Research (search/answers), AI
+(chat/embed/transcribe), and Optimization/Quantum (QUBO). All x402-settled
+USDC on Base; MCP at /mcp. Free estimate endpoints for agents to price before paying.
+Feedback welcome."
