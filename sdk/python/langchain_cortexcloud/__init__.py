@@ -1,7 +1,8 @@
 """langchain_cortexcloud — LangChain tool wrapper for CortexCloud.
 
-Thin: delegates to the cortexcloud SDK; exposes estimate/simulate/preset as
-free tools and optimize as a paid tool (needs a funded wallet key).
+Thin: delegates to the cortexcloud SDK. Exposes estimate as a free tool and
+optimize (Optimization/Quantum) as a paid tool (needs a funded Base wallet
+key). Add more paid tools by wrapping CortexCloud.pay(method, path, json).
 """
 from __future__ import annotations
 

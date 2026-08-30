@@ -1,82 +1,73 @@
-# CortexCloud — Registry Submission Package (prepared)
+# CortexCloud — Registry Submission Package
 
-Paste-ready listings for MCP registries and agent marketplaces. All copy uses
-capability-based, verb+outcome framing (Glama's own research: LLMs select such
-descriptions 260% more often). Submit in this order: Glama → Smithery →
-AgentCash polish → CrewAI marketplace.
+Paste-ready listings for MCP registries and agent marketplaces. Full-platform
+positioning (Automation / Data / Research lead; Optimization/Quantum as
+differentiator). Submit in this order: Glama → mcp.so → PulseMCP → Smithery
+(already LIVE) → CrewAI.
+
+All copy is capability-based, verb+outcome framing. Server URL is the same for
+every registry: `https://api.cortexcloud.org/mcp`.
 
 ## 1. Glama — glama.ai/mcp/servers (free)
-
 - **Name:** cortexcloud
 - **GitHub:** https://github.com/jonahthan433/CortexCloudAPI
 - **Server URL (remote):** https://api.cortexcloud.org/mcp
-- **Categories:** AI/ML · Optimization · Quantum Computing · Developer Tools
+- **Categories:** AI / Developer Tools / Data / Automation / Research
 - **Short description:**
-  > Solve QUBO/Ising optimization problems — portfolio selection, vehicle
-  > routing, bin packing, scheduling — with classical, hybrid, or real quantum
-  > backends. Pay per call in USDC via x402. No API keys, no signup.
+  > Agent-native x402 API platform: Automation, Data, Research, AI, and
+  > Optimization/Quantum. Pay per call in USDC on Base — no API keys.
+- **Long description (verb + outcome):**
+  > CortexCloud lets agents **call** paid API tools with no account or API key.
+  > **Estimate** any optimization problem for free, **pay** per call in USDC on
+  > Base via x402, and **receive** results with signed receipts. **Fetch** token
+  > prices and on-chain balances, **run** web research with citations, **fire**
+  > HTTP requests from the agent, and **solve** QUBO/Ising optimization
+  > (classical → real quantum). Four MCP tools cover estimate, optimize, job
+  > polling, and backend listing.
 
-- **Long description (verb + outcome framing):**
-  > CortexCloud lets agents and developers **solve** combinatorial
-  > optimization problems without any account or API key. **Estimate** the
-  > exact price for free, **pay** per call in USDC on Base via the x402
-  > protocol, and **receive** verified solutions with signed execution
-  > receipts. **Minimize** routing cost, **select** portfolios under
-  > cardinality constraints, **pack** items into the minimum number of bins,
-  > **schedule** staff or jobs — all through one MCP server with four tools.
-  > Real quantum hardware (IBM, Rigetti) for problems beyond classical limits.
-
-## 2. Smithery — smithery.ai (free)
-
-- **Name:** @cortexcloud/mcp
-- **Install:**
-  ```
-  npx -y @smithery/cli install @cortexcloud/mcp --client claude
-  ```
-- **Categories:** Optimization · AI Agents · Quantum · Analytics
+## 2. mcp.so (free)
+- **Name:** cortexcloud
+- **Server URL:** https://api.cortexcloud.org/mcp
+- **Category:** AI / Agent / Automation / Data
 - **Description:**
-  > Pay-per-call QUBO/Ising optimization for AI agents. Estimate free, solve
-  > from $0.05 (classical) to $1.503 (real QPU), settle in USDC on Base via
-  > x402 — no API key, no signup. Four tools: estimate, optimize, poll jobs,
-  > list backends. Domain presets turn plain constraints into QUBO matrices
-  > automatically (portfolio, bin-packing, routing).
+  > Agent-native x402 pay-per-call API: Automation, Data, Research, AI,
+  > Optimization/Quantum. USDC on Base, no API keys. MCP server with 4 tools.
 
-## 3. AgentCash listing polish — agentcash.dev (already listed)
+## 3. PulseMCP — pulsemcp.com/servers (free)
+- **Name:** CortexCloud
+- **Server URL:** https://api.cortexcloud.org/mcp
+- **Category:** AI Agents / Developer Tools / Data
+- **Description:**
+  > Pay-per-call agent API via x402 (USDC on Base). Automation, Data, Research,
+  > AI, Optimization/Quantum — no API key. `claude mcp add cortexcloud` to install.
 
-Replace the listing description with:
-> Solve portfolio selection, vehicle routing, bin packing, and scheduling
-> problems as QUBO/Ising. Classical from $0.05, hybrid $0.10, real quantum
-> hardware $1.503. Free estimate + free dry-run simulation before you pay.
-> Settles automatically via x402/MPP — no API keys, no human checkout.
+## 4. Smithery — smithery.ai (already LIVE: @cortexcloud/mcp)
+- Verify listing shows full-platform copy; update description if still
+  optimization-only:
+  > Agent-native x402 API: Automation, Data, Research, AI, Optimization/Quantum.
+  > Pay per call in USDC on Base. `npx -y @smithery/cli install @cortexcloud/mcp --client claude`
 
-## 4. CrewAI Enterprise Marketplace — marketplace.crewai.com (revenue share)
+## 5. CrewAI Enterprise Marketplace — marketplace.crewai.com (revenue share)
+- **Name:** CortexCloud
+- **Tagline:** Agent-native x402 pay-per-call API (Automation, Data, Research, Opt/Quantum)
+- **Category:** Automation / Data / Optimization
+- **Description:**
+  > Crews that need on-chain data, web research, HTTP actions, or optimization
+  > decisions get an exact price before paying, and results with signed
+  > receipts. Free estimate, then pay per call in USDC via x402. MCP or REST.
 
-- Fork the marketplace submission template, fill:
-  - **Name:** CortexCloud Optimization
-  - **Tagline:** Pay-per-call QUBO/Ising optimization (classical → real quantum)
-  - **Category:** Optimization / Quantum / Data
-  - **Description:**
-    > Crews that need scheduling, routing, portfolio, or resource-assignment
-    > decisions get an exact price before paying, and solutions with signed
-    > receipts. Free estimate, free simulate, then pay per solve in USDC via
-    > x402. Works through MCP or direct REST — no API key management.
-  - **Pricing model:** per-call ($0.05–$1.503) · **Revenue share:** opt-in
-
-## 5. MCP tool descriptions (for the next bundle build — src/http.ts)
-
-Apply when the source repo is available (bundle currently ships these; the
-source lives on the dev machine):
-
-| Tool | Current-ish | Rewrite to |
-|---|---|---|
-| estimate | Analyze a problem | **Estimate the exact price and recommended solver** for a QUBO/Ising problem (free) |
-| optimize | Solve (paid) | **Solve a QUBO/Ising optimization problem** — pays per call via x402, returns a job_id |
-| jobs | Poll job | **Retrieve the solution** for a submitted optimization job |
-| backends | List backends | **List available solvers** and their live availability |
+## 6. MCP tool descriptions (next bundle build — src/http.ts)
+| Tool | Rewrite to |
+|---|---|
+| estimate | **Estimate the exact price** for any CortexCloud call (free) |
+| optimize | **Solve** an Optimization/Quantum problem — pays via x402, returns job_id |
+| jobs | **Retrieve the solution** for a submitted job |
+| backends | **List available solvers** and live availability |
 
 ## Checklist before submitting
-
-- [ ] `curl https://api.cortexcloud.org/health` → 200 (live)
-- [ ] `curl https://api.cortexcloud.org/mcp` responds to MCP initialize (live, verified 0.4.0)
-- [ ] OpenAPI at /openapi.json declares all 19 paths with rich descriptions (done)
-- [ ] llms.txt advertises presets + simulate (done 2026-08-19)
+- [x] `curl https://api.cortexcloud.org/health` → 200
+- [x] `/mcp` responds to MCP initialize (verified 0.4.0)
+- [x] `/.well-known/x402.json` has `discoverable: true` (Bazaar-indexed)
+- [x] `llms.txt` full-platform (ML marked preview-only)
+- [ ] Glama / mcp.so / PulseMCP submitted (needs GitHub account)
+- [ ] Smithery description refreshed to full platform
