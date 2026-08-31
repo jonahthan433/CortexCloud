@@ -204,8 +204,14 @@ async def _record_payment(path: str, payer: str, amount_atomic: int, body_str: s
                 )
             )
             await _db.commit()
-    except Exception:
-        pass
+    except Exception as e:  # ponytail: payment already settled on-chain; never block,
+                            # but a swallowed ledger gap is unrecoverable — shout loud.
+        logger.error(f"LEDGER WRITE FAILED (payment settled, no row): {e}")
+        try:
+            await alert("ledger_write_failed", 300, 10, "ledger_gap",
+                        endpoint=path, payer=payer, amount_atomic=str(amount_atomic))
+        except Exception:
+            pass
 
 # GET routes take query params instead of a JSON body.
 # The only paid route is POST /v1/optimize (body), so this stays empty.

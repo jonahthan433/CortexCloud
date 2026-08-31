@@ -10,7 +10,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Header, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -133,7 +133,10 @@ def create_app(override_openapi: bool = True) -> FastAPI:
 
             application.include_router(audit_router, tags=["x402 Audit & Trust"])
 
-            # Inner -> outer: rate limit, payment gate, headers, input validation.
+            # Starlette runs the LAST-added middleware first (outermost). Add X402
+            # + Headers first (inner), then InputValidation OUTER so a bad
+            # content-type / oversized body is rejected (415/413) BEFORE the x402
+            # payment gate sees it — never charged-then-rejected.
             application.add_middleware(X402Middleware)
             from app.middleware.headers import CortexHeadersMiddleware
             application.add_middleware(CortexHeadersMiddleware)
@@ -148,7 +151,10 @@ def create_app(override_openapi: bool = True) -> FastAPI:
 
     # ---- system / static ---------------------------------------------------
     @application.get("/metrics", include_in_schema=False, tags=["System"])
-    async def metrics():
+    async def metrics(x_internal_token: str | None = Header(default=None, alias="X-Internal-Token")):
+        if not settings.INTERNAL_TOKEN or x_internal_token != settings.INTERNAL_TOKEN:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=401, detail="invalid internal token")
         from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 

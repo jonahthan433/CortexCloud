@@ -131,6 +131,7 @@ class Settings(BaseSettings):
         critical = [
             "WALLET_ADDRESS", "CDP_WALLET_SECRET",
             "X402_FACILITATOR_API_KEY_ID", "X402_FACILITATOR_API_KEY_SECRET",
+            "AUTOMATION_WEBHOOK_SECRET",  # empty => webhook HMAC forgeable
         ]
         # Private single-tenant mode needs no wallet: the static API key
         # replaces blockchain settlement entirely.
