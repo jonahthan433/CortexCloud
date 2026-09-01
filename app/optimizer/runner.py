@@ -22,6 +22,7 @@ from app.core.config import settings
 from app.optimizer.problem import ProblemInput, to_qubo
 from app.solvers import registry
 from app.x402.pricing import MODE_PRICE_USD
+from app.middleware.audit import alert
 
 logger = logging.getLogger("cortexcloud.optimizer.runner")
 
@@ -186,22 +187,32 @@ async def run_job(job_id: str) -> None:
             job.backend = solver.spec.id
             job.algorithm = solver.spec.name
             p_cost, p_price = _cost_ledger(solver, qubo)
-            db.add(
-                Benchmark(
-                    problem_type=problem.problem_type,
-                    n=job.n,
-                    mode=solver.spec.mode,
-                    solver_id=solver.spec.id,
-                    provider=getattr(solver, "provider", "local"),
-                    backend=solver.spec.id,
-                    quality_note=result.quality_note,
-                    runtime_ms=int((time.time() - t0) * 1000),
-                    objective=result.objective,
-                    provider_cost_usd=p_cost,
-                    price_usd=p_price,
-                    margin_usd=round(p_price - p_cost, 10),
-                )
-            )
+            # Benchmark evidence is best-effort: an ORM/DB drift must
+            # NEVER hang a paid job. SAVEPOINT isolates the Benchmark
+            # insert so exec_row + job.status stay committed even if
+            # this single insert fails. ponytail: single nested tx per
+            # job; upgrade to batched write if throughput matters.
+            try:
+                async with db.begin_nested():
+                    db.add(
+                        Benchmark(
+                            problem_type=problem.problem_type,
+                            n=job.n,
+                            mode=solver.spec.mode,
+                            solver_id=solver.spec.id,
+                            provider=getattr(solver, "provider", "local"),
+                            backend=solver.spec.id,
+                            quality_note=result.quality_note,
+                            runtime_ms=int((time.time() - t0) * 1000),
+                            objective=result.objective,
+                            provider_cost_usd=p_cost,
+                            price_usd=p_price,
+                            margin_usd=round(p_price - p_cost, 10),
+                        )
+                    )
+            except Exception:
+                logger.exception("benchmark_write_failed", extra={"job_id": job_id})
+                alert("benchmark_write_failed", f"job_id={job_id} n={job.n} solver={solver.spec.id}")
         else:
             job.status = "failed"
             job.error = result.error
