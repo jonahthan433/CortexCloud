@@ -63,7 +63,11 @@ async def optimize(req: OptimizeRequest, request: Request):
     if req.webhook_url and not req.webhook_url.startswith(("http://", "https://")):
         raise HTTPException(status_code=422, detail="webhook_url must be http(s)")
     price = effective_price_usd(req.mode, n=req.problem.n)
-    job_id = await create_job(req.problem, req.mode, price, webhook_url=req.webhook_url)
+    # Pass payer so the runner can backfill provider_cost_usd on the
+    # matching x402_payments row after the solve runs (quantum cost is
+    # only known post-pick).
+    _payer = getattr(request.state, "x402_payer", None)
+    job_id = await create_job(req.problem, req.mode, price, webhook_url=req.webhook_url, payer=_payer)
     schedule(job_id)
     return {
         "job_id": job_id,

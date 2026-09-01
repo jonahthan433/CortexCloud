@@ -79,7 +79,8 @@ async def pick_solver(mode: str, problem, qubo):
 
 
 async def create_job(problem: ProblemInput, mode: str, price_usd: float | None,
-                  webhook_url: str | None = None) -> str:
+                  webhook_url: str | None = None,
+                  payer: str | None = None) -> str:
     job_id = str(uuid.uuid4())
     async with AsyncSessionLocal() as db:
         db.add(
@@ -89,7 +90,8 @@ async def create_job(problem: ProblemInput, mode: str, price_usd: float | None,
                 n=problem.n,
                 mode=_clean_mode(mode),
                 request={"problem": problem.model_dump(), "mode": mode,
-             **( {"webhook_url": webhook_url} if webhook_url else {} )},
+             **( {"webhook_url": webhook_url} if webhook_url else {} ),
+             **( {"payer": payer} if payer else {} )},
                 price_usd=price_usd,
             )
         )
@@ -187,6 +189,12 @@ async def run_job(job_id: str) -> None:
             job.backend = solver.spec.id
             job.algorithm = solver.spec.name
             p_cost, p_price = _cost_ledger(solver, qubo)
+            # Quantum cost is only known post-pick. Backfill the
+            # matching x402_payments row now so the ledger reports
+            # accurate margin for quantum runs.
+            _payer = (job.request or {}).get("payer") if hasattr(job, "request") else None
+            if _payer:
+                await _backfill_payment_cost(_payer, p_cost, job.started_at or _now())
             # Benchmark evidence is best-effort: an ORM/DB drift must
             # NEVER hang a paid job. SAVEPOINT isolates the Benchmark
             # insert so exec_row + job.status stay committed even if
@@ -219,6 +227,45 @@ async def run_job(job_id: str) -> None:
         job.finished_at = _now()
         await db.commit()
         _fire_webhook(job)
+
+
+
+
+
+async def _backfill_payment_cost(payer: str, provider_cost_usd: float, started_at) -> None:
+    """After a successful run, write the actual solver cost back to the
+    x402_payments row that paid for this job. Matched by payer + endpoint
+    + a tight time window starting at job start. Best-effort; never blocks.
+    ponytail: window-based match, not a hard foreign key — fine for the
+    single-tenant internal scale; add payment_id column on OptimizeJob if
+    multiple in-flight jobs per payer becomes a concern."""
+    try:
+        from app.database.session import AsyncSessionLocal
+        from app.models import Payment
+        from sqlalchemy import select, update
+        from datetime import timedelta
+        async with AsyncSessionLocal() as db:
+            stmt = (
+                update(Payment)
+                .where(
+                    Payment.endpoint == "/v1/optimize",
+                    Payment.payer == payer,
+                    Payment.occurred_at >= started_at - timedelta(seconds=2),
+                    Payment.occurred_at <= started_at + timedelta(seconds=30),
+                    Payment.provider_cost_usd.is_(None),
+                )
+                .values(
+                    provider_cost_usd=round(provider_cost_usd, 10),
+                    margin_usd=Payment.amount_usd - round(provider_cost_usd, 10),
+                )
+                .execution_options(synchronize_session=False)
+            )
+            result = await db.execute(stmt)
+            await db.commit()
+            if result.rowcount:
+                logger.info("payment_cost_backfilled payer=%s cost=%s rows=%d", payer, provider_cost_usd, result.rowcount)
+    except Exception:
+        logger.exception("payment_cost_backfill_failed payer=%s", payer)
 
 
 def quantum_cost_cap_error(solver, qubo, n: int) -> str | None:

@@ -573,6 +573,10 @@ class X402Middleware(BaseHTTPMiddleware):
                 logger.warning(f"Failed to parse request body for dynamic pricing: {e}")
                 data = {}
             if path == "/v1/optimize":
+                # /v1/optimize serves all solver modes; the runner backfills
+                # provider_cost_usd after pick_solver. Here we tag the category
+                # so the ledger row is correctly grouped even before that.
+                request.state.category = "quantum"
                 price_str = price_for_mode((data.get("mode") or "auto"), n=((data.get("problem") or {}).get("n") if isinstance(data, dict) else None))
             elif path == "/v1/ai/chat":
                 from app.x402.pricing import ai_chat_price_usd, AI_PROVIDERS
