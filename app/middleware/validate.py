@@ -13,6 +13,11 @@ import time
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+# Pre-route SSRF guard. Runs BEFORE x402 so a blocked target never
+# charges the customer. The route handler still re-checks (defense
+# in depth) — this just stops the billing.ponytail: single URL
+# check per request, no caching; fine for the volume we see.
+
 from app.middleware.audit import audit
 
 MAX_BODY = 1_000_000   # 1MB max JSON body
@@ -84,8 +89,26 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
             audit("rejected", kind="json_depth", ip=ip, path=request.url.path)
             return JSONResponse(status_code=400, content={"detail": "JSON too deeply nested"})
 
-        # /v1/optimize: the middleware re-checks content freshness, Pydantic
-        # validates the domain model. Nothing else to gate at this layer.
+        # SSRF pre-route guard for automation egress endpoints.
+        # Blocked targets must NEVER charge the customer, so the
+        # check runs here (input-validation layer, outermost paid
+        # gate) rather than inside the route handler.
+        if request.url.path in (
+            "/v1/automation/http-request",
+            "/v1/automation/webhook",
+        ):
+            from app.api.automation import is_safe_url
+            target_url = data.get("url") if isinstance(data, dict) else None
+            if isinstance(target_url, str) and target_url:
+                ok, why = is_safe_url(target_url)
+                if not ok:
+                    audit("rejected", kind="ssrf_pre_route", ip=ip,
+                          path=request.url.path, detail=why,
+                          target=target_url[:200])
+                    return JSONResponse(
+                        status_code=400,
+                        content={"detail": f"ssrf_blocked: {why}"},
+                    )
         return await call_next(request)
 
 
