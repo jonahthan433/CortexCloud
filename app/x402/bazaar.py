@@ -146,6 +146,30 @@ _TOOLS: dict[str, dict] = {
         "input_schema": {"type": "object", "properties": {"steps": {"type": "array", "items": {"type": "object"}}}},
         "example": {"steps": [{"type": "transform", "data": {"a": 1}, "rules": {}}, {"type": "webhook", "url": "https://hook.example.com", "payload": {"a": 1}}]}, "free": False,
     },
+    "cortex_wallet_balances": {
+        "method": "POST", "path": "/v1/data/token-balances",
+        "description": "ERC-20 token balances (USD-valued) for an EOA. Free.",
+        "input_schema": {"type": "object", "properties": {"address": {"type": "string"}}, "required": ["address"]},
+        "example": {"address": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"}, "free": True,
+    },
+    "cortex_token_price": {
+        "method": "POST", "path": "/v1/data/token-price",
+        "description": "Spot USD price for an ERC-20 token. Free.",
+        "input_schema": {"type": "object", "properties": {"contract": {"type": "string"}, "id": {"type": "string"}}, "anyOf": [{"required": ["contract"]}, {"required": ["id"]}]},
+        "example": {"contract": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"}, "free": True,
+    },
+    "cortex_research_search": {
+        "method": "POST", "path": "/v1/research/search",
+        "description": "Web search via Brave + LLM summarisation. x402-paid USDC on Base.",
+        "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "limit": {"type": "integer", "minimum": 1, "maximum": 20}}, "required": ["query"]},
+        "example": {"query": "QUBO solver benchmarks", "limit": 10}, "free": False,
+    },
+    "cortex_ai_chat": {
+        "method": "POST", "path": "/v1/ai/chat",
+        "description": "Single-turn chat completion. x402-paid USDC on Base.",
+        "input_schema": {"type": "object", "properties": {"messages": {"type": "array", "items": {"type": "object", "properties": {"role": {"type": "string"}, "content": {"type": "string"}}}}}, "required": ["messages"]},
+        "example": {"messages": [{"role": "user", "content": "summarize QUBO"}]}, "free": False,
+    },
 }
 
 
