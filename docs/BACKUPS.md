@@ -28,3 +28,12 @@ critical tables (x402_payments, opt_jobs, benchmarks, auto_jobs)
 exist with matching row counts. Confirmed manually on 2026-09-01:
 RESTORE OK with all 4 table counts matching the live DB exactly
 (164/29/22/3).
+
+## Stray .env removed (audit P2-3)
+
+The duplicate secrets file at /opt/CortexCloudAPI/.env was removed on
+2026-09-01 (shred -u -n 3). All secrets now live exclusively in
+/etc/cortexcloud/cortexcloud.env (mode 600). The systemd unit reads
+from /etc/cortexcloud/cortexcloud.env via EnvironmentFile. The
+backup script sources the env file itself, so cron runs work without
+external setup.
