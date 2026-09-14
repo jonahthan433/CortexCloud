@@ -75,7 +75,7 @@ MCP rebuild (from the source repo on the Hermes host):
 
 ## Live snapshot
 
-- commit: `b30939d` (2026-09-07T05:00Z UTC)
+- commit: `36b3870` (2026-09-14T05:00Z UTC)
 - services: API=active MCP=active
 - prices (list / est provider cost / effective): classical $0.05 / $0.00 / $0.05; hybrid $0.10 / $0.00 / $0.10; quantum $0.85 / $0.75 / $1.50
 - markup: 2.0x
