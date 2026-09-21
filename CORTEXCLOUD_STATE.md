@@ -28,7 +28,7 @@ business/benchmark reason. Goal: recurring external paid optimization calls.
 |---|---|---|---|
 | classical | 0.05 | 0.00 (local) | 0.05 |
 | hybrid | 0.10 | 0.00 (local) | 0.10 |
-| quantum | 0.85 | 0.35 (Rigetti Cepheus-1-108Q, 1024 shots, verified Aug 2026) | 0.50 |
+| quantum | 0.85 | 0.75 (Rigetti Cepheus-1-108Q, 1024 shots, Braket rate card: $0.30/task + $0.000425/shot = $0.7352, rounded to 0.75 with buffer) | 0.753 |
 
 - Charged price = `max(list, provider_cost × MARKUP 2.0)` — rises automatically with provider cost.
 - Margin guard: quantum never sold below estimated provider cost unless `QUANTUM_ALLOW_SUBSIDY=true`.
@@ -75,9 +75,9 @@ MCP rebuild (from the source repo on the Hermes host):
 
 ## Live snapshot
 
-- commit: `36b3870` (2026-09-14T05:00Z UTC)
+- commit: `8bc47f3` (2026-09-21T05:01Z UTC)
 - services: API=active MCP=active
 - prices (list / est provider cost / effective): classical $0.05 / $0.00 / $0.05; hybrid $0.10 / $0.00 / $0.10; quantum $0.85 / $0.75 / $1.50
 - markup: 2.0x
-- benchmark_rows: 31   payments: 170   revenue_usd: 8.423850
+- benchmark_rows: 32   payments: 170   revenue_usd: 8.423850
 - live QPU execution: off by default (QUANTUM_LIVE_EXECUTION=false)
