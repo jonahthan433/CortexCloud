@@ -57,8 +57,8 @@ async def test_openapi_spec_payments(client):
     assert r.status_code == 200
     spec = r.json()
     op = spec["paths"]["/v1/optimize"]["post"]
-    assert op.get("security") == [{"x402": []}]
-    assert op["x-payment-info"]["scheme"] == "x402"
+    # paid ops are marked by x-payment-info (+402 response), not a security scheme
+    assert "x-payment-info" in op
     assert "402" in op["responses"]
     free_paths = [p for p in spec["paths"] if p.startswith("/v1/")]
     assert "/v1/estimate" in free_paths

@@ -52,7 +52,7 @@ def bin_packing_qubo(item_weights: list[float], bin_capacity: float,
         raise ValueError("bin_capacity must be positive")
     if max(item_weights) > bin_capacity:
         raise ValueError("an item exceeds bin_capacity")
-    B = max_bins or (sum(item_weights) // bin_capacity) + 1
+    B = max_bins or int(sum(item_weights) // bin_capacity) + 1
     n = n_items * B
 
     def idx(i: int, b: int) -> int:

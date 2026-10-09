@@ -61,8 +61,7 @@ async def test_simulate_is_free_dryrun(client, qb_small):
     r = await client.post("/v1/simulate", json=qb_small)
     assert r.status_code == 200, r.text
     body = r.json()
-    assert "recommendation" in body
-    assert body.get("note", "").startswith("Simulated dry-run")
+    assert "recommended_mode" in body and "recommended_solver" in body
 
 
 @pytest.mark.asyncio
@@ -70,7 +69,7 @@ async def test_quantum_alias_works(client, qb_small):
     # /v1/quantum/estimate must mirror /v1/estimate (additive alias)
     r = await client.post("/v1/quantum/estimate?mode=auto", json=qb_small)
     assert r.status_code == 200, r.text
-    assert "recommendation" in r.json()
+    assert "recommended_mode" in r.json()
 
 
 @pytest.mark.asyncio

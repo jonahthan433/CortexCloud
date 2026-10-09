@@ -225,6 +225,14 @@ ROUTE_PRICING = {
     "POST /v1/data/tx-history": "$0.004",
     "GET /v1/data/gas-oracle": "$0.004",
     "GET /v1/data/block": "$0.004",
+    # Aggregate (batch) routes — priced per constituent data call; the
+    # middleware re-prices dynamically for multi-address/multi-token bodies.
+    # (These were never registered -> served free; discovered by
+    # test_aggregate_balances_returns_402_without_payment.)
+    "POST /v1/aggregate/balances": "$0.004",
+    "POST /v1/aggregate/nfts": "$0.004",
+    "POST /v1/aggregate/prices": "$0.004",
+    "POST /v1/aggregate/tx-history": "$0.004",
     # Automation API (Tier 1) — self-hosted compute, flat floors.
     "POST /v1/automation/transform": "$0.004",
     "POST /v1/automation/http-request": "$0.004",
@@ -249,6 +257,11 @@ ROUTE_DESCRIPTIONS = {
     "POST /v1/data/tx-history": "Normalized transactions for an address on a chain (Alchemy Transfers API). x402-paid, USDC on Base.",
     "GET /v1/data/gas-oracle": "Current base fee + priority fee (gas price) for a chain (Alchemy). x402-paid, USDC on Base.",
     "GET /v1/data/block": "Block by number or 'latest' on a chain (Alchemy). x402-paid, USDC on Base.",
+    # Aggregate (batch) — one 402, many upstream lookups; price scales with batch size.
+    "POST /v1/aggregate/balances": "Batch ERC-20 balances for many addresses (Alchemy). x402-paid, USDC on Base.",
+    "POST /v1/aggregate/nfts": "Batch NFT ownership across addresses (Alchemy). x402-paid, USDC on Base.",
+    "POST /v1/aggregate/prices": "Batch spot USD prices for many tokens (CoinGecko). x402-paid, USDC on Base.",
+    "POST /v1/aggregate/tx-history": "Batch normalized transfers across addresses (Alchemy). x402-paid, USDC on Base.",
     # Automation API (Tier 1)
     "POST /v1/automation/transform": "Pure JSON/data transformation (no egress). x402-paid, USDC on Base.",
     "POST /v1/automation/http-request": "Outbound HTTP/API request from a safe, SSRF-guarded egress. x402-paid, USDC on Base.",
