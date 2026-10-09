@@ -16,9 +16,10 @@ never be sold below estimated provider cost unless QUANTUM_ALLOW_SUBSIDY
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from app.core.config import settings
+from typing import Optional
+
 # ---------------------------------------------------------------------------
 # AI + Research expansion pricing.
 #
@@ -124,13 +125,9 @@ class GeminiSTT(BaseProvider):
 
 class BraveSearch(BaseProvider):
     slug = "brave"
-    models = (("web", "brave:web"), ("answer", "brave:answer"), ("ask", "cortexcloud:ask"))
+    models = (("web", "brave:web"), ("answer", "brave:answer"))
 
     def estimate_cost(self, kind: str = "web", **_kw) -> ProviderCost:
-        # /v1/research/ask is a self-hosted RAG over the bundled public-domain
-        # corpus (no upstream provider cost) -> $0, priced at the $0.004 floor.
-        if kind == "ask":
-            return ProviderCost(0.0, "cortexcloud:ask self-hosted corpus")
         key = "brave:answer" if kind == "answer" else "brave:web"
         return ProviderCost(PROVIDER_PRICING[key].per_call, key)
 
@@ -144,7 +141,6 @@ AI_PROVIDERS = {
 RESEARCH_PROVIDERS = {
     "search": BraveSearch(),
     "answer": BraveSearch(),
-    "ask": BraveSearch(),
 }
 
 
@@ -172,11 +168,6 @@ def ai_transcribe_price_usd(seconds: float = 0.0) -> float:
 
 def research_price_usd(kind: str = "web") -> float:
     return pegged_price(RESEARCH_PROVIDERS["search"].estimate_cost(kind).provider_cost_usd)
-
-
-def ask_price_usd() -> float:
-    # Self-hosted RAG corpus: provider cost $0 -> pegged to the $0.004 floor.
-    return pegged_price(RESEARCH_PROVIDERS["ask"].estimate_cost("ask").provider_cost_usd)
 
 
 # mode -> USD per optimization run (customer price)
@@ -212,6 +203,13 @@ MARKUP = 2.0
 
 ROUTE_PRICING = {
     "POST /v1/optimize": "$0.05",  # base; middleware overrides per mode
+    # /v1/quantum/* aliases mount the same handlers - the paywall keys on PATH,
+    # so the paid alias must be registered here or it serves free.
+    "POST /v1/quantum/optimize": "$0.05",
+    # /v1/quantum/* aliases mount the same handlers - the paywall keys on PATH,
+    # so the paid alias must be registered here or it serves free (gap found by
+    # test_quantum_optimize_alias_returns_402).
+    "POST /v1/quantum/optimize": "$0.05",
     # AI category — price overridden per-request from token counts (pegged to provider cost).
     "POST /v1/ai/chat": "$0.004",
     "POST /v1/ai/embed": "$0.004",
@@ -219,7 +217,6 @@ ROUTE_PRICING = {
     # Research category — flat per-call, pegged to Brave cost.
     "POST /v1/research/search": "$0.006",
     "POST /v1/research/answer": "$0.012",
-    "POST /v1/research/ask": "$0.004",
     # Data API (Tier 1) — all endpoints at the $0.004 floor; provider cost is
     # far below the floor, so the charged price is the floor (see DATA block).
     "POST /v1/data/token-balances": "$0.004",
@@ -228,16 +225,23 @@ ROUTE_PRICING = {
     "POST /v1/data/tx-history": "$0.004",
     "GET /v1/data/gas-oracle": "$0.004",
     "GET /v1/data/block": "$0.004",
+    # Automation API (Tier 1) — self-hosted compute, flat floors.
+    "POST /v1/automation/transform": "$0.004",
+    "POST /v1/automation/http-request": "$0.004",
+    "POST /v1/automation/webhook": "$0.004",
+    "POST /v1/automation/schedule": "$0.010",
+    "POST /v1/automation/workflow": "$0.020",
 }
 
 ROUTE_DESCRIPTIONS = {
     "POST /v1/optimize": "Solve a QUBO/Ising optimization problem. USDC on Base via x402; returns a job_id to poll.",
+    "POST /v1/quantum/optimize": "Alias of /v1/optimize (same job, same price) under the quantum namespace.",
+    "POST /v1/quantum/optimize": "Alias of /v1/optimize (same job, same price) under the quantum namespace.",
     "POST /v1/ai/chat": "Chat completion via OpenRouter (Gemini/OpenAI). x402-paid, USDC on Base. Price quoted from requested max_tokens + estimated input.",
     "POST /v1/ai/embed": "Text embeddings via Google text-embedding-004 (OpenRouter). x402-paid per token.",
     "POST /v1/ai/transcribe": "Speech-to-text via Gemini. x402-paid per request.",
     "POST /v1/research/search": "Grounded web search with citations via Brave Search API. x402-paid per call.",
     "POST /v1/research/answer": "Cited answer synthesis via Brave AI-Grounding. x402-paid per call.",
-    "POST /v1/research/ask": "Streaming Bible/ancient-text RAG (Scripture/Historical/Scholarly/AI) over the licensed corpus, x402-paid, USDC on Base. Server-authoritative citations; non-canonical texts never returned as Scripture.",
     # Data API (Tier 1)
     "POST /v1/data/token-balances": "ERC-20 token balances for a wallet on a chain (Alchemy Token API). x402-paid, USDC on Base.",
     "POST /v1/data/token-price": "Spot USD price for a token/coin (CoinGecko where free tier suffices, else Alchemy). x402-paid.",
@@ -245,6 +249,12 @@ ROUTE_DESCRIPTIONS = {
     "POST /v1/data/tx-history": "Normalized transactions for an address on a chain (Alchemy Transfers API). x402-paid, USDC on Base.",
     "GET /v1/data/gas-oracle": "Current base fee + priority fee (gas price) for a chain (Alchemy). x402-paid, USDC on Base.",
     "GET /v1/data/block": "Block by number or 'latest' on a chain (Alchemy). x402-paid, USDC on Base.",
+    # Automation API (Tier 1)
+    "POST /v1/automation/transform": "Pure JSON/data transformation (no egress). x402-paid, USDC on Base.",
+    "POST /v1/automation/http-request": "Outbound HTTP/API request from a safe, SSRF-guarded egress. x402-paid, USDC on Base.",
+    "POST /v1/automation/webhook": "Deliver a signed (HMAC) webhook payload to a URL. x402-paid, USDC on Base.",
+    "POST /v1/automation/schedule": "Persist a delayed/recurring task; CortexCloud fires a signed webhook to your URL later. x402-paid, USDC on Base.",
+    "POST /v1/automation/workflow": "Sequence up to 10 transform/http/webhook steps (120s cap). x402-paid, USDC on Base.",
 }
 
 FREE_ROUTES = {
@@ -260,6 +270,8 @@ FREE_ROUTES = {
     # AI + Research free discovery/estimate endpoints.
     "POST /v1/ai/estimate": "Free: predict token cost + USDC price for a chat request before paying.",
     "POST /v1/research/estimate": "Free: predict the USDC price for a search/answer request before paying.",
+    # Automation API (Tier 1) free estimate endpoint.
+    "POST /v1/automation/estimate": "Free: predict the USDC price for an automation request before paying.",
 }
 
 
@@ -422,16 +434,33 @@ DATA_CHAINS = {
 DEFAULT_CHAIN = "ethereum"
 
 # ---------------------------------------------------------------------------
-# ML API (Tier 1) — image-generate / image-understand / rerank.
+# Automation API (Tier 1) — transform, http-request, webhook, workflow, schedule.
 #
-# VERIFIED published provider rates (Aug 2026, data not logic):
-#   - fal.ai SDXL: ~$0.0015-0.004 /image; Flux.1: ~$0.01-0.03 /image (per-call).
-#   - Replicate (fallback) SDXL: ~$0.002-0.005 /image; similar Flux.
-#   - Cohere rerank-v3: ~$0.001 /1k docs ranked; Jina rerank ~$0.001 /1k.
-#   - Gemini vision (image-understand) via OpenRouter: ~$0.0003 /call.
-# Charged price = pegged(floor-aware) provider cost (same model as AI/Data),
-# so margins auto-peg and a provider reprice is a one-line table edit.
+# Self-hosted compute: no external paid provider, so provider_cost ~ $0.
+# Prices are the published floors (transform/http/webhook $0.004, schedule
+# $0.010, workflow $0.020). pegged_price(0.0, floor=X) yields exactly X
+# because max(X, 0*1.35 + 0.0015) = max(X, 0.0015) = X for X >= 0.004.
 # ---------------------------------------------------------------------------
+AUTOMATION_FLOOR = {
+    "transform": 0.004,
+    "http-request": 0.004,
+    "webhook": 0.004,
+    "schedule": 0.010,
+    "workflow": 0.020,
+}
+
+
+def automation_price_usd(endpoint: str) -> float:
+    """Charged price for an automation endpoint (flat floor; provider cost ~$0)."""
+    floor = AUTOMATION_FLOOR.get(endpoint, 0.004)
+    return pegged_price(0.0, floor=floor)
+
+
+def automation_provider_cost_usd(endpoint: str) -> float:
+    """Estimated provider cost USD for an automation endpoint (~$0 self-hosted)."""
+    return 0.0
+
+
 PROVIDER_PRICING["fal:sdxl"] = ProviderPricing("fal.ai SDXL", per_call=0.003)
 PROVIDER_PRICING["fal:flux"] = ProviderPricing("fal.ai Flux.1", per_call=0.02)
 PROVIDER_PRICING["replicate:sdxl"] = ProviderPricing("Replicate SDXL", per_call=0.004)
