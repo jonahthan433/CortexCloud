@@ -82,6 +82,23 @@ class Settings(BaseSettings):
     # Behind DATA_ENABLED (default False) — staging only until production
     # validation is approved. No other providers (Helius/Birdeye/Blocknative) yet.
     DATA_ENABLED: bool = Field(default=False, env="DATA_ENABLED")
+    # ML API: image-generate/image-understand (fal primary, Replicate fallback),
+    # rerank (Cohere), Jina where useful. Behind ML_ENABLED (default False).
+    ML_ENABLED: bool = Field(default=False, env="ML_ENABLED")
+    # Per-endpoint gates. rerank is production-ready; image-generate and
+    # image-understand are disabled until their providers are funded
+    # (fal/Replicate/OpenRouter credits). Default to ML_ENABLED so flipping the
+    # master flag still works; set explicitly false to disable one endpoint.
+    ML_RERANK_ENABLED: bool = Field(default=True, env="ML_RERANK_ENABLED")
+    ML_IMAGE_GENERATE_ENABLED: bool = Field(default=True, env="ML_IMAGE_GENERATE_ENABLED")
+    ML_IMAGE_UNDERSTAND_ENABLED: bool = Field(default=True, env="ML_IMAGE_UNDERSTAND_ENABLED")
+    # Vision model for image-understand (OpenRouter). Default paid gemini;
+    # set to a ':free' OpenRouter multimodal model for validation (cost $0).
+    ML_VISION_MODEL: str = Field(default="google/gemini-2.5-flash", env="ML_VISION_MODEL")
+    FAL_KEY: Optional[str] = Field(default=None, env="FAL_KEY")
+    REPLICATE_API_KEY: Optional[str] = Field(default=None, env="REPLICATE_API_KEY")
+    COHERE_API_KEY: Optional[str] = Field(default=None, env="COHERE_API_KEY")
+    JINA_API_KEY: Optional[str] = Field(default=None, env="JINA_API_KEY")
     ALCHEMY_API_KEY: Optional[str] = Field(default=None, env="ALCHEMY_API_KEY")
     COINGECKO_API_KEY: Optional[str] = Field(default=None, env="COINGECKO_API_KEY")
     OPENROUTER_API_KEY: Optional[str] = Field(default=None, env="OPENROUTER_API_KEY")
@@ -149,18 +166,6 @@ class Settings(BaseSettings):
                 f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
             )
         return self
-
-    # Automation API (Tier 1): transform, http-request, webhook, workflow,
-    # schedule. Self-hosted compute (no external paid provider). Behind
-    # AUTOMATION_ENABLED (default False). Per-endpoint gates mirror ML.
-    AUTOMATION_ENABLED: bool = Field(default=False, env="AUTOMATION_ENABLED")
-    AUTOMATION_TRANSFORM_ENABLED: bool = Field(default=True, env="AUTOMATION_TRANSFORM_ENABLED")
-    AUTOMATION_HTTP_ENABLED: bool = Field(default=True, env="AUTOMATION_HTTP_ENABLED")
-    AUTOMATION_WEBHOOK_ENABLED: bool = Field(default=True, env="AUTOMATION_WEBHOOK_ENABLED")
-    AUTOMATION_WORKFLOW_ENABLED: bool = Field(default=True, env="AUTOMATION_WORKFLOW_ENABLED")
-    AUTOMATION_SCHEDULE_ENABLED: bool = Field(default=True, env="AUTOMATION_SCHEDULE_ENABLED")
-    # HMAC key for signing outbound webhook deliveries (schedule + webhook).
-    AUTOMATION_WEBHOOK_SECRET: str = Field(default="", env="AUTOMATION_WEBHOOK_SECRET")
 
 
 settings = Settings()

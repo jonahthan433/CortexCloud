@@ -26,6 +26,29 @@ logger = logging.getLogger("cortexcloud.api")
 router = APIRouter(prefix="/v1", tags=["optimization"])
 
 
+def _is_public_host(url: str) -> bool:
+    """SSRF guard: reject loopback/private/link-local/reserved targets
+    (stdlib socket.getaddrinfo). A webhook payload includes a signed
+    receipt — never let a paid caller point it at our own infra or a
+    cloud metadata endpoint. ponytail: DNS-rebinding TOCTOU left open —
+    pin/allowlist by domain when a customer needs it."""
+    import ipaddress
+    import socket
+    from urllib.parse import urlparse
+
+    try:
+        host = urlparse(url).hostname
+        addrs = {ai[4][0] for ai in socket.getaddrinfo(host, None)}
+        for a in addrs:
+            ip = ipaddress.ip_address(a.split("%")[0])
+            if (ip.is_loopback or ip.is_private or ip.is_link_local
+                    or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+                return False
+    except Exception:
+        return False
+    return True
+
+
 class OptimizeRequest(BaseModel):
     problem: ProblemInput
     mode: str = Field(
@@ -62,6 +85,8 @@ async def optimize(req: OptimizeRequest, request: Request):
         raise HTTPException(status_code=422, detail="n exceeds 5000 variables")
     if req.webhook_url and not req.webhook_url.startswith(("http://", "https://")):
         raise HTTPException(status_code=422, detail="webhook_url must be http(s)")
+    if req.webhook_url and not _is_public_host(req.webhook_url):
+        raise HTTPException(status_code=422, detail="webhook_url must not target loopback/private/link-local hosts")
     price = effective_price_usd(req.mode, n=req.problem.n)
     job_id = await create_job(req.problem, req.mode, price, webhook_url=req.webhook_url)
     schedule(job_id)

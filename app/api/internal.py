@@ -6,6 +6,8 @@ Plain /metrics (Prometheus, no revenue) stays public as before.
 """
 from __future__ import annotations
 
+import hmac
+
 from fastapi import APIRouter, Header, HTTPException
 from sqlalchemy import func, select, text
 
@@ -20,7 +22,7 @@ router = APIRouter()
 async def metrics_summary(x_internal_token: str | None = Header(default=None, alias="X-Internal-Token")):
     if not settings.INTERNAL_TOKEN:
         raise HTTPException(status_code=503, detail="internal metrics disabled (INTERNAL_TOKEN unset)")
-    if x_internal_token != settings.INTERNAL_TOKEN:
+    if not hmac.compare_digest(x_internal_token or "", settings.INTERNAL_TOKEN):
         raise HTTPException(status_code=401, detail="invalid internal token")
 
     async with AsyncSessionLocal() as db:

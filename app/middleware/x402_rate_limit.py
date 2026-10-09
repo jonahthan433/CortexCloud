@@ -12,6 +12,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app.core.cache import rate_check
+from app.core.client_ip import client_ip
 
 logger = logging.getLogger("cortexcloud.middleware.x402_ratelimit")
 
@@ -25,9 +26,9 @@ class X402RateLimitMiddleware(BaseHTTPMiddleware):
         if not (path.startswith("/v1") or path.startswith("/x402/v1")):
             return await call_next(request)
 
-        client_ip = request.client.host if request.client else "127.0.0.1"
+        ip = client_ip(request)
         try:
-            ok = rate_check(f"ip:{client_ip}", X402_IP_LIMIT, X402_IP_WINDOW)
+            ok = rate_check(f"ip:{ip}", X402_IP_LIMIT, X402_IP_WINDOW)
         except Exception as e:
             logger.warning(f"x402 rate-limit check failed (fail-open): {e}")
             ok = True

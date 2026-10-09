@@ -12,8 +12,9 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.responses import Response
 
 from app.core.config import settings
-from app.core.cache import cache_proof, proof_is_cached, rate_allow
+from app.core.cache import cache_proof, proof_consume, rate_allow
 from app.core.http import shared_client
+from app.core.client_ip import client_ip
 from app.core.nonce import nonce_seen
 from app.middleware.audit import audit, alert
 from app.core.reqlog import CACHE_HITS, LATENCY, get_req
@@ -279,6 +280,7 @@ OUTPUT_EXAMPLES = {
     "/v1/ai/transcribe": {"text": "...", "price_usd": 0.002},
     "/v1/research/search": {"query": "quantum annealing", "results": [{"title": "...", "url": "...", "source": "..."}], "price_usd": 0.006},
     "/v1/research/answer": {"query": "...", "sources": [{"title": "...", "url": "..."}], "price_usd": 0.012},
+    "/v1/research/ask": {"request_id": "req_...", "sections": [{"kind": "scripture", "body": "PSA:23:1 (WEB): ...", "refs": [{"ref": "PSA:23:1", "work": "WEB", "status": "canonical"}]}], "price_usd": 0.004},
 }
 
 # Per-route request schemas for the 402 challenge bazaar extension + the
@@ -326,6 +328,23 @@ INPUT_SCHEMAS = {
         "properties": {"query": {"type": "string", "minLength": 1, "maxLength": 400}},
         "required": ["query"],
     },
+    "/v1/research/ask": {
+        "type": "object",
+        "properties": {
+            "question": {"type": "string", "minLength": 1, "maxLength": 600},
+            "passages": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {"ref": {"type": "string"}, "text": {"type": "string"}, "work": {"type": "string", "default": "WEB"}},
+                    "required": ["ref", "text"],
+                },
+                "default": [],
+            },
+            "works": {"type": "array", "items": {"type": "string"}, "default": ["WEB", "KJV"]},
+        },
+        "required": ["question"],
+    },
 }
 INPUT_EXAMPLES = {
     **INPUT_EXAMPLES,
@@ -334,15 +353,11 @@ INPUT_EXAMPLES = {
     "/v1/ai/transcribe": {"audio_b64": "UklGRg...", "mime": "audio/wav"},
     "/v1/research/search": {"query": "latest quantum error correction results", "count": 5, "freshness": "pw"},
     "/v1/research/answer": {"query": "What advances in topological qubits happened in 2026?"},
+    "/v1/research/ask": {"question": "What does the Bible say about shepherds?", "works": ["WEB", "KJV"]},
     "/v1/data/token-balances": {"address": "0x0000000000000000000000000000000000000000", "chain": "ethereum"},
     "/v1/data/token-price": {"id": "ethereum"},
     "/v1/data/nft-ownership": {"address": "0x0000000000000000000000000000000000000000", "chain": "ethereum"},
     "/v1/data/tx-history": {"address": "0x0000000000000000000000000000000000000000", "chain": "ethereum", "limit": 25},
-    "/v1/automation/transform": {"data": {"a": 1, "b": 2}, "rules": {"pick": ["a"]}},
-    "/v1/automation/http-request": {"method": "GET", "url": "https://api.cortexcloud.org/v1/capabilities"},
-    "/v1/automation/webhook": {"url": "https://example.com/hook", "payload": {"event": "done"}},
-    "/v1/automation/schedule": {"url": "https://example.com/hook", "delay_seconds": 3600, "payload": {"event": "tick"}},
-    "/v1/automation/workflow": {"steps": [{"type": "transform", "data": {"a": 1}, "rules": {}}, {"type": "webhook", "url": "https://example.com/hook", "payload": {"a": 1}}]},
 }
 # Data GET query schemas (gas-oracle, block) for the bazaar extension.
 INPUT_SCHEMAS = {
@@ -383,63 +398,6 @@ INPUT_SCHEMAS = {
             "from_block": {"type": "integer"},
         },
         "required": ["address"],
-    },
-}
-
-# Automation API (Tier 1) request-body schemas for OpenAPI discovery.
-INPUT_SCHEMAS = {
-    **INPUT_SCHEMAS,
-    "/v1/automation/transform": {
-        "type": "object",
-        "properties": {
-            "data": {},
-            "rules": {"type": "object"},
-            "idempotency_key": {"type": "string"},
-        },
-        "required": ["data"],
-    },
-    "/v1/automation/http-request": {
-        "type": "object",
-        "properties": {
-            "method": {"type": "string", "enum": ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]},
-            "url": {"type": "string"},
-            "headers": {"type": "object"},
-            "body": {},
-            "timeout": {"type": "number"},
-            "idempotency_key": {"type": "string"},
-        },
-        "required": ["url"],
-    },
-    "/v1/automation/webhook": {
-        "type": "object",
-        "properties": {
-            "url": {"type": "string"},
-            "payload": {},
-            "headers": {"type": "object"},
-            "idempotency_key": {"type": "string"},
-        },
-        "required": ["url"],
-    },
-    "/v1/automation/schedule": {
-        "type": "object",
-        "properties": {
-            "url": {"type": "string"},
-            "payload": {},
-            "headers": {"type": "object"},
-            "delay_seconds": {"type": "integer"},
-            "cron": {"type": "string"},
-            "max_retries": {"type": "integer"},
-            "idempotency_key": {"type": "string"},
-        },
-        "required": ["url"],
-    },
-    "/v1/automation/workflow": {
-        "type": "object",
-        "properties": {
-            "steps": {"type": "array", "items": {"type": "object"}},
-            "idempotency_key": {"type": "string"},
-        },
-        "required": ["steps"],
     },
 }
 
@@ -547,7 +505,12 @@ class X402Middleware(BaseHTTPMiddleware):
         # service that is offline (honest disable, matches route behavior).
         if path.startswith("/v1/ai/") and not settings.AI_ENABLED:
             return JSONResponse(status_code=503, content={"error": "ai_disabled", "detail": "AI category is disabled on this instance."})
-        if path.startswith("/v1/research/") and not (settings.RESEARCH_ENABLED and settings.BRAVE_API_KEY):
+        if path == "/v1/research/ask":
+            # Bible/ancient-text RAG needs only RESEARCH_ENABLED (self-hosted
+            # corpus, no Brave key).
+            if not settings.RESEARCH_ENABLED:
+                return JSONResponse(status_code=503, content={"error": "research_disabled", "detail": "Research category is disabled (set RESEARCH_ENABLED)."})
+        elif path.startswith("/v1/research/") and not (settings.RESEARCH_ENABLED and settings.BRAVE_API_KEY):
             return JSONResponse(status_code=503, content={"error": "research_disabled", "detail": "Research category is disabled (set RESEARCH_ENABLED + BRAVE_API_KEY)."})
         if path.startswith("/v1/data/") and not settings.DATA_ENABLED:
             return JSONResponse(status_code=503, content={"error": "data_disabled", "detail": "Data API is disabled on this instance (DATA_ENABLED=false)."})
@@ -597,6 +560,11 @@ class X402Middleware(BaseHTTPMiddleware):
                 price_str = f"${research_price_usd('answer'):.6f}"
                 request.state.provider_cost_usd = round(RESEARCH_PROVIDERS["answer"].estimate_cost("answer").provider_cost_usd, 6)
                 request.state.category = "research"
+            elif path == "/v1/research/ask":
+                from app.x402.pricing import ask_price_usd, RESEARCH_PROVIDERS
+                price_str = f"${ask_price_usd():.6f}"
+                request.state.provider_cost_usd = round(RESEARCH_PROVIDERS["ask"].estimate_cost("ask").provider_cost_usd, 6)
+                request.state.category = "research"
             elif path.startswith("/v1/data/"):
                 from app.x402.pricing import data_price_usd, data_provider_cost_usd
                 _ep = path.split("/")[-1]  # token-balances | token-price | nft-ownership | tx-history
@@ -607,32 +575,35 @@ class X402Middleware(BaseHTTPMiddleware):
                 price_str = f"${data_price_usd(_ep, _calls):.6f}"
                 request.state.provider_cost_usd = round(data_provider_cost_usd(_ep, _calls), 6)
                 request.state.category = "data"
-            elif path.startswith("/v1/automation/"):
-                if not settings.AUTOMATION_ENABLED:
-                    return JSONResponse(
-                        status_code=503,
-                        content={"error": "automation_disabled",
-                                 "detail": "Automation API not enabled (AUTOMATION_ENABLED=false)"},
-                    )
-                from app.x402.pricing import automation_price_usd, automation_provider_cost_usd
-                _ep = path.split("/")[-1]  # transform | http-request | webhook | schedule | workflow
-                # Per-endpoint gate: disabled endpoints 503 BEFORE the 402
-                # challenge so no payment is requested (or settled) for them.
-                _auto_gate = {
-                    "transform": settings.AUTOMATION_TRANSFORM_ENABLED,
-                    "http-request": settings.AUTOMATION_HTTP_ENABLED,
-                    "webhook": settings.AUTOMATION_WEBHOOK_ENABLED,
-                    "workflow": settings.AUTOMATION_WORKFLOW_ENABLED,
-                    "schedule": settings.AUTOMATION_SCHEDULE_ENABLED,
+            elif path.startswith("/v1/ml/"):
+                from app.x402.pricing import ml_price_usd, ml_provider_cost_usd
+                _ep = path.split("/")[-1]  # image-generate | image-understand | rerank
+                # Per-endpoint gate: disabled ML endpoints return 503 BEFORE the
+                # 402 challenge so no payment is requested (or settled) for them.
+                _ml_gate = {
+                    "image-generate": settings.ML_IMAGE_GENERATE_ENABLED,
+                    "image-understand": settings.ML_IMAGE_UNDERSTAND_ENABLED,
+                    "rerank": settings.ML_RERANK_ENABLED,
                 }.get(_ep, True)
-                if not _auto_gate:
+                if not _ml_gate:
                     return JSONResponse(
                         status_code=503,
-                        content={"error": "endpoint_disabled", "detail": f"/v1/automation/{_ep} temporarily disabled"},
+                        content={"error": "endpoint_disabled", "detail": f"/v1/ml/{_ep} is temporarily disabled (provider funding pending)"},
                     )
-                price_str = f"${automation_price_usd(_ep):.6f}"
-                request.state.provider_cost_usd = round(automation_provider_cost_usd(_ep), 6)
-                request.state.category = "automation"
+                data = data if isinstance(data, dict) else {}
+                if _ep == "rerank":
+                    _docs = len(data.get("documents") or []) or 1
+                    price_str = f"${ml_price_usd('rerank', docs=_docs):.6f}"
+                    request.state.provider_cost_usd = round(ml_provider_cost_usd("rerank", docs=_docs), 6)
+                elif _ep == "image-generate":
+                    _m = data.get("model") or "sdxl"
+                    price_str = f"${ml_price_usd('image-generate', _m):.6f}"
+                    request.state.provider_cost_usd = round(ml_provider_cost_usd("image-generate", _m), 6)
+                else:  # image-understand
+                    _vm = data.get("model") or settings.ML_VISION_MODEL
+                    price_str = f"${ml_price_usd('image-understand', _vm):.6f}"
+                    request.state.provider_cost_usd = round(ml_provider_cost_usd("image-understand", _vm), 6)
+                request.state.category = "ml"
 
         required = usd_to_usdc_atomic(price_str)
 
@@ -861,9 +832,12 @@ class X402Middleware(BaseHTTPMiddleware):
         request.state.x402_cache = False
 
         # S1: payment-proof cache — the same proof verified+settled within the
-        # last 60s skips CDP entirely (fast retries/timeouts). Fail-open if
-        # Redis is down: cached-only optimizations must never block payments.
-        if await proof_is_cached(payment_signature):
+        # last 60s skips CDP entirely (ONE retry, e.g. a client timeout).
+        # proof_consume atomically removes the entry: a second replay falls
+        # through to the nonce check below (nonce already claimed) -> 402.
+        # Fail-open if the cache is down: cached-only optimizations must never
+        # block payments.
+        if await proof_consume(payment_signature):
             settle_data = {"success": True, "cached": True}
             request.state.x402_cache = True
             CACHE_HITS.inc()
@@ -893,7 +867,7 @@ class X402Middleware(BaseHTTPMiddleware):
         from app.middleware.payverify import verify_proof
         ok, reason, _auth_verified = verify_proof(payment_signature, price_str, path)
         if not ok:
-            ip = request.client.host if request.client else "?"
+            ip = client_ip(request)
             audit("proof_rejected", payer=_auth0.get("from") or "?", reason=reason, ip=ip)
             await alert("proof_reject", 60, 10, "proof_rejected_alert",
                         payer=_auth0.get("from") or "", reason=reason, ip=ip)

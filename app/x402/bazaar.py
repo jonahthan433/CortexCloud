@@ -109,42 +109,29 @@ _TOOLS: dict[str, dict] = {
         "input_schema": {"type": "object", "properties": {"chain": {"type": "string", "default": "ethereum"}, "block": {"type": "string", "default": "latest"}}},
         "example": {"chain": "ethereum", "block": "latest"}, "free": False,
     },
-    # Automation API (Tier 1)
-    "cortex_automation_estimate": {
-        "method": "POST", "path": "/v1/automation/estimate",
-        "description": "Free: predict the USDC price for an automation request before paying.",
-        "input_schema": {"type": "object", "properties": {"endpoint": {"type": "string", "enum": ["transform", "http-request", "webhook", "schedule", "workflow"]}}},
-        "example": {"endpoint": "workflow"}, "free": True,
+    "cortex_ml_image_generate": {
+        "method": "POST", "path": "/v1/ml/image-generate",
+        "description": "Text-to-image generation (fal.ai primary, Replicate fallback; SDXL/Flux). x402-paid USDC on Base.",
+        "input_schema": {"type": "object", "properties": {"prompt": {"type": "string"}, "model": {"type": "string", "enum": ["sdxl", "flux"], "default": "sdxl"}, "n": {"type": "integer", "default": 1}, "size": {"type": "string", "default": "1024x1024"}}, "required": ["prompt"]},
+        "example": {"prompt": "a serene lake at sunrise, oil painting style"}, "free": False,
     },
-    "cortex_automation_transform": {
-        "method": "POST", "path": "/v1/automation/transform",
-        "description": "Pure JSON/data transformation (no egress). x402-paid USDC on Base.",
-        "input_schema": {"type": "object", "properties": {"data": {"type": "object"}, "rules": {"type": "object"}}},
-        "example": {"data": {"a": 1, "b": 2}, "rules": {"pick": ["a"]}}, "free": False,
+    "cortex_ml_image_understand": {
+        "method": "POST", "path": "/v1/ml/image-understand",
+        "description": "Vision: caption / OCR / describe an image (Gemini vision via OpenRouter). x402-paid USDC on Base.",
+        "input_schema": {"type": "object", "properties": {"image_url": {"type": "string"}, "image_b64": {"type": "string"}, "prompt": {"type": "string", "default": "Describe this image in detail."}}, "required": []},
+        "example": {"image_url": "https://example.com/cat.jpg", "prompt": "What is in this image?"}, "free": False,
     },
-    "cortex_automation_http_request": {
-        "method": "POST", "path": "/v1/automation/http-request",
-        "description": "Outbound HTTP/API request via SSRF-guarded egress. x402-paid USDC on Base.",
-        "input_schema": {"type": "object", "properties": {"method": {"type": "string", "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"]}, "url": {"type": "string"}, "headers": {"type": "object"}, "body": {}}},
-        "example": {"method": "GET", "url": "https://api.example.com/health"}, "free": False,
+    "cortex_ml_rerank": {
+        "method": "POST", "path": "/v1/ml/rerank",
+        "description": "Result reranking by relevance (Cohere primary, Jina fallback). x402-paid USDC on Base.",
+        "input_schema": {"type": "object", "properties": {"query": {"type": "string"}, "documents": {"type": "array", "items": {"type": "string"}}, "model": {"type": "string", "enum": ["rerank-v3", "rerank"], "default": "rerank-v3"}, "top_n": {"type": "integer"}}, "required": ["query", "documents"]},
+        "example": {"query": "best pizza", "documents": ["Pizza hut menu", "How to fix a bike", "Top 10 pizzerias"]}, "free": False,
     },
-    "cortex_automation_webhook": {
-        "method": "POST", "path": "/v1/automation/webhook",
-        "description": "Deliver a signed (HMAC) webhook payload to a URL. x402-paid USDC on Base.",
-        "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "payload": {}, "headers": {"type": "object"}}},
-        "example": {"url": "https://hook.example.com/event", "payload": {"ok": True}}, "free": False,
-    },
-    "cortex_automation_schedule": {
-        "method": "POST", "path": "/v1/automation/schedule",
-        "description": "Persist a delayed/recurring task; CortexCloud fires a signed webhook to your URL later. x402-paid USDC on Base.",
-        "input_schema": {"type": "object", "properties": {"url": {"type": "string"}, "payload": {}, "delay_seconds": {"type": "integer"}, "cron": {"type": "string"}, "max_retries": {"type": "integer"}}},
-        "example": {"url": "https://hook.example.com/job", "delay_seconds": 3600}, "free": False,
-    },
-    "cortex_automation_workflow": {
-        "method": "POST", "path": "/v1/automation/workflow",
-        "description": "Sequence up to 10 transform/http/webhook steps (120s cap). x402-paid USDC on Base.",
-        "input_schema": {"type": "object", "properties": {"steps": {"type": "array", "items": {"type": "object"}}}},
-        "example": {"steps": [{"type": "transform", "data": {"a": 1}, "rules": {}}, {"type": "webhook", "url": "https://hook.example.com", "payload": {"a": 1}}]}, "free": False,
+    "cortex_ml_estimate": {
+        "method": "POST", "path": "/v1/ml/estimate",
+        "description": "Free: predict the USDC price for an ML request before paying.",
+        "input_schema": {"type": "object", "properties": {"prompt": {"type": "string"}, "documents": {"type": "array", "items": {"type": "string"}}, "image_url": {"type": "string"}}},
+        "example": {"prompt": "a cat"}, "free": True,
     },
 }
 

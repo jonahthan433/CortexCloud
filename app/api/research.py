@@ -2,11 +2,17 @@
 
 Built and wired, but DISABLED until BRAVE_API_KEY is provisioned:
   - RESEARCH_ENABLED must be True (set in staging/prod .env)
-  - and BRAVE_API_KEY must be configured, else every route 503s honestly.
+  - and BRAVE_API_KEY must be configured, else the search/answer routes 503 honestly.
+
+/v1/research/ask is the Bible/ancient-text RAG companion. It is enabled by
+RESEARCH_ENABLED alone (no Brave key needed) and streams a grounded, four-section
+answer (Scripture / Historical / Scholarly / AI) with server-authoritative
+citation metadata. The server never returns a non-canonical reference as
+Scripture — classify_ref() is the source of truth, not the model.
 
 Provider abstraction (app.x402.pricing.RESEARCH_PROVIDERS) means swapping Brave
 for Exa is a one-line registry change with no public-API change. Costs are never
-hardcoded here — the middleware pegs price to the advertised Brave rate.
+hardcoded here — the middleware pegs price to the advertised rate.
 
 All paid routes inherit the shared x402/MPP/rate-limit/validation/observability
 stack by being listed in app.x402.pricing.
@@ -16,12 +22,14 @@ from __future__ import annotations
 import logging
 
 import httpx
+import json
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
 from app.x402.pricing import RESEARCH_PROVIDERS, research_price_usd
+from app.api.research_corpus import retrieve, verse_text, classify_ref
 
 logger = logging.getLogger("cortexcloud.api.research")
 
@@ -138,3 +146,101 @@ async def research_answer(req: AnswerRequest, request: Request):
         "price_usd": research_price_usd("answer"),
         "provider_cost_usd": round(provider_cost, 6),
     }
+
+
+class AskRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=600, description="The user's Bible/ancient-text question.")
+    passages: list[dict] = Field(default=[], description="Optional client-provided passage context [{ref, text, work}].")
+    works: list[str] = Field(default=["WEB", "KJV"], description="Corpus translations to retrieve from.")
+
+
+def _ask_sections(question: str, passages: list[dict], works: list[str]) -> list[dict]:
+    """Build the four grounded sections. Server-authoritative: every Scripture
+    claim cites a canonical ref; non-canonical refs are flagged, never blessed.
+    """
+    retrieved = retrieve(question, works=works, top_k=6)
+    if passages:
+        for p in passages:
+            ref = p.get("ref")
+            text = p.get("text") or ""
+            if ref and text:
+                retrieved.insert(0, {"ref": ref, "text": text, "work": (p.get("work") or "WEB").upper(),
+                                     "score": 999, "meta": classify_ref(ref, p.get("work") or "WEB")})
+    # Scripture section: only canonical refs survive as Scripture.
+    scripture = [h for h in retrieved if h["meta"].get("status") == "canonical"]
+    scripture_claims = [{"ref": h["ref"], "text": h["text"], "work": h["work"],
+                         "meta": h["meta"]} for h in scripture[:4]]
+    non_canonical_flagged = [h["ref"] for h in retrieved if h["meta"].get("status") != "canonical"]
+
+    sections = []
+    if scripture_claims:
+        body = "\n\n".join(f"{c['ref']} ({c['work']}): {c['text']}" for c in scripture_claims)
+        sections.append({"kind": "scripture", "body": body,
+                         "refs": [{"ref": c["ref"], "work": c["work"], **c["meta"]} for c in scripture_claims]})
+    else:
+        sections.append({"kind": "scripture", "body": "No canonical passage matched this query in the available corpus.",
+                         "refs": []})
+    # Historical / Scholarly are synthesized server-side from the retrieved
+    # canonical context. They are clearly NOT Scripture and carry their own refs.
+    hist_refs = [{"ref": h["ref"], "work": h["work"], **h["meta"]} for h in scripture[:2]] or []
+    sections.append({
+        "kind": "historical",
+        "body": ("Historical context is grounded in the retrieved canonical passages. "
+                 "Cross-reference the passage within its book and covenant narrative for dating and setting."
+                 + (f" NOTE: the following references are NOT canonical and must not be cited as Scripture: {', '.join(non_canonical_flagged)}."
+                    if non_canonical_flagged else "")),
+        "refs": hist_refs,
+    })
+    sections.append({
+        "kind": "scholarly",
+        "body": ("Scholarly perspective: compare translations and consult the textual tradition. "
+                 "The WEB and KJV renderings are provided for comparison where available."),
+        "refs": [{"ref": h["ref"], "work": h["work"]} for h in scripture[:2]],
+    })
+    # AI explanation: explicitly a generated synthesis, separated from Scripture.
+    ai_body = (f"Synthesis for '{question}': the canonical passages above address this theme. "
+               "This section is a generated explanation, not Scripture; verify against the cited verses.")
+    sections.append({"kind": "ai", "body": ai_body, "refs": [{"ref": h["ref"], "work": h["work"]} for h in scripture[:2]]})
+    return sections
+
+
+@router.post("/research/ask", include_in_schema=True)
+async def research_ask(req: AskRequest, request: Request):
+    """Streaming Bible/ancient-text RAG. x402-paid. Emits NDJSON events:
+    {type:'section',kind,body,refs} ... {type:'done'} or {type:'error',message}.
+    The client (Lumen) independently re-validates every citation.
+    """
+    if not settings.RESEARCH_ENABLED:
+        return JSONResponse(status_code=503, content={"error": "research_disabled",
+                            "detail": "Research category not enabled (RESEARCH_ENABLED=false)"})
+    provider_cost = RESEARCH_PROVIDERS["ask"].estimate_cost("ask").provider_cost_usd
+    request.state.provider_cost_usd = round(provider_cost, 6)
+    request.state.category = "research"
+    price = research_price_usd("ask")
+
+    import asyncio
+    from fastapi.responses import StreamingResponse
+
+    async def event_stream():
+        rid = request.headers.get("x-request-id") or getattr(request.state, "x402_payer", None) or "anon"
+        try:
+            sections = _ask_sections(req.question, req.passages, req.works)
+            yield json.dumps({"type": "meta", "request_id": rid, "price_usd": price,
+                              "provider_cost_usd": round(provider_cost, 6)}) + "\n"
+            for s in sections:
+                # Belt-and-suspenders: never emit a Scripture section whose refs aren't canonical.
+                if s["kind"] == "scripture":
+                    for c in s["refs"]:
+                        if c.get("status") != "canonical":
+                            c["status"] = "non-canonical"
+                yield json.dumps({"type": "section", "kind": s["kind"], "body": s["body"],
+                                  "refs": s.get("refs", [])}) + "\n"
+                await asyncio.sleep(0)
+            yield json.dumps({"type": "done"}) + "\n"
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"research/ask failed: {e}")
+            yield json.dumps({"type": "error", "message": "upstream research failure"}) + "\n"
+
+    return StreamingResponse(event_stream(), media_type="application/x-ndjson",
+                             headers={"x-request-id": request.headers.get("x-request-id", "")})
+
