@@ -222,6 +222,17 @@ def create_app(override_openapi: bool = True) -> FastAPI:
         except Exception:
             return False
 
+    @application.get("/examples/paid_client.py", include_in_schema=False, tags=["System"])
+    async def paid_client_source():
+        """The copy-paste buyer referenced by /demo and llms.txt — served from
+        the repo copy so the demo link can never drift from the real client."""
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "examples", "paid_client.py")
+        return FileResponse(p, media_type="text/plain")
+
+    @application.get("/demo", include_in_schema=False, tags=["System"])
+    async def demo_page():
+        return FileResponse(os.path.join(SITE_DIR, "demo.html"), media_type="text/html")
+
     # Root-level static assets (Next export leftovers kept for compatibility)
     @application.get("/{asset}", include_in_schema=False)
     async def _site_asset(asset: str):

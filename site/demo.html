@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Paid API demo — CortexCloud</title>
+<style>
+body{background:#0a0e14;color:#e6edf3;font:15px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;max-width:760px;margin:48px auto;padding:0 20px}
+h1{font-size:20px;font-weight:600;margin-bottom:4px}
+.sub{color:#8b949e;margin-bottom:28px}
+pre{background:#11161d;border:1px solid #21262d;border-radius:8px;padding:16px;overflow-x:auto;font-size:13px}
+code{color:#7ee787}
+a{color:#58a6ff}
+.note{color:#8b949e;font-size:13px}
+</style></head><body>
+<h1>Paid API demo</h1>
+<div class="sub">402 &rarr; sign EIP-3009 &rarr; 200. $0.004 USDC on Base. Official x402 SDK, no keys, no signup.</div>
+
+<pre><code>pip install "x402" eth-account httpx
+curl -O https://api.cortexcloud.org/examples/paid_client.py
+
+# any Base wallet with a little USDC + ETH
+TEST_BUYER_KEY=0x... python paid_client.py</code></pre>
+
+<p class="note">Output: challenge <code>$0.004000</code> &rarr; <code>paid call: 200</code> &rarr;
+on-chain receipt in <code>x-payment-response</code>.</p>
+
+<p class="note">Other targets: <code>CC_PATH=/v1/ai/chat CC_BODY='{"messages":[{"role":"user","content":"hi"}]}'</code>.
+Full endpoint list: <a href="/llms.txt">/llms.txt</a> &middot; <a href="/.well-known/x402.json">/.well-known/x402.json</a> &middot;
+<a href="/openapi.json">/openapi.json</a> &middot; <a href="/capabilities">/v1/capabilities</a>.</p>
+</body></html>

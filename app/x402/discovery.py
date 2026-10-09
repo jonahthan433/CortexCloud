@@ -125,6 +125,14 @@ are live agent-native API categories on it.
 3. For optimization: POST /v1/estimate (free) then POST /v1/optimize (paid);
    poll GET /v1/jobs/{{job_id}}.
 
+Copy-paste buyer (official x402 SDK, ~40 lines):
+
+    pip install "x402" eth-account httpx
+    TEST_BUYER_KEY=0x... python paid_client.py   # 402 -> sign -> 200
+
+Source: https://raw.githubusercontent.com/jonahthan433/CortexCloud/main/examples/paid_client.py
+(overrides: CC_PATH, CC_BODY, CC_URL)
+
 ## Endpoints
 
 {chr(10).join(paid + free)}
