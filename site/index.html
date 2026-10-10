@@ -25,6 +25,7 @@
   --orange:#ff5500; --orange-dim:#cc4400; --green:#4ade80;
   --text:#e5e5e5; --muted:#666;
   --code-bg:#0f1c2e; --code-border:#1e3a5f; --code-fg:#7db3e8;
+  --t-key:#7db3e8; --t-str:#4ade80; --t-num:#ff9f43; --t-bool:#e879a6; --t-com:#5b6b7a; --t-url:#67e8f9;
   --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
   --sans:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
 }
@@ -84,6 +85,10 @@ pre{background:var(--panel);border:1px solid var(--border);border-radius:8px;pad
 .fx-explain p{margin:0 0 0.6rem;color:var(--muted);font-size:0.9rem}
 .fx-explain b{color:var(--text)}
 @media (max-width:640px){h1{font-size:2rem}.wrap{padding:0 1rem}header.hero{padding:3.5rem 0 2rem}}
+/* Vibrant terminal syntax colors (reuse existing palette hues) */
+pre .tk{color:var(--t-key)}pre .ts{color:var(--t-str)}pre .tn{color:var(--t-num)}
+pre .tb{color:var(--t-bool)}pre .tc{color:var(--t-com)}pre .tu{color:var(--t-url)}
+pre .tp{color:var(--muted)}
 </style>
 </head>
 <body>
@@ -183,6 +188,41 @@ pre{background:var(--panel);border:1px solid var(--border);border-radius:8px;pad
 </footer>
 </main>
 <script>
+// Terminal syntax colors for every code block. ponytail: single-pass
+// tokenizer (no sequential re-replace, which would corrupt injected spans),
+// no lib (CSP blocks CDN).
+function hl(code){
+  var esc=function(s){return s.replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});};
+  // JSON: parse + pretty-print, then tokenize in ONE pass.
+  if(/^\s*[{[]/.test(code)||/"[\w-]+"\s*:/.test(code)){
+    try{
+      var pretty=JSON.stringify(JSON.parse(code),null,2);
+      return pretty.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,function(m){
+        var cls=/^"/.test(m)?(/:$/.test(m)?'tk':'ts'):/true|false/.test(m)?'tb':/null/.test(m)?'tb':'tn';
+        return '\u0000'+cls+'\u0001'+esc(m)+'\u0002';
+      }).replace(/\u0000(\w+)\u0001([\s\S]*?)\u0002/g,function(_,cls,body){return '<span class="'+cls+'">'+body+'</span>';});
+    }catch(e){}
+  }
+  // Shell / plain: single-pass tokenizer over escaped text.
+  var out='',re=/(#[^\n]*|https?:\/\/[^\s'"]+|"(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"|\b(?:curl|POST|GET|PUT|DELETE)\b|-X\b|-H\b|-d\b|Content-Type|\bmode\b|\b(?:true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,last=0,m;
+  while((m=re.exec(code))){
+    out+=esc(code.slice(last,m.index));
+    var t=m[0],cls;
+    if(t[0]==='#')cls='tc';
+    else if(/^https?:/.test(t))cls='tu';
+    else if(t[0]==='"')cls='ts';
+    else if(/^(curl|POST|GET|PUT|DELETE|-X|-H|-d|Content-Type|mode)$/.test(t))cls='tk';
+    else if(/^(true|false|null)$/.test(t))cls='tb';
+    else cls='tn';
+    out+='<span class="'+cls+'">'+esc(t)+'</span>';
+    last=re.lastIndex;
+  }
+  out+=esc(code.slice(last));
+  return out;
+}
+function paint(pre){var raw=pre.dataset.raw;if(raw==null){raw=pre.textContent;pre.dataset.raw=raw;}pre.innerHTML=hl(raw);}
+function paintAll(){document.querySelectorAll('pre').forEach(paint);}
+paintAll();
 // Hero "Try a free example" -> smooth scroll to the demo (CSS smooth-scroll
 // is enough in real browsers; this guarantees it everywhere, incl. headless).
 (function(){
@@ -213,18 +253,21 @@ pre{background:var(--panel);border:1px solid var(--border);border-radius:8px;pad
     j('POST','/v1/estimate',problem).then(function(est){
       if(!est.ok){throw est;}
       return j('POST','/v1/trial',{problem:problem}).then(function(trial){
+        if(!trial.ok){throw {status:trial.status,data:trial.data};}
         var rec=est.data.recommendation||{};
-        out.textContent=
+        out.dataset.raw=
           '1) POST /v1/estimate  ->  200 OK\n'+JSON.stringify({mode:rec.mode,solver:rec.backend,algorithm:rec.algorithm,price_if_paid_usd:rec.cortexcloud_price_usd},null,2)+
           '\n\n2) POST /v1/trial  ->  200 OK\n'+JSON.stringify(trial.data,null,2);
+        paint(out);
         out.hidden=false;
         st.className='demo-status ok';
         st.textContent='Solved for free — real answer, no wallet.';
         ex.hidden=false;
       });
     }).catch(function(e){
+      out.dataset.raw=(e&&e.status?('HTTP '+e.status+'\n'):'')+JSON.stringify((e&&e.data)||e,null,2);
+      paint(out);
       out.hidden=false;
-      out.textContent=(e&&e.status?('HTTP '+e.status+'\n'):'')+JSON.stringify((e&&e.data)||e,null,2);
       st.className='demo-status err';st.textContent='Request failed — try again.';
     }).then(function(){btn.disabled=false;});
   });
