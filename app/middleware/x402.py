@@ -280,6 +280,7 @@ OUTPUT_EXAMPLES = {
     "/v1/ai/transcribe": {"text": "...", "price_usd": 0.002},
     "/v1/research/search": {"query": "quantum annealing", "results": [{"title": "...", "url": "...", "source": "..."}], "price_usd": 0.006},
     "/v1/research/answer": {"query": "...", "sources": [{"title": "...", "url": "..."}], "price_usd": 0.012},
+    "/v1/research/report": {"query": "...", "briefing": "Surface-code thresholds improved in 2026 [1][2]...", "sources": [{"title": "...", "url": "...", "source": "..."}], "answer_note": "Grounded briefing synthesized from the cited sources.", "price_usd": 0.016, "provider_cost_usd": 0.006, "currency": "USDC", "payment": "x402 (USDC on Base, eip155:8453)", "request_key": "qec-brief-0001"},
     "/v1/research/ask": {"request_id": "req_...", "sections": [{"kind": "scripture", "body": "PSA:23:1 (WEB): ...", "refs": [{"ref": "PSA:23:1", "work": "WEB", "status": "canonical"}]}], "price_usd": 0.004},
 }
 
@@ -328,6 +329,16 @@ INPUT_SCHEMAS = {
         "properties": {"query": {"type": "string", "minLength": 1, "maxLength": 400}},
         "required": ["query"],
     },
+    "/v1/research/report": {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "minLength": 1, "maxLength": 400},
+            "request_key": {"type": "string", "minLength": 8, "maxLength": 128,
+                            "description": "Idempotency key; same key + payer returns the stored report."},
+            "count": {"type": "integer", "minimum": 1, "maximum": 10, "default": 5},
+        },
+        "required": ["query", "request_key"],
+    },
     "/v1/research/ask": {
         "type": "object",
         "properties": {
@@ -353,6 +364,7 @@ INPUT_EXAMPLES = {
     "/v1/ai/transcribe": {"audio_b64": "UklGRg...", "mime": "audio/wav"},
     "/v1/research/search": {"query": "latest quantum error correction results", "count": 5, "freshness": "pw"},
     "/v1/research/answer": {"query": "What advances in topological qubits happened in 2026?"},
+    "/v1/research/report": {"query": "What are the latest advances in quantum error correction?", "request_key": "qec-brief-0001", "count": 5},
     "/v1/research/ask": {"question": "What does the Bible say about shepherds?", "works": ["WEB", "KJV"]},
     "/v1/data/token-balances": {"address": "0x0000000000000000000000000000000000000000", "chain": "ethereum"},
     "/v1/data/token-price": {"id": "ethereum"},
@@ -881,7 +893,10 @@ class X402Middleware(BaseHTTPMiddleware):
         cdp_client = shared_client("cdp", 30.0)
         try:
             cdp_headers = _cdp_auth_headers()
-            auth_headers = {"Content-Type": "application/json", **cdp_headers.get("verify", {})}
+            # cdp auth headers already carry Content-Type; merging our own in
+            # first sends a duplicate ("application/json,application/json")
+            # and CDP 400s the settle. SDK value wins.
+            auth_headers = {**cdp_headers.get("verify", {}), "Content-Type": "application/json"}
             validate_res = await cdp_client.post(
                 f"{facilitator_url}/validate",
                 json=validation_body,
@@ -918,7 +933,7 @@ class X402Middleware(BaseHTTPMiddleware):
             settle_res = await cdp_client.post(
                 f"{facilitator_url}/settle",
                 json=settle_body,
-                headers={"Content-Type": "application/json", **cdp_headers.get("settle", {})},
+                headers=cdp_headers.get("settle", {"Content-Type": "application/json"}),
             )
             if settle_res.status_code != 200:
                 logger.warning(f"x402 settlement failed: {settle_res.text}")

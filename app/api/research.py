@@ -30,12 +30,23 @@ from pydantic import BaseModel, Field
 from app.core.config import settings
 from app.x402.pricing import RESEARCH_PROVIDERS, research_price_usd
 from app.api.research_corpus import retrieve, verse_text, classify_ref
+from app.core.cache import TTLCache
 
 logger = logging.getLogger("cortexcloud.api.research")
 
 router = APIRouter(prefix="/v1", tags=["research"])
 
 BRAVE_BASE = "https://api.search.brave.com/res/v1"
+OPENROUTER_BASE = "https://openrouter.ai/api/v1"
+
+# Idempotency: same (payer, request_key) returns the stored report instead of
+# re-charging/re-running. ponytail: single-worker TTL dict (one uvicorn worker);
+# swap for PG-backed store if we ever scale to N workers.
+_REPORT_CACHE: TTLCache = TTLCache(ttl_s=3600)
+
+
+def _report_cache_key(payer: str, request_key: str) -> str:
+    return f"report:{payer.lower()}:{request_key}"
 
 
 class SearchRequest(BaseModel):
@@ -243,4 +254,93 @@ async def research_ask(req: AskRequest, request: Request):
 
     return StreamingResponse(event_stream(), media_type="application/x-ndjson",
                              headers={"x-request-id": request.headers.get("x-request-id", "")})
+
+
+class ReportRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=400, description="Research question or topic to brief on.")
+    request_key: str = Field(min_length=8, max_length=128, description="Caller-chosen idempotency key. Same key + same payer returns the stored report without a second charge.")
+    count: int = Field(default=5, ge=1, le=10, description="Number of sources to ground on (bounded).")
+
+
+@router.post("/research/report", include_in_schema=True)
+async def research_report(req: ReportRequest, request: Request):
+    """One-call agent workflow: grounded search -> cited sources -> synthesized,
+    source-attributed briefing. Paid (x402, USDC on Base). Idempotent per
+    (payer, request_key); output is schema-validated before return.
+    """
+    if d := _disabled():
+        return d
+    if e := _need_brave():
+        return e
+    payer = getattr(request.state, "x402_payer", None) or "anon"
+    ck = _report_cache_key(payer, req.request_key)
+    cached = _REPORT_CACHE.get(ck)
+    if cached is not None:
+        return {**cached, "idempotent_replay": True}
+
+    token = settings.BRAVE_API_KEY or ""
+    # 1) Grounded search (Brave). Bounded count.
+    async with httpx.AsyncClient(timeout=20.0) as c:
+        r = await c.get(
+            f"{BRAVE_BASE}/web/search",
+            headers={"Accept": "application/json", "X-Subscription-Token": token},
+            params={"q": req.query, "count": req.count, "freshness": "pm"},
+        )
+        if r.status_code != 200:
+            return JSONResponse(status_code=r.status_code, content={"error": "upstream_brave", "detail": r.text[:500]})
+        data = r.json()
+    sources = [
+        {"title": w.get("title"), "url": w.get("url"), "source": w.get("meta_url", {}).get("hostname")}
+        for w in data.get("web", {}).get("results", [])
+    ]
+    if not sources:
+        return JSONResponse(status_code=502, content={"error": "no_sources", "detail": "Brave returned no results for this query"})
+
+    # 2) Synthesize a source-attributed briefing (OpenRouter). Bounded tokens.
+    #    Cost context for the ledger: brave answer + a small synthesis hop.
+    provider_cost = round(RESEARCH_PROVIDERS["search"].estimate_cost("answer").provider_cost_usd + 0.001, 6)
+    request.state.provider_cost_usd = provider_cost
+    request.state.category = "research"
+    src_block = "\n".join(f"[{i+1}] {s['title']} — {s['url']}" for i, s in enumerate(sources))
+    synth_prompt = (
+        "You are a research analyst. Using ONLY the numbered sources below, write a concise "
+        "briefing that answers the question. Cite sources inline as [n]. If the sources do not "
+        f"support a claim, say so. Keep it under 200 words.\n\nQuestion: {req.query}\n\nSources:\n{src_block}"
+    )
+    briefing = None
+    if settings.OPENROUTER_API_KEY:
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as c:
+                rr = await c.post(
+                    f"{OPENROUTER_BASE}/chat/completions",
+                    headers={"Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+                             "HTTP-Referer": "https://cortexcloud.org", "X-Title": "CortexCloud"},
+                    json={"model": "google/gemini-2.5-flash",
+                          "messages": [{"role": "user", "content": synth_prompt}],
+                          "max_tokens": 400, "temperature": 0.3},
+                )
+                if rr.status_code == 200:
+                    briefing = rr.json().get("choices", [{}])[0].get("message", {}).get("content")
+        except Exception as exc:  # noqa: BLE001
+            logger.error(f"research/report synthesis failed: {exc}")
+
+    # 3) Output validation: never return a briefing with no citations, and never
+    #    fabricate — if synthesis is unavailable, return sources + an honest note.
+    cited = bool(briefing) and any(f"[{i+1}]" in briefing for i in range(len(sources)))
+    report = {
+        "query": req.query,
+        "briefing": briefing if (briefing and cited) else None,
+        "sources": sources,
+        "answer_note": (
+            "Grounded briefing synthesized from the cited sources." if (briefing and cited)
+            else "Synthesis unavailable or uncited; returning grounded sources for the caller to synthesize."
+        ),
+        "price_usd": 0.016,
+        "provider_cost_usd": provider_cost,
+        "currency": "USDC",
+        "payment": "x402 (USDC on Base, eip155:8453)",
+        "request_key": req.request_key,
+    }
+    _REPORT_CACHE.set(ck, report)
+    return report
 

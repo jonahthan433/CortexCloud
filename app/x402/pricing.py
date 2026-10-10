@@ -217,6 +217,11 @@ ROUTE_PRICING = {
     # Research category — flat per-call, pegged to Brave cost.
     "POST /v1/research/search": "$0.006",
     "POST /v1/research/answer": "$0.012",
+    # End-to-end agent workflow: search + cited sources + grounded synthesis in
+    # one paid call. Cost = brave answer ($0.005) + synthesis (~$0.001); priced
+    # flat at $0.016 to preserve ~33% margin (pegged_price(0.006) ~= 0.0096,
+    # rounded up to cover the extra synthesis hop). Bounded: max_tokens capped.
+    "POST /v1/research/report": "$0.016",
     # Data API (Tier 1) — all endpoints at the $0.004 floor; provider cost is
     # far below the floor, so the charged price is the floor (see DATA block).
     "POST /v1/data/token-balances": "$0.004",
@@ -245,6 +250,7 @@ ROUTE_DESCRIPTIONS = {
     "POST /v1/ai/transcribe": "Speech-to-text via Gemini. x402-paid per request.",
     "POST /v1/research/search": "Grounded web search with citations via Brave Search API. x402-paid per call.",
     "POST /v1/research/answer": "Cited answer synthesis via Brave AI-Grounding. x402-paid per call.",
+    "POST /v1/research/report": "One-call agent workflow: grounded web search + cited sources + a synthesized, source-attributed briefing. x402-paid, USDC on Base.",
     # Data API (Tier 1)
     "POST /v1/data/token-balances": "ERC-20 token balances for a wallet on a chain (Alchemy Token API). x402-paid, USDC on Base.",
     "POST /v1/data/token-price": "Spot USD price for a token/coin (CoinGecko where free tier suffices, else Alchemy). x402-paid.",
