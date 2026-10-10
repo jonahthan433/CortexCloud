@@ -234,11 +234,6 @@ ROUTE_PRICING = {
     "POST /v1/aggregate/prices": "$0.004",
     "POST /v1/aggregate/tx-history": "$0.004",
     # Automation API (Tier 1) — self-hosted compute, flat floors.
-    "POST /v1/automation/transform": "$0.004",
-    "POST /v1/automation/http-request": "$0.004",
-    "POST /v1/automation/webhook": "$0.004",
-    "POST /v1/automation/schedule": "$0.010",
-    "POST /v1/automation/workflow": "$0.020",
 }
 
 ROUTE_DESCRIPTIONS = {
@@ -263,11 +258,6 @@ ROUTE_DESCRIPTIONS = {
     "POST /v1/aggregate/prices": "Batch spot USD prices for many tokens (CoinGecko). x402-paid, USDC on Base.",
     "POST /v1/aggregate/tx-history": "Batch normalized transfers across addresses (Alchemy). x402-paid, USDC on Base.",
     # Automation API (Tier 1)
-    "POST /v1/automation/transform": "Pure JSON/data transformation (no egress). x402-paid, USDC on Base.",
-    "POST /v1/automation/http-request": "Outbound HTTP/API request from a safe, SSRF-guarded egress. x402-paid, USDC on Base.",
-    "POST /v1/automation/webhook": "Deliver a signed (HMAC) webhook payload to a URL. x402-paid, USDC on Base.",
-    "POST /v1/automation/schedule": "Persist a delayed/recurring task; CortexCloud fires a signed webhook to your URL later. x402-paid, USDC on Base.",
-    "POST /v1/automation/workflow": "Sequence up to 10 transform/http/webhook steps (120s cap). x402-paid, USDC on Base.",
 }
 
 FREE_ROUTES = {
