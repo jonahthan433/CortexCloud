@@ -32,7 +32,10 @@ def _payment_info(path: str, method: str) -> dict:
     return {
         "x-payment-info": {
             "price": {"mode": "fixed", "currency": "USD", "amount": str(fixed)},
-            "protocols": [{"mpp": {"method": "", "intent": "charge", "currency": "USD"}}],
+            # Runtime settles x402 only; declare x402 truthfully. Add the mpp
+            # object back (with non-empty method/intent/currency) only once
+            # MPP/Tempo settlement is actually live, or discovery flags it malformed.
+            "protocols": [{"x402": {}}],
         }
     }
 
@@ -59,7 +62,7 @@ for path, ops in spec["paths"].items():
             "402", {"description": "Payment Required — x402/MPP challenge returned with the exact price"}
         )
         key = f"{method.upper()} {path}"
-        if key in ROUTE_PRICING or path.startswith("/x402/v1/"):
+        if key in ROUTE_PRICING or (path.startswith("/x402/v1/") and path != "/x402/v1/pubkey"):
             op.update(_payment_info(path, method))
         else:
             op.setdefault("security", [])
