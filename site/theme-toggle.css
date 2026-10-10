@@ -1,0 +1,7 @@
+/* Toggle control styling — matches the existing .btn token language. */
+.tt-wrap{display:inline-flex;gap:2px;padding:2px;border:1px solid var(--border);border-radius:8px;background:var(--panel)}
+[data-theme-toggle]{display:inline-flex;gap:2px;padding:2px;border:1px solid var(--border);border-radius:8px;background:var(--panel)}
+.tt-opt{font-family:var(--mono,ui-monospace,monospace);font-size:0.85rem;line-height:1;padding:0.4rem 0.55rem;border:0;border-radius:6px;background:transparent;color:var(--fg-muted,var(--muted,#666));cursor:pointer;transition:background .15s,color .15s}
+.tt-opt:hover{color:var(--fg,var(--ink));background:var(--surface-2,var(--panel2,rgba(127,127,127,.12)))}
+.tt-opt.on{color:var(--orange);background:color-mix(in srgb,var(--orange) 14%,transparent)}
+.tt-opt:focus-visible{outline:2px solid var(--orange);outline-offset:1px}

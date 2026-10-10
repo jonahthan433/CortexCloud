@@ -6,6 +6,9 @@
 <title>Benchmarks — CortexCloud: real solver performance data</title>
 <meta name="description" content="Production benchmark data for CortexCloud's QUBO/Ising solvers: brute-force classical, simulated annealing, hybrid QAOA, and real quantum hardware (IBM, Rigetti). Every number from a real paid execution.">
 <meta name="robots" content="index, follow">
+<meta name="theme-color" content="#0a0a0b">
+<script src="/theme.js"></script>
+<link rel="stylesheet" href="/theme.css">
 <link rel="canonical" href="https://api.cortexcloud.org/benchmarks.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="CortexCloud — Real solver benchmarks, not marketing">
@@ -38,6 +41,7 @@
   .insight { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--emerald); padding: 1rem 1.2rem; margin: 1.5rem 0; font-size: 0.92rem; color: var(--muted); }
   .insight b { color: var(--ink); }
   @media (max-width: 600px) { table { font-size: 0.82rem; } td, th { padding: 0.6rem 0.7rem; } }
+  :root { color-scheme: dark light; }
 </style>
 </head>
 <body>
@@ -62,5 +66,8 @@
 
   <p class="note">18 benchmark evidence rows recorded from production executions. Quantum runtimes include real QPU queue time + execution. Pay-per-call: classical $0.05-0.25 · hybrid $0.10 · quantum $1.503 (x402, USDC on Base). <a href="/">Back to homepage</a> · <a href="/benchmarks">Live JSON endpoint</a>.</p>
 </main>
+<div style="max-width:720px;margin:0 auto;padding:0 1.5rem 3rem"><div data-theme-toggle></div></div>
+<link rel="stylesheet" href="/theme-toggle.css">
+<script src="/theme-toggle.js"></script>
 </body>
 </html>

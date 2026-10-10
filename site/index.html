@@ -16,6 +16,8 @@
 <meta name="twitter:title" content="CortexCloud — agent-native x402 API platform for AI agents">
 <meta name="twitter:description" content="Pay-per-call x402 API platform for AI agents: optimization, AI, research, on-chain data, automation. USDC on Base, no API keys.">
 <meta name="theme-color" content="#0a0a0a">
+<script src="/theme.js"></script>
+<link rel="stylesheet" href="/theme.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -31,6 +33,7 @@
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
+:root{color-scheme:dark light}
 body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
 a{color:var(--orange);text-decoration:none}
 a:hover{color:var(--orange-dim)}
@@ -174,6 +177,7 @@ pre .tp{color:var(--muted)}
 
 <footer class="foot wrap">
   <p>CortexCloud — agent-native x402 API platform for AI agents: optimization, AI, research, on-chain data, and automation. Settled in USDC on Base via x402. No API keys. No subscriptions.</p>
+  <div data-theme-toggle style="margin:0 0 0.75rem"></div>
   <div class="links">
     <a href="/docs">API reference</a>
     <a href="/v1/examples">Examples</a>
@@ -273,5 +277,7 @@ paintAll();
   });
 })();
 </script>
+<link rel="stylesheet" href="/theme-toggle.css">
+<script src="/theme-toggle.js"></script>
 </body>
 </html>

@@ -7,6 +7,8 @@
 <meta name="description" content="CortexCloud API reference: every endpoint, schema, pricing and the x402 payment flow. Estimate free; paid calls from $0.004 in USDC on Base.">
 <meta name="robots" content="index, follow">
 <meta name="theme-color" content="#0a0a0a">
+<script src="/theme.js"></script>
+<link rel="stylesheet" href="/theme.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -22,6 +24,7 @@
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
+:root{color-scheme:dark light}
 body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
 a{color:var(--orange);text-decoration:none}
 a:hover{color:var(--orange-dim)}
@@ -105,6 +108,7 @@ pre .tp{color:var(--muted)}
 
 <footer class="foot wrap">
   <p>CortexCloud — agent-native x402 API platform. Estimates free; paid calls from $0.004 in USDC on Base.</p>
+  <div data-theme-toggle style="margin:0 0 0.75rem"></div>
   <div class="links">
     <a href="/">Home</a>
     <a href="/docs">API reference</a>
@@ -308,5 +312,7 @@ function paint(pre){var raw=pre.dataset.raw;if(raw==null){raw=pre.textContent;pr
   boot();
 })();
 </script>
+<link rel="stylesheet" href="/theme-toggle.css">
+<script src="/theme-toggle.js"></script>
 </body>
 </html>

@@ -248,13 +248,14 @@ def create_app(override_openapi: bool = True) -> FastAPI:
     # Root-level static assets (Next export leftovers kept for compatibility)
     @application.get("/{asset}", include_in_schema=False)
     async def _site_asset(asset: str):
-        allowed = (".png", ".jpg", ".jpeg", ".svg", ".ico", ".webp", ".txt", ".xml", ".json", ".woff2", ".woff")
+        allowed = (".png", ".jpg", ".jpeg", ".svg", ".ico", ".webp", ".txt", ".xml", ".json", ".woff2", ".woff", ".css", ".js")
         if not asset.lower().endswith(allowed):
             raise HTTPException(status_code=404)
         path = os.path.join(SITE_DIR, asset)
         if not os.path.isfile(path):
             raise HTTPException(status_code=404)
-        return FileResponse(path)
+        media = "text/css" if asset.endswith(".css") else "text/javascript" if asset.endswith(".js") else None
+        return FileResponse(path, media_type=media)
 
     if os.path.isdir(os.path.join(SITE_DIR, "_next")):
         application.mount("/_next", StaticFiles(directory=os.path.join(SITE_DIR, "_next")), name="next-assets")

@@ -1,0 +1,54 @@
+/* CortexCloud theme layer — light/dark over the existing :root token systems.
+   Reuses each page's own variable names; only overrides values, never structure.
+   Loaded after each page's <style>. No build step, CSP-safe (no CDN). */
+
+/* ---- Palette A: index.html + docs.html (--bg/--panel/--border/--orange …) ---- */
+:root[data-theme="light"] {
+  --bg:#f6f7f9; --panel:#ffffff; --border:#e2e5ea; --border-bright:#d3d8df;
+  --fg:#14171a; --fg-muted:#5b6470; --fg-dim:#6b7280;
+  --code-bg:#eef2f7; --code-border:#c9d6e6; --code-fg:#1f5fa8;
+  --surface:#ffffff; --surface-2:#f0f2f5; --ink:var(--bg);
+  --t-key:#1f5fa8; --t-str:#1a7f4b; --t-num:#b45309; --t-bool:#b02a6b; --t-com:#6b7280; --t-url:#0e7490;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg:#0a0a0a; --panel:#111111; --border:#222222; --border-bright:#2a2a2a;
+  --fg:#e5e5e5; --fg-muted:#9a9a9a; --fg-dim:#666666;
+  --code-bg:#0f1c2e; --code-border:#1e3a5f; --code-fg:#7db3e8;
+  --surface:#111111; --surface-2:#161616; --ink:var(--bg);
+  --t-key:#7db3e8; --t-str:#4ade80; --t-num:#ff9f43; --t-bool:#e879a6; --t-com:#5b6b7a; --t-url:#67e8f9;
+  color-scheme: dark;
+}
+/* keep the orange accent identical in both themes (brand constant) */
+:root[data-theme="light"] { --orange:#e64a00; --orange-dim:#c23e00; --green:#15803d; }
+
+/* ---- Palette B: benchmarks.html + changelog.html (--ink/--emerald/--line …) ---- */
+:root[data-theme="light"] {
+  --ink:#18181b; --muted:#52525b; --dim:#71717a;
+  --line:rgba(0,0,0,0.10); --line-d:rgba(0,0,0,0.18); --panel:#ffffff; --panel2:#f4f4f5;
+  --emerald:#047857; --emerald-l:#059669; --blue:#1d4ed8; --amber:#b45309; --redl:#b91c1c;
+}
+:root[data-theme="dark"] {
+  --ink:#f4f4f5; --muted:#a1a1aa; --dim:#71717a;
+  --line:rgba(255,255,255,0.08); --line-d:rgba(255,255,255,0.16); --panel:#121214; --panel2:#1a1a1d;
+  --emerald:#10b981; --emerald-l:#34d399; --blue:#60a5fa; --amber:#fbbf24; --redl:#f87171;
+}
+
+/* ---- Palette C: demo.html (hardcoded hex body/pre/code/a) ---- */
+:root[data-theme="light"] { --d-bg:#f6f8fa; --d-fg:#14171a; --d-sub:#5b6470; --d-pre:#ffffff; --d-pre-b:#d0d7de; --d-code:#1a7f37; --d-link:#0969da; }
+:root[data-theme="dark"]  { --d-bg:#0a0e14; --d-fg:#e6edf3; --d-sub:#8b949e; --d-pre:#11161d; --d-pre-b:#21262d; --d-code:#7ee787; --d-link:#58a6ff; }
+
+/* When System is active we still set data-theme to the RESOLVED scheme, so
+   there is exactly one code path. matchMedia updates the attribute live. */
+
+/* Scrollbar follows the theme (WebKit + Firefox). */
+:root[data-theme="dark"] { scrollbar-color:#3a3a3a #0a0a0a; }
+:root[data-theme="light"] { scrollbar-color:#c4c9d0 #f6f7f9; }
+::-webkit-scrollbar { width:12px; height:12px; }
+::-webkit-scrollbar-track { background:var(--bg); }
+::-webkit-scrollbar-thumb { background:var(--fg-dim); border-radius:6px; border:3px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background:var(--fg-muted); }
+
+/* Form controls + selection inherit the theme. */
+::selection { background:var(--code-fg); color:var(--bg); }
+input,select,textarea,button { color-scheme:inherit; }
