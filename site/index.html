@@ -24,6 +24,7 @@
   --bg:#0a0a0a; --panel:#111; --border:#222;
   --orange:#ff5500; --orange-dim:#cc4400; --green:#4ade80;
   --text:#e5e5e5; --muted:#666;
+  --code-bg:#0f1c2e; --code-border:#1e3a5f; --code-fg:#7db3e8;
   --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
   --sans:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
 }
@@ -32,7 +33,7 @@ html{scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
 a{color:var(--orange);text-decoration:none}
 a:hover{color:var(--orange-dim)}
-code{font-family:var(--mono);font-size:0.85em;background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:0.1rem 0.35rem}
+code{font-family:var(--mono);font-size:0.85em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:0.1rem 0.35rem;color:var(--code-fg)}
 .wrap{max-width:880px;margin:0 auto;padding:0 1.25rem}
 .skip-link{position:absolute;left:-999px;top:0;background:var(--orange);color:#fff;padding:0.5rem 1rem;border-radius:0 0 8px 0;z-index:50}
 .skip-link:focus{left:0}
@@ -77,7 +78,7 @@ pre{background:var(--panel);border:1px solid var(--border);border-radius:8px;pad
 <main id="main">
 <header class="hero wrap">
   <p class="eyebrow">Agent-native infrastructure · x402 pay-per-call</p>
-  <h1>CortexCloud <span class="mark">API</span></h1>
+  <h1>Cortex<span class="mark">Cloud</span></h1>
   <p class="sub">Optimization, AI, research, on-chain data, and automation behind one pay-per-call API. Agents discover it via MCP and Bazaar, estimate for free, and settle each call in USDC on Base. No API keys. No signup.</p>
   <div class="cta">
     <a class="btn primary" href="/v1/examples">Try a free example</a>
