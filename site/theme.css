@@ -2,10 +2,11 @@
    Reuses each page's own variable names; only overrides values, never structure.
    Loaded after each page's <style>. No build step, CSP-safe (no CDN). */
 
-/* ---- Palette A: index.html + docs.html (--bg/--panel/--border/--orange …) ---- */
+/* ---- Palette A: index.html + docs.html (--bg/--panel/--border/--orange …) ----
+   Pages use --text + --muted (NOT --fg); override the real names. */
 :root[data-theme="light"] {
   --bg:#f6f7f9; --panel:#ffffff; --border:#e2e5ea; --border-bright:#d3d8df;
-  --fg:#14171a; --fg-muted:#5b6470; --fg-dim:#6b7280;
+  --text:#14171a; --muted:#5b6470; --fg-dim:#6b7280;
   --code-bg:#eef2f7; --code-border:#c9d6e6; --code-fg:#1f5fa8;
   --surface:#ffffff; --surface-2:#f0f2f5; --ink:var(--bg);
   --t-key:#1f5fa8; --t-str:#1a7f4b; --t-num:#b45309; --t-bool:#b02a6b; --t-com:#6b7280; --t-url:#0e7490;
@@ -13,7 +14,7 @@
 }
 :root[data-theme="dark"] {
   --bg:#0a0a0a; --panel:#111111; --border:#222222; --border-bright:#2a2a2a;
-  --fg:#e5e5e5; --fg-muted:#9a9a9a; --fg-dim:#666666;
+  --text:#e5e5e5; --muted:#666666; --fg-dim:#666666;
   --code-bg:#0f1c2e; --code-border:#1e3a5f; --code-fg:#7db3e8;
   --surface:#111111; --surface-2:#161616; --ink:var(--bg);
   --t-key:#7db3e8; --t-str:#4ade80; --t-num:#ff9f43; --t-bool:#e879a6; --t-com:#5b6b7a; --t-url:#67e8f9;

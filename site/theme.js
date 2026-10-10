@@ -7,13 +7,16 @@
   var KEY = "cc-theme";
   var root = document.documentElement;
   var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  var light = window.matchMedia("(prefers-color-scheme: light)");
   var meta = document.querySelector('meta[name="theme-color"]');
 
   function stored() {
     try { var v = localStorage.getItem(KEY); return (v === "light" || v === "dark") ? v : null; }
     catch (e) { return null; }
   }
-  function resolved(pref) { return pref === "light" || pref === "dark" ? pref : (mq.matches ? "dark" : "light"); }
+  // System = the site's native DARK, unless the OS explicitly prefers light.
+  // no-preference (headless, older systems) stays dark — it was never light.
+  function resolved(pref) { return pref === "light" || pref === "dark" ? pref : (light.matches ? "light" : "dark"); }
   function chrome(theme) { if (meta) meta.setAttribute("content", theme === "dark" ? "#0a0a0a" : "#f6f7f9"); }
 
   function apply(pref, persist) {
@@ -29,9 +32,10 @@
   // 1. Paint the correct theme immediately (no flash).
   apply(stored(), false);
 
-  // 2. System mode: follow OS changes live.
-  mq.addEventListener ? mq.addEventListener("change", function () { if (!stored()) apply(null, false); })
-                      : mq.addListener(function () { if (!stored()) apply(null, false); });
+  // 2. System mode: follow OS changes live (listen to both directions).
+  function onOSChange() { if (!stored()) apply(null, false); }
+  mq.addEventListener ? mq.addEventListener("change", onOSChange) : mq.addListener(onOSChange);
+  light.addEventListener ? light.addEventListener("change", onOSChange) : light.addListener(onOSChange);
 
   // 3. Public API for the toggle.
   window.ccTheme = {
