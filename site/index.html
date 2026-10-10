@@ -95,7 +95,7 @@ pre{background:var(--panel);border:1px solid var(--border);border-radius:8px;pad
   <h2>How an agent uses it</h2>
   <p class="sec-sub">Three requests, zero accounts. The entire loop is machine-native: discover, estimate, then pay per call.</p>
   <div class="steps">
-    <div class="step"><h3>Discover</h3><p><code>/.well-known/x402.json</code>, <code>/.well-known/bazaar</code>, <code>/llms.txt</code>, <code>/openapi.json</code>, and an MCP server at <code>/mcp</code> (16 tools). Agents find CortexCloud the same way a crawler finds a site.</p></div>
+    <div class="step"><h3>Discover</h3><p><code>/.well-known/x402.json</code>, <code>/.well-known/bazaar</code>, <code>/llms.txt</code>, <code>/openapi.json</code>, and an MCP server at <code>/mcp</code> (4 tools). Agents find CortexCloud the same way a crawler finds a site.</p></div>
     <div class="step"><h3>Estimate — free</h3><p><code>POST /v1/estimate</code> returns the recommended mode, algorithm, backend, runtime, and exact price. No payment, no signup.</p></div>
     <div class="step"><h3>Pay &amp; run</h3><p>The endpoint issues an x402 challenge (USDC on Base). The agent settles, the job executes, and the result is returned or polled.</p></div>
   </div>
@@ -110,7 +110,7 @@ pre{background:var(--panel);border:1px solid var(--border);border-radius:8px;pad
     <div class="cat"><h3>Research</h3><div class="price">$0.01+</div><p>Web search and answer synthesis. Grounded, cited, pay per query.</p></div>
     <div class="cat"><h3>On-chain data</h3><div class="price">$0.004+</div><p>Token balances, prices, and history via Alchemy and CoinGecko.</p></div>
     <div class="cat"><h3>Automation</h3><div class="price">$0.004–0.02</div><p>Transform, HTTP request (SSRF-guarded), webhook (HMAC-signed), schedule, and multi-step workflow.</p></div>
-    <div class="cat"><h3>MCP</h3><div class="price">16 tools</div><p>One command connects Claude, Cursor, or Codex to every callable above.</p></div>
+    <div class="cat"><h3>MCP</h3><div class="price">4 tools</div><p>One command connects Claude, Cursor, or Codex to every callable above.</p></div>
   </div>
 </section>
 
@@ -119,7 +119,7 @@ pre{background:var(--panel);border:1px solid var(--border);border-radius:8px;pad
   <p class="sec-sub">From landing to first paid call without creating an account.</p>
   <div class="grid3">
     <div class="card"><h3>API reference</h3><p>Interactive OpenAPI docs — every endpoint, schema, and the x402 payment flow.</p><a class="btn" href="/docs">Open reference</a></div>
-    <div class="card"><h3>MCP</h3><p>Connect any MCP client to the 16-tool server with one command.</p><pre>claude mcp add cortexcloud \
+    <div class="card"><h3>MCP</h3><p>Connect any MCP client to the 4-tool server with one command.</p><pre>claude mcp add cortexcloud \
   --transport http \
   https://api.cortexcloud.org/mcp</pre></div>
     <div class="card"><h3>Examples</h3><p>Copy-paste request/response demos for every category. Every one begins with a free estimate.</p><a class="btn" href="/v1/examples">Open examples</a></div>
@@ -137,7 +137,7 @@ pre{background:var(--panel);border:1px solid var(--border);border-radius:8px;pad
     <a href="/.well-known/agentsearch.txt">agentsearch.txt</a>
     <a href="/openapi.json">OpenAPI</a>
     <a href="/health">Status</a>
-    <a href="https://github.com/jonahthan433/CortexCloudAPI">GitHub</a>
+    <a href="https://github.com/jonahthan433/CortexCloud">GitHub</a>
   </div>
 </footer>
 </main>
