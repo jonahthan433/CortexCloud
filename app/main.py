@@ -55,6 +55,11 @@ def create_app(override_openapi: bool = True) -> FastAPI:
         description="Optimization infrastructure for AI agents — discover, pay for, and execute classical, hybrid, or quantum optimization through a single API.",
         version="2.0.0",
         lifespan=lifespan,
+        # Built-in Swagger UI loads assets from a CDN, which the CSP header
+        # (script-src 'self') blocks — /docs renders empty. Serve our own
+        # self-contained reference page instead (see the /docs route below).
+        docs_url=None,
+        redoc_url=None,
     )
 
     if override_openapi:
@@ -161,6 +166,12 @@ def create_app(override_openapi: bool = True) -> FastAPI:
     @application.get("/", include_in_schema=False)
     async def home():
         return FileResponse(os.path.join(SITE_DIR, "index.html"))
+
+    @application.get("/docs", include_in_schema=False, tags=["System"])
+    async def docs_page():
+        # Self-contained API reference (no CDN — CSP-safe). Renders the live
+        # /openapi.json at runtime; falls back to a message if fetch fails.
+        return FileResponse(os.path.join(SITE_DIR, "docs.html"), media_type="text/html")
 
     @application.get("/og.svg", include_in_schema=False)
     async def _og():

@@ -70,24 +70,19 @@ h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.02em;margin:0 0 0.5rem}
 .foot a:hover{color:var(--orange)}
 .links{display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.75rem;font-family:var(--mono);font-size:0.8rem}
 pre{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:0.9rem;overflow-x:auto;font-family:var(--mono);font-size:0.82rem;color:var(--text);margin:0.5rem 0 0}
-/* Hero live demo + challenge proof + FAQ (matches existing panel/btn tokens) */
-.demo{border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:0;margin:2rem 0 1.75rem;overflow:hidden}
+/* Free-example live demo (matches existing panel/btn tokens) */
+.demo{border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:0;margin:0.5rem 0 0;overflow:hidden}
 .demo-bar{font-family:var(--mono);font-size:0.78rem;color:var(--muted);padding:0.6rem 1rem;border-bottom:1px solid var(--border)}
 .demo pre{margin:0;border:0;border-radius:0;border-bottom:1px solid var(--border);background:var(--bg);font-size:0.76rem}
-.demo-run{display:flex;align-items:center;gap:0.85rem;padding:0.85rem 1rem}
+.demo-run{display:flex;align-items:center;gap:0.85rem;padding:0.85rem 1rem;flex-wrap:wrap}
 .demo-status{font-family:var(--mono);font-size:0.78rem;color:var(--muted)}
 .demo-status.ok{color:var(--green)}
 .demo-status.err{color:var(--orange)}
-#trial-out{background:var(--bg);border-bottom:0;color:var(--green);font-size:0.76rem;white-space:pre-wrap;word-break:break-word}
-.challenge{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0.7rem 0.8rem;font-family:var(--mono);font-size:0.72rem;line-height:1.5;color:var(--code-fg);margin:0.8rem 0 0;overflow-x:auto;white-space:pre}
-.faq{display:flex;flex-direction:column;gap:0.6rem}
-.faq details{border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:0.9rem 1.1rem}
-.faq summary{font-weight:600;cursor:pointer;font-size:0.95rem;list-style:none}
-.faq summary::-webkit-details-marker{display:none}
-.faq summary::before{content:"+ ";color:var(--orange);font-family:var(--mono)}
-.faq details[open] summary::before{content:"\2212 "}
-.faq p{margin:0.7rem 0 0;color:var(--muted);font-size:0.9rem}
-@media (max-width:640px){.demo-run{flex-wrap:wrap}.demo-bar{font-size:0.72rem}}
+#fx-out{background:var(--bg);border-bottom:1px solid var(--border);color:var(--green);font-size:0.76rem;white-space:pre-wrap;word-break:break-word}
+.fx-explain{padding:1.1rem 1.25rem;border-top:1px solid var(--border)}
+.fx-explain h3{margin:0 0 0.5rem;font-size:1rem;font-family:var(--mono);color:var(--orange)}
+.fx-explain p{margin:0 0 0.6rem;color:var(--muted);font-size:0.9rem}
+.fx-explain b{color:var(--text)}
 @media (max-width:640px){h1{font-size:2rem}.wrap{padding:0 1rem}header.hero{padding:3.5rem 0 2rem}}
 </style>
 </head>
@@ -97,23 +92,10 @@ pre{background:var(--panel);border:1px solid var(--border);border-radius:8px;pad
 <header class="hero wrap">
   <p class="eyebrow">Agent-native infrastructure · x402 pay-per-call</p>
   <h1>Cortex<span class="mark">Cloud</span></h1>
-  <p class="sub">One API for optimization, AI, research, and on-chain data. No API keys, no signup — pay per call in USDC on Base, from $0.004. Estimate free, and try a real solve below.</p>
+  <p class="sub">Optimization, AI, research, on-chain data, and automation behind one pay-per-call API. Agents discover it via MCP and Bazaar, estimate for free, and settle each call in USDC on Base. No API keys. No signup.</p>
   <div class="cta">
-    <a class="btn primary" href="/v1/examples">Try a free example</a>
+    <a class="btn primary" href="#free-example">Try a free example</a>
     <a class="btn" href="/docs">API reference</a>
-  </div>
-  <div class="demo">
-    <div class="demo-bar">POST /v1/trial — free, no wallet, exact classical solve</div>
-    <pre id="trial-req">curl -X POST https://api.cortexcloud.org/v1/trial \
-  -H "Content-Type: application/json" \
-  -d '{"problem":{"problem_type":"qubo","n":5,
-       "data":{"linear":[1,-2,3,-4,2],
-               "quadratic":{"0,1":-1.5,"1,2":0.5,"3,4":-1.0}}}}'</pre>
-    <div class="demo-run">
-      <button class="btn primary" id="run-trial" type="button">Run a free solve</button>
-      <span class="demo-status" id="trial-status"></span>
-    </div>
-    <pre id="trial-out" hidden></pre>
   </div>
   <div class="meta">
     <span>Estimate <b>free</b></span>
@@ -128,14 +110,7 @@ pre{background:var(--panel);border:1px solid var(--border);border-radius:8px;pad
   <div class="steps">
     <div class="step"><h3>Discover</h3><p><code>/.well-known/x402.json</code>, <code>/.well-known/bazaar</code>, <code>/llms.txt</code>, <code>/openapi.json</code>, and an MCP server at <code>/mcp</code> (4 tools). Agents find CortexCloud the same way a crawler finds a site.</p></div>
     <div class="step"><h3>Estimate — free</h3><p><code>POST /v1/estimate</code> returns the recommended mode, algorithm, backend, runtime, and exact price. No payment, no signup.</p></div>
-    <div class="step"><h3>Pay &amp; run</h3><p>The endpoint issues an x402 challenge (USDC on Base). The agent settles, the job executes, and the result is returned or polled.</p>
-      <pre class="challenge">HTTP/1.1 402 Payment Required
-x402Version: 2
-accepts[0]:
-  network:  eip155:8453   (Base)
-  amount:   50000         ($0.05 USDC)
-  payTo:    0x5a03…a143
-# sign EIP-3009 -> resend with payment-signature -> 200</pre></div>
+    <div class="step"><h3>Pay &amp; run</h3><p>The endpoint issues an x402 challenge (USDC on Base). The agent settles, the job executes, and the result is returned or polled.</p></div>
   </div>
 </section>
 
@@ -152,6 +127,34 @@ accepts[0]:
   </div>
 </section>
 
+<section class="wrap" id="free-example">
+  <h2>Try a free example</h2>
+  <p class="sec-sub">Run a real CortexCloud request right now — no signup, no API key, no wallet. This solves a small portfolio-optimization problem and shows the exact answer.</p>
+  <div class="demo">
+    <div class="demo-bar">POST /v1/estimate + POST /v1/trial — both free</div>
+    <pre id="fx-req">curl -X POST https://api.cortexcloud.org/v1/estimate \
+  -H "Content-Type: application/json" \
+  -d '{"problem_type":"qubo","n":4,
+       "data":{"linear":[1.0,-2.0,3.0,-4.0],
+               "quadratic":{"0,1":-1.5,"1,2":0.5,"2,3":-2.0}}}'</pre>
+    <div class="demo-run">
+      <button class="btn primary" id="run-fx" type="button">Run the free example</button>
+      <span class="demo-status" id="fx-status">Free — estimate and a real solve, no wallet.</span>
+    </div>
+    <pre id="fx-out" hidden></pre>
+    <div id="fx-explain" class="fx-explain" hidden>
+      <h3>What just happened</h3>
+      <p><b>Estimate (free):</b> CortexCloud analyzed the problem, chose the <b>exact classical solver</b>, and quoted the price a paid run would cost — before you pay anything.</p>
+      <p><b>Solve (free):</b> it returned the optimal answer and objective value. This is a real result from the live API, not a mock.</p>
+      <p>Estimates, simulations and trial solves are always free. Paid API calls start at <b>$0.004</b>, settled in USDC on Base. Integrate CortexCloud into your own agents and apps:</p>
+      <div class="cta" style="margin-top:0.75rem">
+        <a class="btn primary" href="/docs">Open the API reference</a>
+        <a class="btn" href="/v1/examples">More examples</a>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="wrap">
   <h2>Start in 60 seconds</h2>
   <p class="sec-sub">From landing to first paid call without creating an account.</p>
@@ -161,18 +164,6 @@ accepts[0]:
   --transport http \
   https://api.cortexcloud.org/mcp</pre></div>
     <div class="card"><h3>Examples</h3><p>Copy-paste request/response demos for every category. Every one begins with a free estimate.</p><a class="btn" href="/v1/examples">Open examples</a></div>
-  </div>
-</section>
-
-<section class="wrap">
-  <h2>Common questions</h2>
-  <div class="faq">
-    <details><summary>Is the trial really free?</summary><p>Yes. <code>POST /v1/trial</code> runs a real exact classical solve (up to n&le;10) with no wallet and no USDC. You can try it from the button above before spending anything.</p></details>
-    <details><summary>Do I need an API key or account?</summary><p>No. Every call is authenticated by payment itself. Free endpoints need nothing; paid endpoints return a 402 challenge you settle in USDC on Base.</p></details>
-    <details><summary>What does a paid call cost?</summary><p>Optimization: classical $0.05, hybrid $0.10, real QPU $1.503 per job. AI from $0.004, research from $0.01, on-chain data from $0.004. <code>POST /v1/estimate</code> gives the exact price free before you pay.</p></details>
-    <details><summary>What if a paid call fails?</summary><p>Estimate, simulate and the solver encoders are always free, so you can validate a problem and price first. Paid charges apply per successful job, quoted up front by the 402 challenge.</p></details>
-    <details><summary>Which chains and currencies?</summary><p>USDC on Base (eip155:8453) via x402 today. No subscriptions, no cards, no invoices.</p></details>
-    <details><summary>How do agents find the API?</summary><p>Machine-readable discovery: <code>/.well-known/x402.json</code>, <code>/.well-known/bazaar</code>, <code>/llms.txt</code>, <code>/openapi.json</code>, and an MCP server at <code>/mcp</code>.</p></details>
   </div>
 </section>
 
@@ -192,27 +183,50 @@ accepts[0]:
 </footer>
 </main>
 <script>
-// Hero live demo: run a real free solve. ponytail: single fixed problem,
-// inline JSON, no builder; upgrade to a picker when visitors want their own input.
+// Hero "Try a free example" -> smooth scroll to the demo (CSS smooth-scroll
+// is enough in real browsers; this guarantees it everywhere, incl. headless).
 (function(){
-  var btn=document.getElementById('run-trial'),st=document.getElementById('trial-status'),out=document.getElementById('trial-out');
-  var body={problem:{problem_type:'qubo',n:5,data:{linear:[1,-2,3,-4,2],quadratic:{'0,1':-1.5,'1,2':0.5,'3,4':-1.0}}}};
+  var a=document.querySelector('a[href="#free-example"]');
+  if(!a)return;
+  a.addEventListener('click',function(ev){
+    var t=document.getElementById('free-example');
+    if(!t)return;
+    ev.preventDefault();
+    var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    t.scrollIntoView({behavior:reduce?'auto':'smooth',block:'start'});
+    history.replaceState(null,'','#free-example');
+  });
+})();
+// Free-example live demo: estimate (free) then trial solve (free), real API.
+// ponytail: one fixed portfolio problem, inline; upgrade to a picker later.
+(function(){
+  var btn=document.getElementById('run-fx'),st=document.getElementById('fx-status'),
+      out=document.getElementById('fx-out'),ex=document.getElementById('fx-explain');
+  if(!btn)return;
+  var problem={problem_type:'qubo',n:4,data:{linear:[1.0,-2.0,3.0,-4.0],quadratic:{'0,1':-1.5,'1,2':0.5,'2,3':-2.0}}};
+  function j(method,path,body){
+    return fetch(path,{method:method,headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined})
+      .then(function(r){return r.text().then(function(t){var d;try{d=JSON.parse(t);}catch(e){d={raw:t};}return {ok:r.ok,status:r.status,data:d};});});
+  }
   btn.addEventListener('click',function(){
-    btn.disabled=true;st.className='demo-status';st.textContent='Solving…';out.hidden=true;
-    fetch('/v1/trial',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
-      .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
-      .then(function(res){
-        if(res.ok&&res.j.solution){
-          out.textContent='200 OK\n'+JSON.stringify(res.j,null,2);
-          st.className='demo-status ok';st.textContent='Solved for free — real answer, no wallet.';
-        }else{
-          out.hidden=false;out.textContent=JSON.stringify(res.j,null,2);
-          st.className='demo-status err';st.textContent='Request failed — try again.';
-        }
+    btn.disabled=true;st.className='demo-status';st.textContent='Running…';out.hidden=true;ex.hidden=true;
+    j('POST','/v1/estimate',problem).then(function(est){
+      if(!est.ok){throw est;}
+      return j('POST','/v1/trial',{problem:problem}).then(function(trial){
+        var rec=est.data.recommendation||{};
+        out.textContent=
+          '1) POST /v1/estimate  ->  200 OK\n'+JSON.stringify({mode:rec.mode,solver:rec.backend,algorithm:rec.algorithm,price_if_paid_usd:rec.cortexcloud_price_usd},null,2)+
+          '\n\n2) POST /v1/trial  ->  200 OK\n'+JSON.stringify(trial.data,null,2);
         out.hidden=false;
-      })
-      .catch(function(e){st.className='demo-status err';st.textContent='Network error: '+e.message;})
-      .then(function(){btn.disabled=false;});
+        st.className='demo-status ok';
+        st.textContent='Solved for free — real answer, no wallet.';
+        ex.hidden=false;
+      });
+    }).catch(function(e){
+      out.hidden=false;
+      out.textContent=(e&&e.status?('HTTP '+e.status+'\n'):'')+JSON.stringify((e&&e.data)||e,null,2);
+      st.className='demo-status err';st.textContent='Request failed — try again.';
+    }).then(function(){btn.disabled=false;});
   });
 })();
 </script>

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API reference — CortexCloud</title>
+<meta name="description" content="CortexCloud API reference: every endpoint, schema, pricing and the x402 payment flow. Estimate free; paid calls from $0.004 in USDC on Base.">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0a; --panel:#111; --border:#222;
+  --orange:#ff5500; --orange-dim:#cc4400; --green:#4ade80;
+  --text:#e5e5e5; --muted:#666;
+  --code-bg:#0f1c2e; --code-border:#1e3a5f; --code-fg:#7db3e8;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:var(--orange);text-decoration:none}
+a:hover{color:var(--orange-dim)}
+code{font-family:var(--mono);font-size:0.85em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:0.1rem 0.35rem;color:var(--code-fg)}
+.wrap{max-width:960px;margin:0 auto;padding:0 1.25rem}
+header.docs{padding:3rem 0 2rem;border-bottom:1px solid var(--border)}
+.eyebrow{font-family:var(--mono);font-size:0.78rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin:0 0 1rem}
+h1{font-size:2rem;line-height:1.05;font-weight:700;letter-spacing:-0.03em;margin:0 0 0.75rem}
+h1 .mark{color:var(--orange)}
+.sub{font-size:1rem;color:var(--muted);max-width:64ch;margin:0 0 1.5rem}
+.btn{display:inline-block;font-family:var(--sans);font-weight:600;font-size:0.9rem;padding:0.6rem 1.15rem;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text)}
+.btn:hover{border-color:var(--orange);color:var(--orange)}
+.btn.primary{background:var(--orange);border-color:var(--orange);color:#fff}
+.btn.primary:hover{background:var(--orange-dim);border-color:var(--orange-dim);color:#fff}
+.cta{display:flex;gap:0.75rem;flex-wrap:wrap}
+section{padding:2.5rem 0;border-bottom:1px solid var(--border)}
+h2{font-size:1.4rem;font-weight:700;letter-spacing:-0.02em;margin:0 0 0.5rem}
+.sec-sub{color:var(--muted);max-width:64ch;margin:0 0 1.5rem}
+pre{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:0.9rem;overflow-x:auto;font-family:var(--mono);font-size:0.82rem;color:var(--text);margin:0.5rem 0 0}
+/* filters */
+.filters{display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem}
+.filters input,.filters select{font-family:var(--mono);font-size:0.82rem;background:var(--panel);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:0.5rem 0.7rem}
+.filters input{flex:1;min-width:180px}
+.filters input:focus,.filters select:focus{outline:none;border-color:var(--orange)}
+/* endpoint list */
+.group-label{font-family:var(--mono);font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin:1.5rem 0 0.6rem}
+.ep{border:1px solid var(--border);border-radius:8px;background:var(--panel);margin-bottom:0.6rem;overflow:hidden}
+.ep-head{display:flex;align-items:center;gap:0.7rem;width:100%;text-align:left;background:none;border:0;color:var(--text);padding:0.85rem 1rem;cursor:pointer;font-family:var(--sans)}
+.ep-head:hover{background:rgba(255,255,255,0.02)}
+.m{font-family:var(--mono);font-size:0.72rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:4px;min-width:52px;text-align:center}
+.m.get{color:#7db3e8;background:rgba(125,179,232,0.12);border:1px solid var(--code-border)}
+.m.post{color:var(--green);background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3)}
+.m.put,.m.patch,.m.delete{color:var(--orange);background:rgba(255,85,0,0.1);border:1px solid rgba(255,85,0,0.3)}
+.ep-path{font-family:var(--mono);font-size:0.85rem;flex:1;word-break:break-all}
+.ep-price{font-family:var(--mono);font-size:0.72rem;color:var(--muted)}
+.ep-price.free{color:var(--green)}
+.ep-body{padding:0 1rem 1rem;border-top:1px solid var(--border);display:none}
+.ep.open .ep-body{display:block}
+.ep-body p{color:var(--muted);font-size:0.88rem;margin:0.8rem 0}
+.ep-body h4{font-family:var(--mono);font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin:1rem 0 0.3rem}
+.ep-body pre{margin:0.3rem 0 0;font-size:0.76rem}
+.try{margin-top:0.6rem}
+.status-msg{font-family:var(--mono);font-size:0.78rem;color:var(--muted);margin-top:0.5rem}
+.status-msg.ok{color:var(--green)}
+.status-msg.err{color:var(--orange)}
+.foot{padding:2rem 0 3rem;color:var(--muted);font-size:0.85rem}
+.foot a{color:var(--muted)}
+.foot a:hover{color:var(--orange)}
+.links{display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.75rem;font-family:var(--mono);font-size:0.8rem}
+.empty{color:var(--muted);font-family:var(--mono);font-size:0.85rem;padding:2rem 0}
+@media (max-width:640px){.wrap{padding:0 1rem}h1{font-size:1.6rem}.ep-head{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<main>
+<header class="docs wrap">
+  <p class="eyebrow">API reference</p>
+  <h1>Cortex<span class="mark">Cloud</span></h1>
+  <p class="sub">Every endpoint, schema and price, live from <code>/openapi.json</code>. Estimates are free; paid calls start at $0.004, settled in USDC on Base via x402. No API keys, no signup.</p>
+  <div class="cta">
+    <a class="btn" href="/">Back to home</a>
+    <a class="btn" href="/v1/examples">Free examples</a>
+    <a class="btn" href="/llms.txt">llms.txt</a>
+  </div>
+</header>
+
+<section class="wrap">
+  <h2>Endpoints</h2>
+  <p class="sec-sub">Expand an endpoint to see its schema and run it live. Free endpoints run in the browser; paid endpoints show the 402 challenge.</p>
+  <div class="filters">
+    <input id="q" type="search" placeholder="Filter by path or description…" autocomplete="off">
+    <select id="mfilter"><option value="">All methods</option><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select>
+    <select id="pfilter"><option value="">All prices</option><option value="free">Free</option><option value="paid">Paid</option></select>
+  </div>
+  <div id="eps"><p class="empty">Loading API reference…</p></div>
+</section>
+
+<footer class="foot wrap">
+  <p>CortexCloud — agent-native x402 API platform. Estimates free; paid calls from $0.004 in USDC on Base.</p>
+  <div class="links">
+    <a href="/">Home</a>
+    <a href="/docs">API reference</a>
+    <a href="/openapi.json">OpenAPI</a>
+    <a href="/.well-known/x402.json">x402.json</a>
+    <a href="/.well-known/bazaar">Bazaar</a>
+    <a href="/health">Status</a>
+    <a href="https://github.com/jonahthan433/CortexCloud">GitHub</a>
+  </div>
+</footer>
+</main>
+<script>
+// Self-contained API reference. ponytail: renders the live /openapi.json,
+// flat list grouped by path prefix; no vendor lib (CSP blocks CDN).
+(function(){
+  var PRICED = null; // lazy-loaded price map from /.well-known/x402.json
+  var SPEC = null;
+  var epsEl=document.getElementById('eps');
+  var q=document.getElementById('q'),mf=document.getElementById('mfilter'),pf=document.getElementById('pfilter');
+
+  function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function resolve(sch){
+    // resolve one level of $ref against components
+    if(sch&&sch.$ref){
+      var name=sch.$ref.split('/').pop();
+      var c=(SPEC.components&&SPEC.components.schemas&&SPEC.components.schemas[name])||{};
+      return c;
+    }
+    return sch;
+  }
+  function schemaOf(op){
+    var rb=op.requestBody&&op.requestBody.content;
+    var sch=rb&&(rb['application/json']||Object.values(rb)[0]);
+    return sch&&sch.schema?resolve(sch.schema):null;
+  }
+  function exampleOf(sch){
+    if(!sch)return null;
+    if(sch.example!==undefined)return sch.example;
+    if(sch.properties){var o={};for(var k in sch.properties){var p=sch.properties[k];
+      if(p.default!==undefined)o[k]=p.default;
+      else if(p.example!==undefined)o[k]=p.example;
+      else if(p.type==='string')o[k]='string';
+      else if(p.type==='integer'||p.type==='number')o[k]=(p.minimum!==undefined?p.minimum:(p.maximum!==undefined?Math.min(p.maximum,1):1));
+      else if(p.type==='boolean')o[k]=true;
+      else if(p.type==='object')o[k]={};
+      else if(p.type==='array')o[k]=[];
+    }
+    // give ProblemInput a real, self-consistent working payload so "Run"
+    // succeeds out of the box. n MUST equal len(linear) or the API 422s,
+    // so pin n=4 with a 4-entry linear array (ignore the generic minimum).
+    if(sch.properties&&sch.properties.data&&sch.properties.problem_type!==undefined&&o.data&&typeof o.data==='object'&&Object.keys(o.data).length===0){
+      o.n=4;
+      o.data={linear:[1.0,-2.0,3.0,-4.0],quadratic:{'0,1':-1.5,'1,2':0.5,'2,3':-2.0}};
+    }
+    return o;}
+    return null;
+  }
+  function paramsOf(op){
+    return (op.parameters||[]).map(function(p){return {name:p.name,in:p.in,required:p.required,type:(p.schema&&p.schema.type)||'string'};});
+  }
+  function isFree(path){
+    // free heuristic from x402.json resources; unknown => paid for POST, free for GET discovery
+    if(PRICED){var r=PRICED[path];return r===false?false:true;}
+    return true;
+  }
+
+  function render(){
+    if(!SPEC)return;
+    var term=q.value.trim().toLowerCase(),m=mf.value,p=pf.value;
+    var paths=SPEC.paths||{};
+    var groups={};
+    Object.keys(paths).sort().forEach(function(path){
+      var ops=paths[path];
+      Object.keys(ops).forEach(function(method){
+        if(['get','post','put','delete','patch'].indexOf(method)<0)return;
+        var op=ops[method];
+        var label=op.summary||op.operationId||'';
+        if(term&&path.toLowerCase().indexOf(term)<0&&label.toLowerCase().indexOf(term)<0)return;
+        if(m&&method.toUpperCase()!==m)return;
+        var grp=path.split('/')[1]||'root';
+        (groups[grp]=groups[grp]||[]).push({path:path,method:method.toUpperCase(),op:op});
+      });
+    });
+    var keys=Object.keys(groups).sort();
+    if(!keys.length){epsEl.innerHTML='<p class="empty">No endpoints match.</p>';return;}
+    var html='';
+    keys.forEach(function(g){
+      html+='<div class="group-label">/'+esc(g)+'</div>';
+      groups[g].forEach(function(e){
+        var sch=schemaOf(e.op),ex=exampleOf(sch),ps=paramsOf(e.op);
+        var hasBody=!!sch;
+        var paid=PRICED&&PRICED[e.path]===true;
+        var priceTag=PRICED?(paid?'<span class="ep-price">paid · x402</span>':'<span class="ep-price free">free</span>'):'';
+        html+='<div class="ep" data-method="'+e.method+'" data-path="'+esc(e.path)+'">';
+        html+='<button class="ep-head" type="button" aria-expanded="false">';
+        html+='<span class="m '+e.method.toLowerCase()+'">'+e.method+'</span>';
+        html+='<span class="ep-path">'+esc(e.path)+'</span>';
+        html+=priceTag;
+        html+='</button>';
+        html+='<div class="ep-body">';
+        html+='<p>'+(esc(e.op.summary||e.op.description||'No description.'))+'</p>';
+        if(ps.length){html+='<h4>Parameters</h4><pre>'+esc(ps.map(function(x){return x.name+' ('+x.in+(x.required?', required':'')+', '+x.type+')';}).join('\n'))+'</pre>';}
+        if(hasBody){html+='<h4>Request body</h4><pre>'+esc(JSON.stringify(ex||sch,null,2))+'</pre>';}
+        html+='<h4>Run</h4>';
+        html+='<div class="try"><button class="btn primary run-btn" type="button">Run request</button>';
+        html+='<span class="status-msg"></span></div>';
+        html+='</div></div>';
+      });
+    });
+    epsEl.innerHTML=html;
+    epsEl.querySelectorAll('.ep-head').forEach(function(h){
+      h.addEventListener('click',function(){var ep=h.parentElement;ep.classList.toggle('open');h.setAttribute('aria-expanded',ep.classList.contains('open'));});
+    });
+    epsEl.querySelectorAll('.run-btn').forEach(function(b){
+      b.addEventListener('click',function(){run(b);});
+    });
+  }
+
+  function run(btn){
+    var ep=btn.closest('.ep'),method=ep.dataset.method,path=ep.dataset.path,msg=ep.querySelector('.status-msg');
+    // collect path params
+    var url=path.replace(/\{([^}]+)\}/g,function(_,n){var v=window.prompt('Value for '+n+':');return v==null?'':encodeURIComponent(v);});
+    var body=null;
+    var bodyPre=ep.querySelectorAll('pre')[ep.querySelectorAll('pre').length-1];
+    // find the request-body pre (the one right after "Request body" heading if present)
+    var heads=ep.querySelectorAll('h4');
+    for(var i=0;i<heads.length;i++){if(heads[i].textContent==='Request body'){bodyPre=heads[i].nextElementSibling;}}
+    if(method==='POST'||method==='PUT'){
+      if(bodyPre&&bodyPre.tagName==='PRE'){try{body=bodyPre.textContent;}catch(e){body=null;}}
+    }
+    msg.className='status-msg';msg.textContent='Running…';btn.disabled=true;
+    fetch(url,{method:method,headers:body?{'Content-Type':'application/json'}:undefined,body:body||undefined})
+      .then(function(r){return r.text().then(function(t){return {ok:r.ok,status:r.status,text:t};});})
+      .then(function(res){
+        var pretty=res.text;
+        try{pretty=JSON.stringify(JSON.parse(res.text),null,2);}catch(e){}
+        msg.className='status-msg '+(res.ok?'ok':'err');
+        msg.textContent='HTTP '+res.status+(res.ok?' — success':'');
+        // show response under the button
+        var old=ep.querySelector('.run-resp');if(old)old.remove();
+        var pre=document.createElement('pre');pre.className='run-resp';pre.style.marginTop='0.5rem';pre.textContent=pretty.slice(0,4000);
+        btn.parentElement.appendChild(pre);
+      })
+      .catch(function(e){msg.className='status-msg err';msg.textContent='Network error: '+e.message;})
+      .then(function(){btn.disabled=false;});
+  }
+
+  function boot(){
+    Promise.all([
+      fetch('/openapi.json').then(function(r){return r.json();}),
+      fetch('/.well-known/x402.json').then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
+    ]).then(function(res){
+      SPEC=res[0];
+      // price map: {path: true(paid)} from x402 v2 {endpoints, free_endpoints}
+      var x=res[1];
+      PRICED={};
+      if(x){
+        (x.endpoints||[]).forEach(function(e){PRICED[e.path]=true;});
+        (x.free_endpoints||[]).forEach(function(e){PRICED[e.path]=false;});
+      }
+      render();
+    }).catch(function(e){
+      epsEl.innerHTML='<p class="empty">Could not load /openapi.json: '+esc(e.message)+'</p>';
+    });
+    q.addEventListener('input',render);
+    mf.addEventListener('change',render);
+    pf.addEventListener('change',render);
+  }
+  boot();
+})();
+</script>
+</body>
+</html>
