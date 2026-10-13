@@ -4,18 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CortexCloud — agent-native x402 API platform for AI agents</title>
-<meta name="description" content="One pay-per-call API for AI agents: optimization, AI, research, on-chain data, and automation — all settled in USDC on Base via x402. Discover via MCP and Bazaar, estimate free, pay per call. No API keys, no signup.">
+<meta name="description" content="One pay-per-call API for AI agents: optimization, AI, research, on-chain data, batch aggregation, and ML — all settled in USDC on Base via x402. Discover via MCP and Bazaar, estimate free, pay per call. No API keys, no signup.">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://api.cortexcloud.org/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://api.cortexcloud.org/">
 <meta property="og:title" content="CortexCloud — agent-native x402 API platform for AI agents">
-<meta property="og:description" content="Optimization, AI, research, on-chain data, and automation behind one pay-per-call API. x402 payments, USDC on Base. Estimate free, pay per call from $0.004.">
+<meta property="og:description" content="Optimization, AI, research, on-chain data, batch aggregation, and ML behind one pay-per-call API. x402 payments, USDC on Base. Estimate free, pay per call from $0.004.">
 <meta property="og:image" content="https://api.cortexcloud.org/og.svg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="CortexCloud — agent-native x402 API platform for AI agents">
-<meta name="twitter:description" content="Pay-per-call x402 API platform for AI agents: optimization, AI, research, on-chain data, automation. USDC on Base, no API keys.">
+<meta name="twitter:description" content="Pay-per-call x402 API platform for AI agents: optimization, AI, research, on-chain data, aggregation, ML. USDC on Base, no API keys.">
 <meta name="theme-color" content="#0a0a0a">
+<script src="/theme.js"></script>
+<link rel="stylesheet" href="/theme.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -24,15 +26,18 @@
   --bg:#0a0a0a; --panel:#111; --border:#222;
   --orange:#ff5500; --orange-dim:#cc4400; --green:#4ade80;
   --text:#e5e5e5; --muted:#666;
+  --code-bg:#0f1c2e; --code-border:#1e3a5f; --code-fg:#7db3e8;
+  --t-key:#7db3e8; --t-str:#4ade80; --t-num:#ff9f43; --t-bool:#e879a6; --t-com:#5b6b7a; --t-url:#67e8f9;
   --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
   --sans:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
+:root{color-scheme:dark light}
 body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
 a{color:var(--orange);text-decoration:none}
 a:hover{color:var(--orange-dim)}
-code{font-family:var(--mono);font-size:0.85em;background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:0.1rem 0.35rem}
+code{font-family:var(--mono);font-size:0.85em;background:var(--code-bg);border:1px solid var(--code-border);border-radius:4px;padding:0.1rem 0.35rem;color:var(--code-fg)}
 .wrap{max-width:880px;margin:0 auto;padding:0 1.25rem}
 .skip-link{position:absolute;left:-999px;top:0;background:var(--orange);color:#fff;padding:0.5rem 1rem;border-radius:0 0 8px 0;z-index:50}
 .skip-link:focus{left:0}
@@ -69,7 +74,24 @@ h2{font-size:1.5rem;font-weight:700;letter-spacing:-0.02em;margin:0 0 0.5rem}
 .foot a:hover{color:var(--orange)}
 .links{display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.75rem;font-family:var(--mono);font-size:0.8rem}
 pre{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:0.9rem;overflow-x:auto;font-family:var(--mono);font-size:0.82rem;color:var(--text);margin:0.5rem 0 0}
+/* Free-example live demo (matches existing panel/btn tokens) */
+.demo{border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:0;margin:0.5rem 0 0;overflow:hidden}
+.demo-bar{font-family:var(--mono);font-size:0.78rem;color:var(--muted);padding:0.6rem 1rem;border-bottom:1px solid var(--border)}
+.demo pre{margin:0;border:0;border-radius:0;border-bottom:1px solid var(--border);background:var(--bg);font-size:0.76rem}
+.demo-run{display:flex;align-items:center;gap:0.85rem;padding:0.85rem 1rem;flex-wrap:wrap}
+.demo-status{font-family:var(--mono);font-size:0.78rem;color:var(--muted)}
+.demo-status.ok{color:var(--green)}
+.demo-status.err{color:var(--orange)}
+#fx-out{background:var(--bg);border-bottom:1px solid var(--border);color:var(--green);font-size:0.76rem;white-space:pre-wrap;word-break:break-word}
+.fx-explain{padding:1.1rem 1.25rem;border-top:1px solid var(--border)}
+.fx-explain h3{margin:0 0 0.5rem;font-size:1rem;font-family:var(--mono);color:var(--orange)}
+.fx-explain p{margin:0 0 0.6rem;color:var(--muted);font-size:0.9rem}
+.fx-explain b{color:var(--text)}
 @media (max-width:640px){h1{font-size:2rem}.wrap{padding:0 1rem}header.hero{padding:3.5rem 0 2rem}}
+/* Vibrant terminal syntax colors (reuse existing palette hues) */
+pre .tk{color:var(--t-key)}pre .ts{color:var(--t-str)}pre .tn{color:var(--t-num)}
+pre .tb{color:var(--t-bool)}pre .tc{color:var(--t-com)}pre .tu{color:var(--t-url)}
+pre .tp{color:var(--muted)}
 </style>
 </head>
 <body>
@@ -77,10 +99,10 @@ pre{background:var(--panel);border:1px solid var(--border);border-radius:8px;pad
 <main id="main">
 <header class="hero wrap">
   <p class="eyebrow">Agent-native infrastructure · x402 pay-per-call</p>
-  <h1>CortexCloud <span class="mark">API</span></h1>
-  <p class="sub">Optimization, AI, research, on-chain data, and automation behind one pay-per-call API. Agents discover it via MCP and Bazaar, estimate for free, and settle each call in USDC on Base. No API keys. No signup.</p>
+  <h1>Cortex<span class="mark">Cloud</span></h1>
+  <p class="sub">Optimization, AI, research, on-chain data, batch aggregation, and ML behind one pay-per-call API. Agents discover it via MCP and Bazaar, estimate for free, and settle each call in USDC on Base. No API keys. No signup.</p>
   <div class="cta">
-    <a class="btn primary" href="/v1/examples">Try a free example</a>
+    <a class="btn primary" href="#free-example">Try a free example</a>
     <a class="btn" href="/docs">API reference</a>
   </div>
   <div class="meta">
@@ -94,7 +116,7 @@ pre{background:var(--panel);border:1px solid var(--border);border-radius:8px;pad
   <h2>How an agent uses it</h2>
   <p class="sec-sub">Three requests, zero accounts. The entire loop is machine-native: discover, estimate, then pay per call.</p>
   <div class="steps">
-    <div class="step"><h3>Discover</h3><p><code>/.well-known/x402.json</code>, <code>/.well-known/bazaar</code>, <code>/llms.txt</code>, <code>/openapi.json</code>, and an MCP server at <code>/mcp</code> (16 tools). Agents find CortexCloud the same way a crawler finds a site.</p></div>
+    <div class="step"><h3>Discover</h3><p><code>/.well-known/x402.json</code>, <code>/.well-known/bazaar</code>, <code>/llms.txt</code>, <code>/openapi.json</code>, and an MCP server at <code>/mcp</code> (4 tools). Agents find CortexCloud the same way a crawler finds a site.</p></div>
     <div class="step"><h3>Estimate — free</h3><p><code>POST /v1/estimate</code> returns the recommended mode, algorithm, backend, runtime, and exact price. No payment, no signup.</p></div>
     <div class="step"><h3>Pay &amp; run</h3><p>The endpoint issues an x402 challenge (USDC on Base). The agent settles, the job executes, and the result is returned or polled.</p></div>
   </div>
@@ -102,14 +124,42 @@ pre{background:var(--panel);border:1px solid var(--border);border-radius:8px;pad
 
 <section class="wrap">
   <h2>What's callable</h2>
-  <p class="sec-sub">Six agent-native categories on one payment rail. Live pricing; the estimate endpoint is free.</p>
+  <p class="sec-sub">Six live categories on one payment rail. Live pricing; the estimate endpoint is free.</p>
   <div class="cats">
-    <div class="cat"><h3>Optimization</h3><div class="price">$0.05–1.50</div><p>QUBO/Ising solvers: classical ($0.05–0.25), hybrid ($0.10), real QPU ($1.503). Scheduling, routing, portfolios, max-cut.</p></div>
-    <div class="cat"><h3>AI</h3><div class="price">$0.004+</div><p>Chat, embeddings, transcription — OpenAI-compatible, settled per call.</p></div>
-    <div class="cat"><h3>Research</h3><div class="price">$0.01+</div><p>Web search and answer synthesis. Grounded, cited, pay per query.</p></div>
-    <div class="cat"><h3>On-chain data</h3><div class="price">$0.004+</div><p>Token balances, prices, and history via Alchemy and CoinGecko.</p></div>
-    <div class="cat"><h3>Automation</h3><div class="price">$0.004–0.02</div><p>Transform, HTTP request (SSRF-guarded), webhook (HMAC-signed), schedule, and multi-step workflow.</p></div>
-    <div class="cat"><h3>MCP</h3><div class="price">16 tools</div><p>One command connects Claude, Cursor, or Codex to every callable above.</p></div>
+    <div class="cat"><h3>Optimization</h3><div class="price">$0.05–1.503</div><p>QUBO/Ising solvers: classical ($0.05–0.25 by problem size), hybrid ($0.10), real QPU ($1.503). Scheduling, routing, portfolios, max-cut.</p></div>
+    <div class="cat"><h3>AI</h3><div class="price">$0.004</div><p>Chat, embeddings, transcription — OpenAI-compatible, settled per call.</p></div>
+    <div class="cat"><h3>Research</h3><div class="price">$0.0069–0.016</div><p>Grounded web search, cited answers, and full reports. Pay per query.</p></div>
+    <div class="cat"><h3>On-chain data</h3><div class="price">$0.004–0.04</div><p>Token balances, prices, NFT ownership, tx history, risk scoring, wallet intelligence, whale alerts, and cross-chain comparison via Alchemy and CoinGecko.</p></div>
+    <div class="cat"><h3>Aggregation</h3><div class="price">$0.004</div><p>Batch balances, prices, NFTs, and transfers across many addresses in one paid call.</p></div>
+    <div class="cat"><h3>ML</h3><div class="price">$0.006</div><p>Rerank results by relevance (Cohere/Jina). Image generation and vision are disabled pending provider funding.</p></div>
+  </div>
+</section>
+
+<section class="wrap" id="free-example">
+  <h2>Try a free example</h2>
+  <p class="sec-sub">Run a real CortexCloud request right now — no signup, no API key, no wallet. This solves a small portfolio-optimization problem and shows the exact answer.</p>
+  <div class="demo">
+    <div class="demo-bar">POST /v1/estimate + POST /v1/trial — both free</div>
+    <pre id="fx-req">curl -X POST https://api.cortexcloud.org/v1/estimate \
+  -H "Content-Type: application/json" \
+  -d '{"problem_type":"qubo","n":4,
+       "data":{"linear":[1.0,-2.0,3.0,-4.0],
+               "quadratic":{"0,1":-1.5,"1,2":0.5,"2,3":-2.0}}}'</pre>
+    <div class="demo-run">
+      <button class="btn primary" id="run-fx" type="button">Run the free example</button>
+      <span class="demo-status" id="fx-status">Free — estimate and a real solve, no wallet.</span>
+    </div>
+    <pre id="fx-out" hidden></pre>
+    <div id="fx-explain" class="fx-explain" hidden>
+      <h3>What just happened</h3>
+      <p><b>Estimate (free):</b> CortexCloud analyzed the problem, chose the <b>exact classical solver</b>, and quoted the price a paid run would cost — before you pay anything.</p>
+      <p><b>Solve (free):</b> it returned the optimal answer and objective value. This is a real result from the live API, not a mock.</p>
+      <p>Estimates, simulations and trial solves are always free. Paid API calls start at <b>$0.004</b>, settled in USDC on Base. Integrate CortexCloud into your own agents and apps:</p>
+      <div class="cta" style="margin-top:0.75rem">
+        <a class="btn primary" href="/docs">Open the API reference</a>
+        <a class="btn" href="/v1/examples">More examples</a>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -118,15 +168,27 @@ pre{background:var(--panel);border:1px solid var(--border);border-radius:8px;pad
   <p class="sec-sub">From landing to first paid call without creating an account.</p>
   <div class="grid3">
     <div class="card"><h3>API reference</h3><p>Interactive OpenAPI docs — every endpoint, schema, and the x402 payment flow.</p><a class="btn" href="/docs">Open reference</a></div>
-    <div class="card"><h3>MCP</h3><p>Connect any MCP client to the 16-tool server with one command.</p><pre>claude mcp add cortexcloud \
+    <div class="card"><h3>MCP</h3><p>Connect any MCP client to the 4-tool optimization server with one command.</p><pre>claude mcp add cortexcloud \
   --transport http \
   https://api.cortexcloud.org/mcp</pre></div>
     <div class="card"><h3>Examples</h3><p>Copy-paste request/response demos for every category. Every one begins with a free estimate.</p><a class="btn" href="/v1/examples">Open examples</a></div>
   </div>
 </section>
 
+<section class="wrap">
+  <h2>Listed on agent directories</h2>
+  <p class="sec-sub">CortexCloud is discoverable and payable by autonomous agents through the standard x402 rails.</p>
+  <div class="links" style="font-family:var(--mono);font-size:0.8rem">
+    <a href="https://x402-list.com/services/cortexcloud">x402-list.com</a>
+    <a href="https://registry.modelcontextprotocol.io/">MCP Registry</a>
+    <a href="https://smithery.ai/servers/ampwerajonathan50/cortexcloud-mcp">Smithery</a>
+    <a href="https://www.tryponcho.com/m/api.cortexcloud.org">Poncho</a>
+  </div>
+</section>
+
 <footer class="foot wrap">
-  <p>CortexCloud — agent-native x402 API platform for AI agents: optimization, AI, research, on-chain data, and automation. Settled in USDC on Base via x402. No API keys. No subscriptions.</p>
+  <p>CortexCloud — agent-native x402 API platform for AI agents: optimization, AI, research, on-chain data, aggregation, and ML. Settled in USDC on Base via x402. No API keys. No subscriptions.</p>
+  <div data-theme-toggle style="margin:0 0 0.75rem"></div>
   <div class="links">
     <a href="/docs">API reference</a>
     <a href="/v1/examples">Examples</a>
@@ -136,9 +198,97 @@ pre{background:var(--panel);border:1px solid var(--border);border-radius:8px;pad
     <a href="/.well-known/agentsearch.txt">agentsearch.txt</a>
     <a href="/openapi.json">OpenAPI</a>
     <a href="/health">Status</a>
-    <a href="https://github.com/jonahthan433/CortexCloudAPI">GitHub</a>
+    <a href="https://github.com/jonahthan433/CortexCloud">GitHub</a>
   </div>
 </footer>
 </main>
+<script>
+// Terminal syntax colors for every code block. ponytail: single-pass
+// tokenizer (no sequential re-replace, which would corrupt injected spans),
+// no lib (CSP blocks CDN).
+function hl(code){
+  var esc=function(s){return s.replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});};
+  // JSON: parse + pretty-print, then tokenize in ONE pass.
+  if(/^\s*[{[]/.test(code)||/"[\w-]+"\s*:/.test(code)){
+    try{
+      var pretty=JSON.stringify(JSON.parse(code),null,2);
+      return pretty.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,function(m){
+        var cls=/^"/.test(m)?(/:$/.test(m)?'tk':'ts'):/true|false/.test(m)?'tb':/null/.test(m)?'tb':'tn';
+        return '\u0000'+cls+'\u0001'+esc(m)+'\u0002';
+      }).replace(/\u0000(\w+)\u0001([\s\S]*?)\u0002/g,function(_,cls,body){return '<span class="'+cls+'">'+body+'</span>';});
+    }catch(e){}
+  }
+  // Shell / plain: single-pass tokenizer over escaped text.
+  var out='',re=/(#[^\n]*|https?:\/\/[^\s'"]+|"(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"|\b(?:curl|POST|GET|PUT|DELETE)\b|-X\b|-H\b|-d\b|Content-Type|\bmode\b|\b(?:true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,last=0,m;
+  while((m=re.exec(code))){
+    out+=esc(code.slice(last,m.index));
+    var t=m[0],cls;
+    if(t[0]==='#')cls='tc';
+    else if(/^https?:/.test(t))cls='tu';
+    else if(t[0]==='"')cls='ts';
+    else if(/^(curl|POST|GET|PUT|DELETE|-X|-H|-d|Content-Type|mode)$/.test(t))cls='tk';
+    else if(/^(true|false|null)$/.test(t))cls='tb';
+    else cls='tn';
+    out+='<span class="'+cls+'">'+esc(t)+'</span>';
+    last=re.lastIndex;
+  }
+  out+=esc(code.slice(last));
+  return out;
+}
+function paint(pre){var raw=pre.dataset.raw;if(raw==null){raw=pre.textContent;pre.dataset.raw=raw;}pre.innerHTML=hl(raw);}
+function paintAll(){document.querySelectorAll('pre').forEach(paint);}
+paintAll();
+// Hero "Try a free example" -> smooth scroll to the demo (CSS smooth-scroll
+// is enough in real browsers; this guarantees it everywhere, incl. headless).
+(function(){
+  var a=document.querySelector('a[href="#free-example"]');
+  if(!a)return;
+  a.addEventListener('click',function(ev){
+    var t=document.getElementById('free-example');
+    if(!t)return;
+    ev.preventDefault();
+    var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    t.scrollIntoView({behavior:reduce?'auto':'smooth',block:'start'});
+    history.replaceState(null,'','#free-example');
+  });
+})();
+// Free-example live demo: estimate (free) then trial solve (free), real API.
+// ponytail: one fixed portfolio problem, inline; upgrade to a picker later.
+(function(){
+  var btn=document.getElementById('run-fx'),st=document.getElementById('fx-status'),
+      out=document.getElementById('fx-out'),ex=document.getElementById('fx-explain');
+  if(!btn)return;
+  var problem={problem_type:'qubo',n:4,data:{linear:[1.0,-2.0,3.0,-4.0],quadratic:{'0,1':-1.5,'1,2':0.5,'2,3':-2.0}}};
+  function j(method,path,body){
+    return fetch(path,{method:method,headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined})
+      .then(function(r){return r.text().then(function(t){var d;try{d=JSON.parse(t);}catch(e){d={raw:t};}return {ok:r.ok,status:r.status,data:d};});});
+  }
+  btn.addEventListener('click',function(){
+    btn.disabled=true;st.className='demo-status';st.textContent='Running…';out.hidden=true;ex.hidden=true;
+    j('POST','/v1/estimate',problem).then(function(est){
+      if(!est.ok){throw est;}
+      return j('POST','/v1/trial',{problem:problem}).then(function(trial){
+        if(!trial.ok){throw {status:trial.status,data:trial.data};}
+        var rec=est.data.recommendation||{};
+        out.dataset.raw=
+          '1) POST /v1/estimate  ->  200 OK\n'+JSON.stringify({mode:rec.mode,solver:rec.backend,algorithm:rec.algorithm,price_if_paid_usd:rec.cortexcloud_price_usd},null,2)+
+          '\n\n2) POST /v1/trial  ->  200 OK\n'+JSON.stringify(trial.data,null,2);
+        paint(out);
+        out.hidden=false;
+        st.className='demo-status ok';
+        st.textContent='Solved for free — real answer, no wallet.';
+        ex.hidden=false;
+      });
+    }).catch(function(e){
+      out.dataset.raw=(e&&e.status?('HTTP '+e.status+'\n'):'')+JSON.stringify((e&&e.data)||e,null,2);
+      paint(out);
+      out.hidden=false;
+      st.className='demo-status err';st.textContent='Request failed — try again.';
+    }).then(function(){btn.disabled=false;});
+  });
+})();
+</script>
+<link rel="stylesheet" href="/theme-toggle.css">
+<script src="/theme-toggle.js"></script>
 </body>
 </html>
