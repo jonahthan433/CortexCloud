@@ -4,17 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CortexCloud — agent-native x402 API platform for AI agents</title>
-<meta name="description" content="One pay-per-call API for AI agents: optimization, AI, research, on-chain data, batch aggregation, and ML — all settled in USDC on Base via x402. Discover via MCP and Bazaar, estimate free, pay per call. No API keys, no signup.">
+<meta name="description" content="Pay-per-call on-chain data API for AI agents: token prices, risk scoring, wallet intelligence, whale alerts, balances, tx history, cross-chain comparison — evidence-backed JSON, settled in USDC on Base via x402. No API keys, no signup.">
 <meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/favicon.png">
 <link rel="canonical" href="https://api.cortexcloud.org/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://api.cortexcloud.org/">
 <meta property="og:title" content="CortexCloud — agent-native x402 API platform for AI agents">
-<meta property="og:description" content="Optimization, AI, research, on-chain data, batch aggregation, and ML behind one pay-per-call API. x402 payments, USDC on Base. Estimate free, pay per call from $0.004.">
-<meta property="og:image" content="https://api.cortexcloud.org/og.svg">
+<meta property="og:description" content="On-chain data and intelligence behind one pay-per-call API. Evidence-backed JSON, x402 payments, USDC on Base. From $0.004 per call.">
+<meta property="og:image" content="https://api.cortexcloud.org/og.png">
+<meta name="twitter:image" content="https://api.cortexcloud.org/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="CortexCloud — agent-native x402 API platform for AI agents">
-<meta name="twitter:description" content="Pay-per-call x402 API platform for AI agents: optimization, AI, research, on-chain data, aggregation, ML. USDC on Base, no API keys.">
+<meta name="twitter:description" content="Pay-per-call on-chain data API: token prices, risk, wallet intel, whale alerts, cross-chain. USDC on Base, no API keys.">
 <meta name="theme-color" content="#0a0a0a">
 <script src="/theme.js"></script>
 <link rel="stylesheet" href="/theme.css">
@@ -100,14 +103,14 @@ pre .tp{color:var(--muted)}
 <header class="hero wrap">
   <p class="eyebrow">Agent-native infrastructure · x402 pay-per-call</p>
   <h1>Cortex<span class="mark">Cloud</span></h1>
-  <p class="sub">Optimization, AI, research, on-chain data, batch aggregation, and ML behind one pay-per-call API. Agents discover it via MCP and Bazaar, estimate for free, and settle each call in USDC on Base. No API keys. No signup.</p>
+  <p class="sub">On-chain data and intelligence behind one pay-per-call API. Token prices, risk, wallet profiles, whale activity, balances, transaction history, and cross-chain comparison — every response evidence-backed with source attribution and timestamps. Settled in USDC on Base. No API keys. No signup.</p>
   <div class="cta">
     <a class="btn primary" href="#free-example">Try a free example</a>
     <a class="btn" href="/docs">API reference</a>
   </div>
   <div class="meta">
     <span>Estimate <b>free</b></span>
-    <span>Calls from <b>$0.004</b></span>
+    <span>Data calls from <b>$0.004</b></span>
     <span>Settled <b>USDC on Base</b></span>
   </div>
 </header>
@@ -126,38 +129,39 @@ pre .tp{color:var(--muted)}
   <h2>What's callable</h2>
   <p class="sec-sub">Six live categories on one payment rail. Live pricing; the estimate endpoint is free.</p>
   <div class="cats">
-    <div class="cat"><h3>Optimization</h3><div class="price">$0.05–1.503</div><p>QUBO/Ising solvers: classical ($0.05–0.25 by problem size), hybrid ($0.10), real QPU ($1.503). Scheduling, routing, portfolios, max-cut.</p></div>
-    <div class="cat"><h3>AI</h3><div class="price">$0.004</div><p>Chat, embeddings, transcription — OpenAI-compatible, settled per call.</p></div>
-    <div class="cat"><h3>Research</h3><div class="price">$0.0069–0.016</div><p>Grounded web search, cited answers, and full reports. Pay per query.</p></div>
-    <div class="cat"><h3>On-chain data</h3><div class="price">$0.004–0.04</div><p>Token balances, prices, NFT ownership, tx history, risk scoring, wallet intelligence, whale alerts, and cross-chain comparison via Alchemy and CoinGecko.</p></div>
-    <div class="cat"><h3>Aggregation</h3><div class="price">$0.004</div><p>Batch balances, prices, NFTs, and transfers across many addresses in one paid call.</p></div>
-    <div class="cat"><h3>ML</h3><div class="price">$0.006</div><p>Rerank results by relevance (Cohere/Jina). Image generation and vision are disabled pending provider funding.</p></div>
+    <div class="cat"><h3>Token intelligence</h3><div class="price">$0.030</div><p>Flagship. One call returns deployment check, metadata, spot price, 24h change, optional age/liquidity/market-cap, and recent activity — each fact with its source, a checked_at timestamp, and explicit missing-data indicators.</p></div>
+    <div class="cat"><h3>Token prices</h3><div class="price">$0.004</div><p>Spot USD price and 24h change for any coin or contract, via CoinGecko with Alchemy fallback.</p></div>
+    <div class="cat"><h3>Contract &amp; liquidity risk</h3><div class="price">$0.020</div><p>Risk verdict with evidence: contract existence, metadata, age/liquidity, recent mints and burns.</p></div>
+    <div class="cat"><h3>Wallet intelligence</h3><div class="price">$0.006</div><p>Native balance, holdings, recent activity, and counterparty relationships for any address.</p></div>
+    <div class="cat"><h3>Whale activity</h3><div class="price">$0.030</div><p>Large-transfer alerts with tx hashes, blocks, and timestamps.</p></div>
+    <div class="cat"><h3>Balances &amp; history</h3><div class="price">$0.004</div><p>ERC-20 balances, NFT ownership, and normalized transaction history per chain. Batch across many addresses at the same price.</p></div>
+    <div class="cat"><h3>Cross-chain comparison</h3><div class="price">$0.040</div><p>One contract across up to five chains: deployment, price, activity, and the best-liquidity chain — in one call.</p></div>
+    <div class="cat"><h3>Chain state</h3><div class="price">$0.004</div><p>Gas oracle (base + priority fee) and block lookups for every supported chain.</p></div>
   </div>
 </section>
 
 <section class="wrap" id="free-example">
-  <h2>Try a free example</h2>
-  <p class="sec-sub">Run a real CortexCloud request right now — no signup, no API key, no wallet. This solves a small portfolio-optimization problem and shows the exact answer.</p>
+  <h2>See the payment flow</h2>
+  <p class="sec-sub">Hit a live endpoint without a wallet and read the exact 402 challenge — what your agent pays, to whom, and for what. No signup, no API key.</p>
   <div class="demo">
-    <div class="demo-bar">POST /v1/estimate + POST /v1/trial — both free</div>
-    <pre id="fx-req">curl -X POST https://api.cortexcloud.org/v1/estimate \
+    <div class="demo-bar">POST /v1/data/token-intel — the live 402 challenge</div>
+    <pre id="fx-req">curl -X POST https://api.cortexcloud.org/v1/data/token-intel \
   -H "Content-Type: application/json" \
-  -d '{"problem_type":"qubo","n":4,
-       "data":{"linear":[1.0,-2.0,3.0,-4.0],
-               "quadratic":{"0,1":-1.5,"1,2":0.5,"2,3":-2.0}}}'</pre>
+  -d '{"contract":"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+       "chain":"ethereum","coin_id":"usd-coin"}'</pre>
     <div class="demo-run">
-      <button class="btn primary" id="run-fx" type="button">Run the free example</button>
-      <span class="demo-status" id="fx-status">Free — estimate and a real solve, no wallet.</span>
+      <button class="btn primary" id="run-fx" type="button">Fetch the live challenge</button>
+      <span class="demo-status" id="fx-status">Free — the 402 challenge shows the price before you pay.</span>
     </div>
     <pre id="fx-out" hidden></pre>
     <div id="fx-explain" class="fx-explain" hidden>
       <h3>What just happened</h3>
-      <p><b>Estimate (free):</b> CortexCloud analyzed the problem, chose the <b>exact classical solver</b>, and quoted the price a paid run would cost — before you pay anything.</p>
-      <p><b>Solve (free):</b> it returned the optimal answer and objective value. This is a real result from the live API, not a mock.</p>
-      <p>Estimates, simulations and trial solves are always free. Paid API calls start at <b>$0.004</b>, settled in USDC on Base. Integrate CortexCloud into your own agents and apps:</p>
+      <p><b>The challenge (free):</b> the endpoint answered 402 with the exact price (<b>$0.030</b> in USDC on Base), the payee wallet, and the input/output metadata an agent needs to call it. You paid nothing.</p>
+      <p><b>Paying:</b> your agent signs an EIP-3009 USDC authorization (gasless — no ETH needed) and resends with the <code>payment-signature</code> header. The response comes back as evidence-backed JSON: every fact carries its source, a <code>checked_at</code> timestamp, and an explicit <code>missing</code> indicator when data cannot be resolved.</p>
+      <p>Reads start at <b>$0.004</b>, settled in USDC on Base. Integrate CortexCloud into your own agents and apps:</p>
       <div class="cta" style="margin-top:0.75rem">
         <a class="btn primary" href="/docs">Open the API reference</a>
-        <a class="btn" href="/v1/examples">More examples</a>
+        <a class="btn" href="/v1/capabilities">Live capabilities</a>
       </div>
     </div>
   </div>
@@ -165,13 +169,13 @@ pre .tp{color:var(--muted)}
 
 <section class="wrap">
   <h2>Start in 60 seconds</h2>
-  <p class="sec-sub">From landing to first paid call without creating an account.</p>
+  <p class="sec-sub">From landing to first paid data call without creating an account.</p>
   <div class="grid3">
     <div class="card"><h3>API reference</h3><p>Interactive OpenAPI docs — every endpoint, schema, and the x402 payment flow.</p><a class="btn" href="/docs">Open reference</a></div>
     <div class="card"><h3>MCP</h3><p>Connect any MCP client to the 4-tool optimization server with one command.</p><pre>claude mcp add cortexcloud \
   --transport http \
   https://api.cortexcloud.org/mcp</pre></div>
-    <div class="card"><h3>Examples</h3><p>Copy-paste request/response demos for every category. Every one begins with a free estimate.</p><a class="btn" href="/v1/examples">Open examples</a></div>
+    <div class="card"><h3>Capabilities</h3><p>The live catalog: every endpoint, price, chain, and provider, generated from the running service.</p><a class="btn" href="/v1/capabilities">Live capabilities</a></div>
   </div>
 </section>
 
@@ -187,11 +191,11 @@ pre .tp{color:var(--muted)}
 </section>
 
 <footer class="foot wrap">
-  <p>CortexCloud — agent-native x402 API platform for AI agents: optimization, AI, research, on-chain data, aggregation, and ML. Settled in USDC on Base via x402. No API keys. No subscriptions.</p>
+  <p>CortexCloud — agent-native on-chain data and intelligence API. Evidence-backed token, wallet, risk, price, whale, balance, history, and cross-chain reads. Settled in USDC on Base via x402. No API keys. No subscriptions.</p>
   <div data-theme-toggle style="margin:0 0 0.75rem"></div>
   <div class="links">
     <a href="/docs">API reference</a>
-    <a href="/v1/examples">Examples</a>
+    <a href="/v1/capabilities">Capabilities</a>
     <a href="/llms.txt">llms.txt</a>
     <a href="/.well-known/x402.json">x402.json</a>
     <a href="/.well-known/bazaar">Bazaar</a>
@@ -252,39 +256,39 @@ paintAll();
     history.replaceState(null,'','#free-example');
   });
 })();
-// Free-example live demo: estimate (free) then trial solve (free), real API.
-// ponytail: one fixed portfolio problem, inline; upgrade to a picker later.
+// Live 402 challenge demo: hit the flagship data endpoint and show the real
+// challenge (price, payee, input/output metadata). ponytail: one fixed body.
 (function(){
   var btn=document.getElementById('run-fx'),st=document.getElementById('fx-status'),
       out=document.getElementById('fx-out'),ex=document.getElementById('fx-explain');
   if(!btn)return;
-  var problem={problem_type:'qubo',n:4,data:{linear:[1.0,-2.0,3.0,-4.0],quadratic:{'0,1':-1.5,'1,2':0.5,'2,3':-2.0}}};
-  function j(method,path,body){
-    return fetch(path,{method:method,headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined})
-      .then(function(r){return r.text().then(function(t){var d;try{d=JSON.parse(t);}catch(e){d={raw:t};}return {ok:r.ok,status:r.status,data:d};});});
-  }
+  var body={contract:'0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',chain:'ethereum',coin_id:'usd-coin'};
   btn.addEventListener('click',function(){
-    btn.disabled=true;st.className='demo-status';st.textContent='Running…';out.hidden=true;ex.hidden=true;
-    j('POST','/v1/estimate',problem).then(function(est){
-      if(!est.ok){throw est;}
-      return j('POST','/v1/trial',{problem:problem}).then(function(trial){
-        if(!trial.ok){throw {status:trial.status,data:trial.data};}
-        var rec=est.data.recommendation||{};
-        out.dataset.raw=
-          '1) POST /v1/estimate  ->  200 OK\n'+JSON.stringify({mode:rec.mode,solver:rec.backend,algorithm:rec.algorithm,price_if_paid_usd:rec.cortexcloud_price_usd},null,2)+
-          '\n\n2) POST /v1/trial  ->  200 OK\n'+JSON.stringify(trial.data,null,2);
-        paint(out);
-        out.hidden=false;
-        st.className='demo-status ok';
-        st.textContent='Solved for free — real answer, no wallet.';
-        ex.hidden=false;
-      });
-    }).catch(function(e){
-      out.dataset.raw=(e&&e.status?('HTTP '+e.status+'\n'):'')+JSON.stringify((e&&e.data)||e,null,2);
-      paint(out);
-      out.hidden=false;
-      st.className='demo-status err';st.textContent='Request failed — try again.';
-    }).then(function(){btn.disabled=false;});
+    btn.disabled=true;st.className='demo-status';st.textContent='Fetching challenge...';out.hidden=true;ex.hidden=true;
+    fetch('/v1/data/token-intel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){
+        var pr=r.headers.get('payment-required');
+        if(r.status===402&&pr){
+          var decoded;try{decoded=JSON.parse(atob(pr.replace(/^payment-signature\s*/i,'')));}catch(e){}
+          var accept=(decoded&&decoded.accepts&&decoded.accepts[0])||{};
+          out.dataset.raw='HTTP/1.1 402 Payment Required\n'+
+            'payment-required: '+pr.slice(0,80)+'...\n\n'+
+            JSON.stringify({x402Version:decoded&&decoded.x402Version,price_usdc:accept.amount?(Number(accept.amount)/1e6):null,network:accept.network,asset:accept.asset,payTo:accept.payTo},null,2);
+          paint(out);
+          out.hidden=false;
+          st.className='demo-status ok';
+          st.textContent='402 challenge received — price shown above, nothing paid.';
+          ex.hidden=false;
+        } else {
+          return r.text().then(function(t){throw new Error('HTTP '+r.status+' '+t.slice(0,120));});
+        }
+      })
+      .catch(function(e){
+        out.dataset.raw=String(e&&e.message||e);
+        paint(out);out.hidden=false;
+        st.className='demo-status err';st.textContent='Challenge fetch failed — try again.';
+      })
+      .then(function(){btn.disabled=false;});
   });
 })();
 </script>
