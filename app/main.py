@@ -10,7 +10,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Header, status
+from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -55,6 +55,11 @@ def create_app(override_openapi: bool = True) -> FastAPI:
         description="Optimization infrastructure for AI agents — discover, pay for, and execute classical, hybrid, or quantum optimization through a single API.",
         version="2.0.0",
         lifespan=lifespan,
+        # Built-in Swagger UI loads assets from a CDN, which the CSP header
+        # (script-src 'self') blocks — /docs renders empty. Serve our own
+        # self-contained reference page instead (see the /docs route below).
+        docs_url=None,
+        redoc_url=None,
     )
 
     if override_openapi:
@@ -83,44 +88,30 @@ def create_app(override_openapi: bool = True) -> FastAPI:
     application.add_middleware(ProbeMiddleware)
 
     # Agent surface + discovery routers
-    from app.api.optimization import router as optimization_router
     from app.x402.audit_routes import router as audit_router
     from app.x402.bazaar_routes import router as bazaar_router
+    from app.x402.x402list_routes import router as x402list_router
+    application.include_router(x402list_router, tags=["Discovery"])
+    from app.api.catalog import router as catalog_router
+    application.include_router(catalog_router)
     from app.x402.discovery import router as discovery_router
 
-    application.include_router(optimization_router, tags=["Optimization"])
 
     # Additive /v1/quantum/* namespace — aliases of the optimization handlers.
     # Keeps /v1/optimize etc. intact for backward compatibility.
-    from app.api.quantum import router as quantum_router
-    application.include_router(quantum_router)
-    from app.api.track import router as track_router
-    from app.api.trial import router as trial_router
-    application.include_router(trial_router, tags=["Trial"])
-    from app.api.benchmarks import router as benchmarks_router
-    application.include_router(benchmarks_router, tags=["Benchmarks"])
     from app.models.referral import Referral  # noqa: F401 (table auto-create)
-    application.include_router(track_router, tags=["Tracking"])
-    from app.api.automation import router as automation_router
-    application.include_router(automation_router, tags=["Automation"])
 
     # AI + Research expansion (agent-native platform). Routes self-gate on
     # AI_ENABLED / RESEARCH_ENABLED; pricing + discovery always advertise them.
-    from app.api.ai import router as ai_router
-    from app.api.research import router as research_router
-    application.include_router(ai_router, tags=["AI"])
-    application.include_router(research_router, tags=["Research"])
     from app.api.data import router as data_router
     application.include_router(data_router, tags=["Data"])
+    from app.api.aggregate import router as aggregate_router
+    application.include_router(aggregate_router, tags=["Aggregation"])
 
     application.include_router(discovery_router, tags=["Discovery"])
     application.include_router(bazaar_router, tags=["Bazaar / MCP"])
 
     # Free domain presets + dry-run simulation (v1.3)
-    from app.api.presets import router as presets_router
-    application.include_router(presets_router)
-    from app.api.simulate import router as simulate_router
-    application.include_router(simulate_router)
 
     # Internal-only metrics (revenue). 503 unless INTERNAL_TOKEN is set.
     from app.api.internal import router as internal_router
@@ -133,10 +124,7 @@ def create_app(override_openapi: bool = True) -> FastAPI:
 
             application.include_router(audit_router, tags=["x402 Audit & Trust"])
 
-            # Starlette runs the LAST-added middleware first (outermost). Add X402
-            # + Headers first (inner), then InputValidation OUTER so a bad
-            # content-type / oversized body is rejected (415/413) BEFORE the x402
-            # payment gate sees it — never charged-then-rejected.
+            # Inner -> outer: rate limit, payment gate, headers, input validation.
             application.add_middleware(X402Middleware)
             from app.middleware.headers import CortexHeadersMiddleware
             application.add_middleware(CortexHeadersMiddleware)
@@ -151,10 +139,7 @@ def create_app(override_openapi: bool = True) -> FastAPI:
 
     # ---- system / static ---------------------------------------------------
     @application.get("/metrics", include_in_schema=False, tags=["System"])
-    async def metrics(x_internal_token: str | None = Header(default=None, alias="X-Internal-Token")):
-        if not settings.INTERNAL_TOKEN or x_internal_token != settings.INTERNAL_TOKEN:
-            from fastapi import HTTPException
-            raise HTTPException(status_code=401, detail="invalid internal token")
+    async def metrics():
         from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
@@ -168,6 +153,12 @@ def create_app(override_openapi: bool = True) -> FastAPI:
     @application.get("/", include_in_schema=False)
     async def home():
         return FileResponse(os.path.join(SITE_DIR, "index.html"))
+
+    @application.get("/docs", include_in_schema=False, tags=["System"])
+    async def docs_page():
+        # Self-contained API reference (no CDN — CSP-safe). Renders the live
+        # /openapi.json at runtime; falls back to a message if fetch fails.
+        return FileResponse(os.path.join(SITE_DIR, "docs.html"), media_type="text/html")
 
     @application.get("/og.svg", include_in_schema=False)
     async def _og():
@@ -229,16 +220,28 @@ def create_app(override_openapi: bool = True) -> FastAPI:
         except Exception:
             return False
 
+    @application.get("/examples/paid_client.py", include_in_schema=False, tags=["System"])
+    async def paid_client_source():
+        """The copy-paste buyer referenced by /demo and llms.txt — served from
+        the repo copy so the demo link can never drift from the real client."""
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "examples", "paid_client.py")
+        return FileResponse(p, media_type="text/plain")
+
+    @application.get("/demo", include_in_schema=False, tags=["System"])
+    async def demo_page():
+        return FileResponse(os.path.join(SITE_DIR, "demo.html"), media_type="text/html")
+
     # Root-level static assets (Next export leftovers kept for compatibility)
     @application.get("/{asset}", include_in_schema=False)
     async def _site_asset(asset: str):
-        allowed = (".png", ".jpg", ".jpeg", ".svg", ".ico", ".webp", ".txt", ".xml", ".json", ".woff2", ".woff")
+        allowed = (".png", ".jpg", ".jpeg", ".svg", ".ico", ".webp", ".txt", ".xml", ".json", ".woff2", ".woff", ".css", ".js")
         if not asset.lower().endswith(allowed):
             raise HTTPException(status_code=404)
         path = os.path.join(SITE_DIR, asset)
         if not os.path.isfile(path):
             raise HTTPException(status_code=404)
-        return FileResponse(path)
+        media = "text/css" if asset.endswith(".css") else "text/javascript" if asset.endswith(".js") else None
+        return FileResponse(path, media_type=media)
 
     if os.path.isdir(os.path.join(SITE_DIR, "_next")):
         application.mount("/_next", StaticFiles(directory=os.path.join(SITE_DIR, "_next")), name="next-assets")

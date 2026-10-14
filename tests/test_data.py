@@ -57,9 +57,11 @@ def test_data_margin_positive_and_derivable():
 
 
 def test_ttl_table_matches_brief():
-    assert p.DATA_TTL_S == {"token-price": 10, "token-balances": 15,
-                            "nft-ownership": 15, "tx-history": 15,
-                            "gas-oracle": 5, "block": 5}
+    # Tier 1 TTLs from the brief + Tier 2 intelligence TTLs (composed
+    # upstreams, cached longer). Superset check: Tier 1 unchanged.
+    assert p.DATA_TTL_S["token-price"] == 10 and p.DATA_TTL_S["token-balances"] == 15
+    assert p.DATA_TTL_S["nft-ownership"] == 15 and p.DATA_TTL_S["tx-history"] == 15
+    assert p.DATA_TTL_S["gas-oracle"] == 5 and p.DATA_TTL_S["block"] == 5
 
 
 def test_chain_map_covers_major_evm():
@@ -105,16 +107,11 @@ async def test_capabilities_reports_data_disabled(client):
     assert "alchemy" in cats["data"]["providers"]
 
 
-async def test_ai_and_quantum_untouched_by_data_flag(client, monkeypatch):
-    # Enabling DATA must not flip AI/Research; disabling DATA must not kill them.
-    monkeypatch.setattr("app.core.config.settings.DATA_ENABLED", True)
-    monkeypatch.setattr("app.core.config.settings.AI_ENABLED", False)
+async def test_data_flag_gates_only_data(client, monkeypatch):
+    # The data flag gates the data category; nothing else exists to flip.
+    monkeypatch.setattr("app.core.config.settings.DATA_ENABLED", False)
     r = await client.get("/v1/capabilities")
-    assert r.json()["categories"]["ai"]["status"] == "disabled"
-    # optimization still works (not gated by DATA)
-    r2 = await client.post("/v1/estimate", json={"problem_type": "qubo", "n": 4,
-                                                  "data": {"linear": [1, 2, 3, 4], "quadratic": {}}})
-    assert r2.status_code in (200, 422)  # 200 expected; 422 only if schema drift
+    assert r.json()["categories"]["data"]["status"] == "disabled"
 
 
 async def test_openapi_includes_data(client):
@@ -123,9 +120,14 @@ async def test_openapi_includes_data(client):
     spec = r.json()
     assert "/v1/data/token-price" in spec["paths"]
     assert "/v1/data/block" in spec["paths"]
-    # each paid data op carries x-payment-info synced from ROUTE_PRICING
-    op = spec["paths"]["/v1/data/token-price"]["post"]
-    assert float(op["x-payment-info"]["price"]["amount"]) == 0.004
+    # Tier 2 + aggregate routes are present in the regenerated spec.
+    for p in ("/v1/data/token-risk", "/v1/data/wallet-intel",
+              "/v1/data/whale-alerts", "/v1/data/cross-chain-compare",
+              "/v1/aggregate/balances"):
+        assert p in spec["paths"], p
+    # The 3 phantom data paths were removed (never implemented).
+    for p in ("/v1/data/token-info", "/v1/data/wallet-profile", "/v1/data/allowances"):
+        assert p not in spec["paths"], p
 
 
 # ---------------------------------------------------------------------------

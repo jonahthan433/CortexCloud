@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.http import shared_client
 from app.x402.bazaar import list_tools, tool_entry
-from app.x402.pricing import FREE_ROUTES, ROUTE_DESCRIPTIONS, ROUTE_PRICING
+from app.x402.pricing import FREE_ROUTES, ROUTE_DESCRIPTIONS, ROUTE_PRICING, public_routes
 
 logger = logging.getLogger("cortexcloud.x402.bazaar")
 
@@ -27,6 +27,8 @@ router = APIRouter()
 
 
 def _endpoint_catalog() -> list[dict]:
+    # Advertised product only (PUBLIC_PRODUCT_ROUTES); legacy routes stay
+    # paywalled for existing callers but are not advertised.
     paid = [
         {
             "method": path.split(" ", 1)[0],
@@ -34,15 +36,11 @@ def _endpoint_catalog() -> list[dict]:
             "price": price,
             "description": ROUTE_DESCRIPTIONS.get(path, ""),
         }
-        for path, price in ROUTE_PRICING.items()
+        for path, price in public_routes().items()
         if float(price.lstrip("$")) > 0.0
     ]
     free = [
-        {"method": "POST", "path": "/v1/estimate", "price": "free", "description": FREE_ROUTES["POST /v1/estimate"]},
-        {"method": "GET", "path": "/v1/backends", "price": "free", "description": FREE_ROUTES["GET /v1/backends"]},
         {"method": "GET", "path": "/v1/capabilities", "price": "free", "description": FREE_ROUTES["GET /v1/capabilities"]},
-        {"method": "GET", "path": "/v1/jobs/{job_id}", "price": "free", "description": FREE_ROUTES["GET /v1/jobs/{job_id}"]},
-        {"method": "GET", "path": "/v1/examples", "price": "free", "description": FREE_ROUTES["GET /v1/examples"]},
     ]
     return paid + free
 
@@ -50,8 +48,8 @@ def _endpoint_catalog() -> list[dict]:
 @router.get("/.well-known/bazaar", tags=["x402 Discovery"])
 async def bazaar_root():
     return {
-        "name": "CortexCloud",
-        "description": "Agent-native API platform — pay-per-call AI, Research, Data, and Quantum services over x402 (USDC on Base). No API keys, no subscriptions. Discover, pay, and execute through one endpoint.",
+        "name": "CortexCloud On-Chain Data API",
+        "description": "Pay-per-call on-chain data and intelligence over x402 (USDC on Base). Token, wallet, contract/liquidity risk, prices, whale activity, transaction history, balances, and cross-chain comparison. Evidence-backed JSON: source attribution, checked_at timestamps, explicit missing-data indicators. Providers: Alchemy + CoinGecko.",
         "endpoints": _endpoint_catalog(),
         "mcp": {
             "transport": "streamable-http",

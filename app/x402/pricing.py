@@ -1,10 +1,10 @@
 """x402 pricing — single source of truth for paid/free routes.
 
-/v1/optimize is the only paid route; its price follows the requested
-mode (classical 0.05 / hybrid 0.10 / quantum 0.85). Everything else is
-free. The middleware reads this dict by path to build the 402 challenge,
-so this table is also what discovery (/.well-known/x402.json, llms.txt,
-bazaar) renders.
+/the on-chain data routes are the only paid surface; each price is the
+advertised USD floor. The middleware reads this dict by path to build the
+402 challenge, so this table is also what discovery (/.well-known/x402.json,
+llms.txt, bazaar) renders. PUBLIC_PRODUCT_ROUTES is the advertised subset
+(it is currently the whole table).
 
 Costs are kept separate from prices: MODE_PRICE_USD is what customers
 pay; PROVIDER_COST_USD is our estimated per-run provider cost (model
@@ -16,6 +16,8 @@ never be sold below estimated provider cost unless QUANTUM_ALLOW_SUBSIDY
 from __future__ import annotations
 
 from dataclasses import dataclass
+
+from app.core.config import settings
 from typing import Optional
 
 # ---------------------------------------------------------------------------
@@ -130,6 +132,16 @@ class BraveSearch(BaseProvider):
         return ProviderCost(PROVIDER_PRICING[key].per_call, key)
 
 
+class SelfHostedCorpus(BaseProvider):
+    """Self-hosted scripture/text corpus: $0 provider cost, so /v1/research/ask
+    pegs to the floor. Distinct from BraveSearch (which has a per-call cost)."""
+    slug = "self-hosted"
+    models = (("ask", "corpus:ask"),)
+
+    def estimate_cost(self, *_a, **_kw) -> ProviderCost:
+        return ProviderCost(0.0, "self-hosted corpus")
+
+
 # Registry: route -> provider instance. Swap a vendor by changing the class.
 AI_PROVIDERS = {
     "chat": OpenRouterAIChat(),
@@ -139,6 +151,7 @@ AI_PROVIDERS = {
 RESEARCH_PROVIDERS = {
     "search": BraveSearch(),
     "answer": BraveSearch(),
+    "ask": SelfHostedCorpus(),
 }
 
 
@@ -166,6 +179,10 @@ def ai_transcribe_price_usd(seconds: float = 0.0) -> float:
 
 def research_price_usd(kind: str = "web") -> float:
     return pegged_price(RESEARCH_PROVIDERS["search"].estimate_cost(kind).provider_cost_usd)
+
+
+def ask_price_usd() -> float:
+    return pegged_price(RESEARCH_PROVIDERS["ask"].estimate_cost("ask").provider_cost_usd)
 
 
 # mode -> USD per optimization run (customer price)
@@ -200,37 +217,30 @@ def total_cost_usd(mode: str, provider_cost: float | None = None) -> float:
 MARKUP = 2.0
 
 ROUTE_PRICING = {
-    "POST /v1/optimize": "$0.05",  # base; middleware overrides per mode
-    # AI category — price overridden per-request from token counts (pegged to provider cost).
-    "POST /v1/ai/chat": "$0.004",
-    "POST /v1/ai/embed": "$0.004",
-    "POST /v1/ai/transcribe": "$0.004",
-    # Research category — flat per-call, pegged to Brave cost.
-    "POST /v1/research/search": "$0.006",
-    "POST /v1/research/answer": "$0.012",
-    # Data API (Tier 1) — all endpoints at the $0.004 floor; provider cost is
-    # far below the floor, so the charged price is the floor (see DATA block).
+    # On-chain data API (Tier 1) — all endpoints at the $0.004 floor; provider
+    # cost is far below the floor, so the charged price is the floor.
     "POST /v1/data/token-balances": "$0.004",
     "POST /v1/data/token-price": "$0.004",
     "POST /v1/data/nft-ownership": "$0.004",
     "POST /v1/data/tx-history": "$0.004",
     "GET /v1/data/gas-oracle": "$0.004",
     "GET /v1/data/block": "$0.004",
-    # Automation API (Tier 1) — self-hosted compute, flat floors.
-    "POST /v1/automation/transform": "$0.004",
-    "POST /v1/automation/http-request": "$0.004",
-    "POST /v1/automation/webhook": "$0.004",
-    "POST /v1/automation/schedule": "$0.010",
-    "POST /v1/automation/workflow": "$0.020",
+    # Tier 2 intelligence — multi-upstream fan-out per call.
+    "POST /v1/data/token-risk": "$0.020",
+    "POST /v1/data/wallet-intel": "$0.006",
+    "POST /v1/data/whale-alerts": "$0.030",
+    "POST /v1/data/cross-chain-compare": "$0.040",
+    # Flagship: token intelligence (evidence-backed profile, one call).
+    "POST /v1/data/token-intel": "$0.030",
+    # Aggregate (batch) routes — priced per constituent data call; the
+    # middleware re-prices dynamically for multi-address/multi-token bodies.
+    "POST /v1/aggregate/balances": "$0.004",
+    "POST /v1/aggregate/nfts": "$0.004",
+    "POST /v1/aggregate/prices": "$0.004",
+    "POST /v1/aggregate/tx-history": "$0.004",
 }
 
 ROUTE_DESCRIPTIONS = {
-    "POST /v1/optimize": "Solve a QUBO/Ising optimization problem. USDC on Base via x402; returns a job_id to poll.",
-    "POST /v1/ai/chat": "Chat completion via OpenRouter (Gemini/OpenAI). x402-paid, USDC on Base. Price quoted from requested max_tokens + estimated input.",
-    "POST /v1/ai/embed": "Text embeddings via Google text-embedding-004 (OpenRouter). x402-paid per token.",
-    "POST /v1/ai/transcribe": "Speech-to-text via Gemini. x402-paid per request.",
-    "POST /v1/research/search": "Grounded web search with citations via Brave Search API. x402-paid per call.",
-    "POST /v1/research/answer": "Cited answer synthesis via Brave AI-Grounding. x402-paid per call.",
     # Data API (Tier 1)
     "POST /v1/data/token-balances": "ERC-20 token balances for a wallet on a chain (Alchemy Token API). x402-paid, USDC on Base.",
     "POST /v1/data/token-price": "Spot USD price for a token/coin (CoinGecko where free tier suffices, else Alchemy). x402-paid.",
@@ -238,29 +248,22 @@ ROUTE_DESCRIPTIONS = {
     "POST /v1/data/tx-history": "Normalized transactions for an address on a chain (Alchemy Transfers API). x402-paid, USDC on Base.",
     "GET /v1/data/gas-oracle": "Current base fee + priority fee (gas price) for a chain (Alchemy). x402-paid, USDC on Base.",
     "GET /v1/data/block": "Block by number or 'latest' on a chain (Alchemy). x402-paid, USDC on Base.",
-    # Automation API (Tier 1)
-    "POST /v1/automation/transform": "Pure JSON/data transformation (no egress). x402-paid, USDC on Base.",
-    "POST /v1/automation/http-request": "Outbound HTTP/API request from a safe, SSRF-guarded egress. x402-paid, USDC on Base.",
-    "POST /v1/automation/webhook": "Deliver a signed (HMAC) webhook payload to a URL. x402-paid, USDC on Base.",
-    "POST /v1/automation/schedule": "Persist a delayed/recurring task; CortexCloud fires a signed webhook to your URL later. x402-paid, USDC on Base.",
-    "POST /v1/automation/workflow": "Sequence up to 10 transform/http/webhook steps (120s cap). x402-paid, USDC on Base.",
+    # Tier 2 intelligence
+    "POST /v1/data/token-risk": "Token risk verdict (age, liquidity, contract checks, suspicious-transfer scan) with per-claim evidence. x402-paid.",
+    "POST /v1/data/wallet-intel": "Wallet profile: balances, holdings, recent activity, counterparty relationships (Alchemy). x402-paid.",
+    "POST /v1/data/whale-alerts": "Large-transfer / accumulation alerts for a wallet with tx hashes + timestamps (Alchemy). x402-paid.",
+    "POST /v1/data/cross-chain-compare": "Compare one contract across chains (price, activity, deployment) in one call (Alchemy + CoinGecko). x402-paid.",
+    # Flagship: evidence-backed token profile in one call.
+    "POST /v1/data/token-intel": "Flagship token intelligence: deployment, metadata, spot price, 24h change, optional age/liquidity/market-cap, and recent activity. Each fact carries its source, a checked_at timestamp, and explicit missing-data indicators. Alchemy + CoinGecko. x402-paid, USDC on Base.",
+    # Aggregate (batch) — one 402, many upstream lookups; price scales with batch size.
+    "POST /v1/aggregate/balances": "Batch ERC-20 balances for many addresses (Alchemy). x402-paid, USDC on Base.",
+    "POST /v1/aggregate/nfts": "Batch NFT ownership across addresses (Alchemy). x402-paid, USDC on Base.",
+    "POST /v1/aggregate/prices": "Batch spot USD prices for many tokens (CoinGecko). x402-paid, USDC on Base.",
+    "POST /v1/aggregate/tx-history": "Batch normalized transfers across addresses (Alchemy). x402-paid, USDC on Base.",
 }
 
 FREE_ROUTES = {
-    "POST /v1/estimate": "Analyze a problem (free) — recommended mode/algorithm/backend, decision block for agents, estimated runtime and USDC price.",
-    "GET /v1/jobs/{job_id}": "Poll an optimization job by id (free).",
-    "GET /v1/backends": "List solver backends and availability (free).",
     "GET /v1/capabilities": "Service capabilities, limits, payment terms (free).",
-    "GET /v1/examples": "Canonical portfolio/assignment/scheduling/routing/QUBO examples with schemas, constraints and pricing (free).",
-    "POST /v1/simulate": "Dry-run a problem (free) — feasibility and confidence score before paying for a solve.",
-    "POST /v1/solvers/portfolio": "Build a cardinality-constrained Markowitz QUBO from returns/covariance (free).",
-    "POST /v1/solvers/bin-packing": "Build a bin-packing QUBO from item weights and bin capacity (free).",
-    "POST /v1/solvers/routing": "Build a TSP tour QUBO from a distance matrix (free).",
-    # AI + Research free discovery/estimate endpoints.
-    "POST /v1/ai/estimate": "Free: predict token cost + USDC price for a chat request before paying.",
-    "POST /v1/research/estimate": "Free: predict the USDC price for a search/answer request before paying.",
-    # Automation API (Tier 1) free estimate endpoint.
-    "POST /v1/automation/estimate": "Free: predict the USDC price for an automation request before paying.",
 }
 
 
@@ -381,6 +384,12 @@ DATA_PROVIDERS = {
     "gas-oracle": AlchemyData(),
     "block": AlchemyData(),
     "token-price": CoinGeckoData(),   # CoinGecko free tier; see route for fallback to Alchemy
+    # Tier 2 intelligence: fan-out over Alchemy (+CoinGecko for risk/compare).
+    "token-risk": AlchemyData(),
+    "wallet-intel": AlchemyData(),
+    "whale-alerts": AlchemyData(),
+    "cross-chain-compare": AlchemyData(),
+    "token-intel": AlchemyData(),
 }
 
 
@@ -391,7 +400,12 @@ def data_provider_cost_usd(endpoint: str, calls: int = 1) -> float:
 
 
 def data_price_usd(endpoint: str, calls: int = 1) -> float:
-    """Charged price = pegged(floor-aware) provider cost. Floor => $0.004."""
+    """Charged price for a Data endpoint. Tier 2 intelligence routes use their
+    list price (multi-upstream fan-out); Tier 1 = pegged provider cost (floor
+    $0.004)."""
+    tier2 = DATA_TIER2_PRICE_USD.get(endpoint)
+    if tier2 is not None:
+        return tier2
     return pegged_price(data_provider_cost_usd(endpoint, calls))
 
 
@@ -404,6 +418,23 @@ DATA_TTL_S = {
     "tx-history": 15,
     "gas-oracle": 5,
     "block": 5,
+    # Tier 2 intelligence: these compose several upstreams, so cache longer.
+    "token-risk": 60,
+    "wallet-intel": 30,
+    "whale-alerts": 20,
+    "cross-chain-compare": 60,
+    "token-intel": 60,
+}
+
+# Tier 2 list prices (USD). Higher than Tier 1 floors because each call fans
+# out to multiple upstream Alchemy/CoinGecko requests (the ledger records the
+# per-call provider cost, so margin stays honest if provider rates move).
+DATA_TIER2_PRICE_USD = {
+    "token-risk": 0.020,          # brief: $0.01-$0.03
+    "wallet-intel": 0.006,        # brief: $0.003-$0.01
+    "whale-alerts": 0.030,        # brief: $0.01-$0.05
+    "cross-chain-compare": 0.040, # brief: $0.02-$0.05
+    "token-intel": 0.030,         # flagship: 5-upstream fan-out, $0.02-$0.05 band
 }
 
 # Canonical chain ids we accept (EVM). Maps caller "chain" -> Alchemy network slug.
@@ -449,3 +480,130 @@ def automation_provider_cost_usd(endpoint: str) -> float:
     """Estimated provider cost USD for an automation endpoint (~$0 self-hosted)."""
     return 0.0
 
+
+PROVIDER_PRICING["fal:sdxl"] = ProviderPricing("fal.ai SDXL", per_call=0.003)
+PROVIDER_PRICING["fal:flux"] = ProviderPricing("fal.ai Flux.1", per_call=0.02)
+PROVIDER_PRICING["replicate:sdxl"] = ProviderPricing("Replicate SDXL", per_call=0.004)
+PROVIDER_PRICING["replicate:flux"] = ProviderPricing("Replicate Flux.1", per_call=0.025)
+PROVIDER_PRICING["cohere:rerank"] = ProviderPricing("Cohere rerank-v3", per_call=0.001)
+PROVIDER_PRICING["jina:rerank"] = ProviderPricing("Jina rerank", per_call=0.001)
+PROVIDER_PRICING["openrouter:gemini-vision"] = ProviderPricing("Gemini 2.5 Flash vision", 0.30, 2.50)
+
+
+class FalImage(BaseProvider):
+    slug = "fal"
+    models = (("sdxl", "fal:sdxl"), ("flux", "fal:flux"))
+
+    def estimate_cost(self, model: str | None = None, **_kw) -> ProviderCost:
+        key = "fal:flux" if (model or "sdxl") == "flux" else "fal:sdxl"
+        return ProviderCost(PROVIDER_PRICING[key].per_call, key)
+
+
+class ReplicateImage(BaseProvider):
+    slug = "replicate"
+    models = (("sdxl", "replicate:sdxl"), ("flux", "replicate:flux"))
+
+    def estimate_cost(self, model: str | None = None, **_kw) -> ProviderCost:
+        key = "replicate:flux" if (model or "sdxl") == "flux" else "replicate:sdxl"
+        return ProviderCost(PROVIDER_PRICING[key].per_call, key)
+
+
+class CohereRerank(BaseProvider):
+    slug = "cohere"
+    models = (("rerank-v3", "cohere:rerank"),)
+
+    def estimate_cost(self, docs: int = 0, **_kw) -> ProviderCost:
+        return ProviderCost(PROVIDER_PRICING["cohere:rerank"].per_call, "cohere:rerank")
+
+
+class JinaRerank(BaseProvider):
+    slug = "jina"
+    models = (("rerank", "jina:rerank"),)
+
+    def estimate_cost(self, docs: int = 0, **_kw) -> ProviderCost:
+        return ProviderCost(PROVIDER_PRICING["jina:rerank"].per_call, "jina:rerank")
+
+
+class GeminiVision(BaseProvider):
+    slug = "openrouter"
+    models = (("gemini-2.5-flash", "openrouter:gemini-vision"),)
+
+    def estimate_cost(self, model: str | None = None, input_tokens: int = 0, output_tokens: int = 0, **_kw) -> ProviderCost:
+        # Free OpenRouter multimodal models (id endswith ':free') cost $0.
+        if (model or settings.ML_VISION_MODEL).endswith(":free"):
+            return ProviderCost(0.0, "openrouter:gemini-vision:free")
+        return ProviderCost(
+            PROVIDER_PRICING["openrouter:gemini-vision"].input_per_1m / 1_000_000 * (input_tokens or 300)
+            + PROVIDER_PRICING["openrouter:gemini-vision"].output_per_1m / 1_000_000 * (output_tokens or 200),
+            "openrouter:gemini-vision",
+        )
+
+
+ML_PROVIDERS = {
+    "image-generate": (FalImage(), ReplicateImage()),   # primary, fallback
+    "image-understand": GeminiVision(),
+    "rerank": (CohereRerank(), JinaRerank()),           # primary, fallback
+}
+
+
+def ml_provider_cost_usd(endpoint: str, model: str | None = None, docs: int = 0, input_tokens: int = 0, output_tokens: int = 0) -> float:
+    """Estimated provider cost USD for an ML endpoint (public, recomputable)."""
+    prov = ML_PROVIDERS.get(endpoint)
+    if prov is None:
+        return 0.0
+    primary = prov[0] if isinstance(prov, tuple) else prov
+    if endpoint == "rerank":
+        return round(primary.estimate_cost(docs=docs).provider_cost_usd, 8)
+    if endpoint == "image-understand":
+        return round(primary.estimate_cost(input_tokens=input_tokens, output_tokens=output_tokens).provider_cost_usd, 8)
+    return round(primary.estimate_cost(model=model).provider_cost_usd, 8)
+
+
+def ml_price_usd(endpoint: str, model: str | None = None, docs: int = 0, input_tokens: int = 0, output_tokens: int = 0) -> float:
+    """Charged price = pegged(floor-aware) provider cost. Floor => $0.004 (gen) / rerank $0.006."""
+    floor = 0.006 if endpoint == "rerank" else 0.004
+    return pegged_price(ml_provider_cost_usd(endpoint, model, docs, input_tokens, output_tokens), floor)
+
+
+# Endpoint -> cache TTL (seconds). Image-gen is uncacheable (per-request);
+# understand/rerank are deterministic on input -> short TTL.
+ML_TTL_S = {
+    "image-generate": 0,
+    "image-understand": 15,
+    "rerank": 30,
+}
+
+
+# Register ML paid routes + free estimate in the single source of truth.
+# ---------------------------------------------------------------------------
+# Public product scope (2026-10-14): CortexCloud positions as an on-chain
+# data + intelligence API. Only routes in this set are advertised through
+# discovery (x402.json / llms.txt / agentsearch / bazaar / homepage). The
+# paywall still gates EVERY route in ROUTE_PRICING — existing optimization/
+# AI/research callers keep working and keep being charged; they are simply
+# no longer part of the advertised product.
+# ponytail: one set + a filter helper; upgrade to per-route `public: bool`
+# flags only if a route needs to move in/out at runtime.
+# ---------------------------------------------------------------------------
+PUBLIC_PRODUCT_ROUTES: set[str] = {
+    "POST /v1/data/token-balances",
+    "POST /v1/data/token-price",
+    "POST /v1/data/nft-ownership",
+    "POST /v1/data/tx-history",
+    "GET /v1/data/gas-oracle",
+    "GET /v1/data/block",
+    "POST /v1/data/token-risk",
+    "POST /v1/data/wallet-intel",
+    "POST /v1/data/whale-alerts",
+    "POST /v1/data/cross-chain-compare",
+    "POST /v1/data/token-intel",
+    "POST /v1/aggregate/balances",
+    "POST /v1/aggregate/nfts",
+    "POST /v1/aggregate/prices",
+    "POST /v1/aggregate/tx-history",
+}
+
+
+def public_routes() -> dict[str, str]:
+    """ROUTE_PRICING filtered to the advertised product (single source)."""
+    return {k: v for k, v in ROUTE_PRICING.items() if k in PUBLIC_PRODUCT_ROUTES}
