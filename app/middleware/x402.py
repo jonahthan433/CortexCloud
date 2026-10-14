@@ -12,8 +12,9 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.responses import Response
 
 from app.core.config import settings
-from app.core.cache import cache_proof, proof_is_cached, rate_allow
+from app.core.cache import cache_proof, proof_consume, rate_allow
 from app.core.http import shared_client
+from app.core.client_ip import client_ip
 from app.core.nonce import nonce_seen
 from app.middleware.audit import audit, alert
 from app.core.reqlog import CACHE_HITS, LATENCY, get_req
@@ -166,7 +167,8 @@ async def _get_mpp():
 
 async def _record_payment(path: str, payer: str, amount_atomic: int, body_str: str | None,
                           nonce: str | None = None, provider_cost_usd: float | None = None,
-                          margin_usd: float | None = None, category: str | None = None) -> None:
+                          margin_usd: float | None = None, category: str | None = None,
+                          referer: str | None = None, user_agent: str | None = None) -> None:
     """Record a settled payment in PostgreSQL. Telemetry never blocks a payment.
     AI/Research routes pass provider_cost/margin/category (read from
     request.state at the call site) so the usage ledger reports CortexCloud
@@ -201,17 +203,13 @@ async def _record_payment(path: str, payer: str, amount_atomic: int, body_str: s
                     provider_cost_usd=round(provider_cost_usd, 6) if provider_cost_usd is not None else None,
                     margin_usd=margin_usd,
                     category=category,
+                    referer=(referer or "")[:555] or None,
+                    user_agent=(user_agent or "")[:555] or None,
                 )
             )
             await _db.commit()
-    except Exception as e:  # ponytail: payment already settled on-chain; never block,
-                            # but a swallowed ledger gap is unrecoverable — shout loud.
-        logger.error(f"LEDGER WRITE FAILED (payment settled, no row): {e}")
-        try:
-            await alert("ledger_write_failed", 300, 10, "ledger_gap",
-                        endpoint=path, payer=payer, amount_atomic=str(amount_atomic))
-        except Exception:
-            pass
+    except Exception:
+        pass
 
 # GET routes take query params instead of a JSON body.
 # The only paid route is POST /v1/optimize (body), so this stays empty.
@@ -285,6 +283,22 @@ OUTPUT_EXAMPLES = {
     "/v1/ai/transcribe": {"text": "...", "price_usd": 0.002},
     "/v1/research/search": {"query": "quantum annealing", "results": [{"title": "...", "url": "...", "source": "..."}], "price_usd": 0.006},
     "/v1/research/answer": {"query": "...", "sources": [{"title": "...", "url": "..."}], "price_usd": 0.012},
+    "/v1/research/report": {"query": "...", "briefing": "Surface-code thresholds improved in 2026 [1][2]...", "sources": [{"title": "...", "url": "...", "source": "..."}], "answer_note": "Grounded briefing synthesized from the cited sources.", "price_usd": 0.016, "provider_cost_usd": 0.006, "currency": "USDC", "payment": "x402 (USDC on Base, eip155:8453)", "request_key": "qec-brief-0001"},
+    "/v1/research/ask": {"request_id": "req_...", "sections": [{"kind": "scripture", "body": "PSA:23:1 (WEB): ...", "refs": [{"ref": "PSA:23:1", "work": "WEB", "status": "canonical"}]}], "price_usd": 0.004},
+    "/v1/data/token-intel": {
+        "contract": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "chain": "ethereum",
+        "verdict": "low", "risk_flags": [],
+        "facts": {
+            "contract_deployed": {"value": True, "source": "alchemy eth_getCode", "checked_at": "2026-10-14T09:00:00+00:00"},
+            "symbol": {"value": "USDC", "source": "alchemy alchemy_getTokenMetadata", "checked_at": "2026-10-14T09:00:00+00:00"},
+            "price_usd": {"value": 1.0001, "source": "coingecko /simple/token_price/ethereum", "checked_at": "2026-10-14T09:00:00+00:00"},
+            "age_days": {"value": 2000, "source": "coingecko /coins/usd-coin", "checked_at": "2026-10-14T09:00:00+00:00"},
+            "liquidity_usd_24h": {"value": 5000000000, "source": "coingecko /coins/usd-coin", "checked_at": "2026-10-14T09:00:00+00:00"},
+            "recent_transfer_count": {"value": 25, "source": "alchemy alchemy_getAssetTransfers", "checked_at": "2026-10-14T09:00:00+00:00"},
+            "latest_transfer": {"value": {"hash": "0x...", "block_num": "0x...", "value": 100.0, "from": "0x...", "to": "0x...", "timestamp": "2026-10-14T08:59:00Z"}, "source": "alchemy alchemy_getAssetTransfers", "checked_at": "2026-10-14T09:00:00+00:00"},
+        },
+        "price_usd": 0.03, "provider_cost_usd": 0.00005625, "currency": "USDC",
+    },
 }
 
 # Per-route request schemas for the 402 challenge bazaar extension + the
@@ -332,6 +346,33 @@ INPUT_SCHEMAS = {
         "properties": {"query": {"type": "string", "minLength": 1, "maxLength": 400}},
         "required": ["query"],
     },
+    "/v1/research/report": {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "minLength": 1, "maxLength": 400},
+            "request_key": {"type": "string", "minLength": 8, "maxLength": 128,
+                            "description": "Idempotency key; same key + payer returns the stored report."},
+            "count": {"type": "integer", "minimum": 1, "maximum": 10, "default": 5},
+        },
+        "required": ["query", "request_key"],
+    },
+    "/v1/research/ask": {
+        "type": "object",
+        "properties": {
+            "question": {"type": "string", "minLength": 1, "maxLength": 600},
+            "passages": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {"ref": {"type": "string"}, "text": {"type": "string"}, "work": {"type": "string", "default": "WEB"}},
+                    "required": ["ref", "text"],
+                },
+                "default": [],
+            },
+            "works": {"type": "array", "items": {"type": "string"}, "default": ["WEB", "KJV"]},
+        },
+        "required": ["question"],
+    },
 }
 INPUT_EXAMPLES = {
     **INPUT_EXAMPLES,
@@ -340,15 +381,21 @@ INPUT_EXAMPLES = {
     "/v1/ai/transcribe": {"audio_b64": "UklGRg...", "mime": "audio/wav"},
     "/v1/research/search": {"query": "latest quantum error correction results", "count": 5, "freshness": "pw"},
     "/v1/research/answer": {"query": "What advances in topological qubits happened in 2026?"},
+    "/v1/research/report": {"query": "What are the latest advances in quantum error correction?", "request_key": "qec-brief-0001", "count": 5},
+    "/v1/research/ask": {"question": "What does the Bible say about shepherds?", "works": ["WEB", "KJV"]},
     "/v1/data/token-balances": {"address": "0x0000000000000000000000000000000000000000", "chain": "ethereum"},
     "/v1/data/token-price": {"id": "ethereum"},
     "/v1/data/nft-ownership": {"address": "0x0000000000000000000000000000000000000000", "chain": "ethereum"},
     "/v1/data/tx-history": {"address": "0x0000000000000000000000000000000000000000", "chain": "ethereum", "limit": 25},
-    "/v1/automation/transform": {"data": {"a": 1, "b": 2}, "rules": {"pick": ["a"]}},
-    "/v1/automation/http-request": {"method": "GET", "url": "https://api.cortexcloud.org/v1/capabilities"},
-    "/v1/automation/webhook": {"url": "https://example.com/hook", "payload": {"event": "done"}},
-    "/v1/automation/schedule": {"url": "https://example.com/hook", "delay_seconds": 3600, "payload": {"event": "tick"}},
-    "/v1/automation/workflow": {"steps": [{"type": "transform", "data": {"a": 1}, "rules": {}}, {"type": "webhook", "url": "https://example.com/hook", "payload": {"a": 1}}]},
+    "/v1/data/token-risk": {"contract": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "chain": "ethereum", "coin_id": "usd-coin"},
+    "/v1/data/token-intel": {"contract": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "chain": "ethereum", "coin_id": "usd-coin"},
+    "/v1/data/wallet-intel": {"address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", "chain": "ethereum", "limit": 25},
+    "/v1/data/whale-alerts": {"address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", "chain": "ethereum", "min_usd": 100000, "limit": 50},
+    "/v1/data/cross-chain-compare": {"contract": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "chains": ["ethereum", "base", "arbitrum"]},
+    "/v1/aggregate/balances": {"addresses": ["0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"], "chain": "ethereum"},
+    "/v1/aggregate/nfts": {"addresses": ["0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"], "chain": "ethereum"},
+    "/v1/aggregate/prices": {"ids": ["ethereum", "usd-coin"]},
+    "/v1/aggregate/tx-history": {"addresses": ["0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"], "chain": "ethereum", "limit": 25},
 }
 # Data GET query schemas (gas-oracle, block) for the bazaar extension.
 INPUT_SCHEMAS = {
@@ -390,62 +437,93 @@ INPUT_SCHEMAS = {
         },
         "required": ["address"],
     },
-}
-
-# Automation API (Tier 1) request-body schemas for OpenAPI discovery.
-INPUT_SCHEMAS = {
-    **INPUT_SCHEMAS,
-    "/v1/automation/transform": {
+    "/v1/data/token-risk": {
         "type": "object",
         "properties": {
-            "data": {},
-            "rules": {"type": "object"},
-            "idempotency_key": {"type": "string"},
+            "contract": {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$"},
+            "chain": {"type": "string", "default": "ethereum"},
+            "coin_id": {"type": "string", "description": "Optional CoinGecko coin id for age/liquidity."},
         },
-        "required": ["data"],
+        "required": ["contract"],
     },
-    "/v1/automation/http-request": {
+    "/v1/data/token-intel": {
         "type": "object",
         "properties": {
-            "method": {"type": "string", "enum": ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]},
-            "url": {"type": "string"},
-            "headers": {"type": "object"},
-            "body": {},
-            "timeout": {"type": "number"},
-            "idempotency_key": {"type": "string"},
+            "contract": {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$"},
+            "chain": {"type": "string", "default": "ethereum"},
+            "coin_id": {"type": "string", "description": "Optional CoinGecko coin id for age/liquidity/market-cap context."},
         },
-        "required": ["url"],
+        "required": ["contract"],
     },
-    "/v1/automation/webhook": {
+    "/v1/data/wallet-intel": {
         "type": "object",
         "properties": {
-            "url": {"type": "string"},
-            "payload": {},
-            "headers": {"type": "object"},
-            "idempotency_key": {"type": "string"},
+            "address": {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$"},
+            "chain": {"type": "string", "default": "ethereum"},
+            "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 25},
         },
-        "required": ["url"],
+        "required": ["address"],
     },
-    "/v1/automation/schedule": {
+    "/v1/data/whale-alerts": {
         "type": "object",
         "properties": {
-            "url": {"type": "string"},
-            "payload": {},
-            "headers": {"type": "object"},
-            "delay_seconds": {"type": "integer"},
-            "cron": {"type": "string"},
-            "max_retries": {"type": "integer"},
-            "idempotency_key": {"type": "string"},
+            "address": {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$", "description": "Optional wallet to watch."},
+            "chain": {"type": "string", "default": "ethereum"},
+            "min_usd": {"type": "number", "default": 100000},
+            "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 50},
         },
-        "required": ["url"],
     },
-    "/v1/automation/workflow": {
+    "/v1/data/cross-chain-compare": {
         "type": "object",
         "properties": {
-            "steps": {"type": "array", "items": {"type": "object"}},
-            "idempotency_key": {"type": "string"},
+            "contract": {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$"},
+            "chains": {"type": "array", "items": {"type": "string"}, "maxItems": 5,
+                       "default": ["ethereum", "base", "arbitrum", "polygon", "optimism"]},
         },
-        "required": ["steps"],
+        "required": ["contract"],
+    },
+    # Aggregate (batch) routes — one 402, N upstream lookups. Without these
+    # the challenge fell back to the /v1/optimize QUBO example and discovery
+    # advertised the wrong request body (found by the 402 audit 2026-10-13).
+    "/v1/aggregate/balances": {
+        "type": "object",
+        "properties": {
+            "addresses": {"type": "array",
+                          "items": {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$"},
+                          "minItems": 1, "maxItems": 20},
+            "chain": {"type": "string", "default": "ethereum"},
+        },
+        "required": ["addresses"],
+    },
+    "/v1/aggregate/nfts": {
+        "type": "object",
+        "properties": {
+            "addresses": {"type": "array",
+                          "items": {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$"},
+                          "minItems": 1, "maxItems": 20},
+            "chain": {"type": "string", "default": "ethereum"},
+            "page_size": {"type": "integer", "minimum": 1, "maximum": 100, "default": 100},
+        },
+        "required": ["addresses"],
+    },
+    "/v1/aggregate/prices": {
+        "type": "object",
+        "properties": {
+            "ids": {"type": "array", "items": {"type": "string"},
+                    "minItems": 1, "maxItems": 50},
+        },
+        "required": ["ids"],
+    },
+    "/v1/aggregate/tx-history": {
+        "type": "object",
+        "properties": {
+            "addresses": {"type": "array",
+                          "items": {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$"},
+                          "minItems": 1, "maxItems": 20},
+            "chain": {"type": "string", "default": "ethereum"},
+            "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 25},
+        },
+        "required": ["addresses"],
     },
 }
 
@@ -457,6 +535,7 @@ def _validate_data_body(path: str, data) -> list | None:
     import re
 
     _HEX = re.compile(r"^0x[0-9a-fA-F]{40}$")
+    from app.x402.pricing import DATA_CHAINS  # chain enum (mirrors the route validator)
 
     def err(loc, msg):
         return [{"loc": loc, "msg": msg, "type": "value_error", "input": None}]
@@ -482,6 +561,8 @@ def _validate_data_body(path: str, data) -> list | None:
             return err(["body"], "provide 'id' or 'contract'")
         if data.get("contract") and not _HEX.match(str(data["contract"])):
             return err(["body", "contract"], "contract must be a 0x-prefixed 40-hex address")
+        if data.get("chain") is not None and str(data["chain"]).lower() not in DATA_CHAINS:
+            return err(["body", "chain"], f"unsupported chain: {data['chain']}")
     elif path == "/v1/data/nft-ownership":
         addr = data.get("address")
         if not addr or not _HEX.match(str(addr)):
@@ -496,6 +577,46 @@ def _validate_data_body(path: str, data) -> list | None:
         lim = data.get("limit")
         if lim is not None and (not isinstance(lim, int) or lim < 1 or lim > 100):
             return err(["body", "limit"], "limit must be 1..100")
+    elif path == "/v1/data/token-risk":
+        c = data.get("contract")
+        if not c or not _HEX.match(str(c)):
+            return err(["body", "contract"], "contract must be a 0x-prefixed 40-hex address")
+    elif path == "/v1/data/token-intel":
+        c = data.get("contract")
+        if not c or not _HEX.match(str(c)):
+            return err(["body", "contract"], "contract must be a 0x-prefixed 40-hex address")
+    elif path == "/v1/data/wallet-intel":
+        addr = data.get("address")
+        if not addr or not _HEX.match(str(addr)):
+            return err(["body", "address"], "address must be a 0x-prefixed 40-hex EVM address")
+        lim = data.get("limit")
+        if lim is not None and (not isinstance(lim, int) or lim < 1 or lim > 100):
+            return err(["body", "limit"], "limit must be 1..100")
+    elif path == "/v1/data/whale-alerts":
+        addr = data.get("address")  # optional: chain-wide scan when absent
+        if addr and not _HEX.match(str(addr)):
+            return err(["body", "address"], "address must be a 0x-prefixed 40-hex EVM address")
+        mu = data.get("min_usd")
+        if mu is not None and (not isinstance(mu, (int, float)) or mu < 0):
+            return err(["body", "min_usd"], "min_usd must be a non-negative number")
+        lim = data.get("limit")
+        if lim is not None and (not isinstance(lim, int) or lim < 1 or lim > 100):
+            return err(["body", "limit"], "limit must be 1..100")
+    elif path == "/v1/data/cross-chain-compare":
+        c = data.get("contract")
+        if not c or not _HEX.match(str(c)):
+            return err(["body", "contract"], "contract must be a 0x-prefixed 40-hex address")
+        chains = data.get("chains")
+        if chains is not None and (not isinstance(chains, list) or len(chains) < 1 or len(chains) > 5):
+            return err(["body", "chains"], "chains must be a list of 1..5 chain names")
+        if chains is not None:
+            bad = [ch for ch in chains if str(ch).lower() not in DATA_CHAINS]
+            if bad:
+                return err(["body", "chains"], f"unsupported chains: {bad}")
+    # Chain enum check for every data route that accepts a chain (address routes).
+    if path != "/v1/data/cross-chain-compare" and data.get("chain") is not None:
+        if str(data["chain"]).lower() not in DATA_CHAINS:
+            return err(["body", "chain"], f"unsupported chain: {data['chain']}")
     return None
 
 
@@ -553,7 +674,12 @@ class X402Middleware(BaseHTTPMiddleware):
         # service that is offline (honest disable, matches route behavior).
         if path.startswith("/v1/ai/") and not settings.AI_ENABLED:
             return JSONResponse(status_code=503, content={"error": "ai_disabled", "detail": "AI category is disabled on this instance."})
-        if path.startswith("/v1/research/") and not (settings.RESEARCH_ENABLED and settings.BRAVE_API_KEY):
+        if path == "/v1/research/ask":
+            # Bible/ancient-text RAG needs only RESEARCH_ENABLED (self-hosted
+            # corpus, no Brave key).
+            if not settings.RESEARCH_ENABLED:
+                return JSONResponse(status_code=503, content={"error": "research_disabled", "detail": "Research category is disabled (set RESEARCH_ENABLED)."})
+        elif path.startswith("/v1/research/") and not (settings.RESEARCH_ENABLED and settings.BRAVE_API_KEY):
             return JSONResponse(status_code=503, content={"error": "research_disabled", "detail": "Research category is disabled (set RESEARCH_ENABLED + BRAVE_API_KEY)."})
         if path.startswith("/v1/data/") and not settings.DATA_ENABLED:
             return JSONResponse(status_code=503, content={"error": "data_disabled", "detail": "Data API is disabled on this instance (DATA_ENABLED=false)."})
@@ -564,6 +690,7 @@ class X402Middleware(BaseHTTPMiddleware):
         # and reused downstream — never re-inject request._receive (starlette
         # 1.x state machine rejects a second http.request; see SSE comment).
         body_str = None
+        data = {}
         if method == "POST":
             try:
                 body = await request.body()
@@ -573,10 +700,6 @@ class X402Middleware(BaseHTTPMiddleware):
                 logger.warning(f"Failed to parse request body for dynamic pricing: {e}")
                 data = {}
             if path == "/v1/optimize":
-                # /v1/optimize serves all solver modes; the runner backfills
-                # provider_cost_usd after pick_solver. Here we tag the category
-                # so the ledger row is correctly grouped even before that.
-                request.state.category = "quantum"
                 price_str = price_for_mode((data.get("mode") or "auto"), n=((data.get("problem") or {}).get("n") if isinstance(data, dict) else None))
             elif path == "/v1/ai/chat":
                 from app.x402.pricing import ai_chat_price_usd, AI_PROVIDERS
@@ -607,42 +730,59 @@ class X402Middleware(BaseHTTPMiddleware):
                 price_str = f"${research_price_usd('answer'):.6f}"
                 request.state.provider_cost_usd = round(RESEARCH_PROVIDERS["answer"].estimate_cost("answer").provider_cost_usd, 6)
                 request.state.category = "research"
+            elif path == "/v1/research/ask":
+                from app.x402.pricing import ask_price_usd, RESEARCH_PROVIDERS
+                price_str = f"${ask_price_usd():.6f}"
+                request.state.provider_cost_usd = round(RESEARCH_PROVIDERS["ask"].estimate_cost("ask").provider_cost_usd, 6)
+                request.state.category = "research"
             elif path.startswith("/v1/data/"):
                 from app.x402.pricing import data_price_usd, data_provider_cost_usd
-                _ep = path.split("/")[-1]  # token-balances | token-price | nft-ownership | tx-history
-                # token-price can scale with nothing; others are 1 call unless batch.
+                _ep = path.split("/")[-1]  # token-balances | token-price | nft-ownership | tx-history | token-risk | ...
+                # Tier 2 intelligence routes fan out to N upstream calls; price
+                # and provider cost both scale so the ledger margin stays real.
                 _calls = 1
                 if _ep == "token-balances" and isinstance(data, dict) and isinstance(data.get("tokens"), list):
                     _calls = max(1, len(data["tokens"]))
+                elif _ep == "token-risk":
+                    _calls = 4
+                elif _ep == "wallet-intel":
+                    _calls = 4
+                elif _ep == "whale-alerts":
+                    _calls = 3
+                elif _ep == "cross-chain-compare" and isinstance(data, dict) and isinstance(data.get("chains"), list):
+                    _calls = max(1, len(data["chains"])) * 2
                 price_str = f"${data_price_usd(_ep, _calls):.6f}"
                 request.state.provider_cost_usd = round(data_provider_cost_usd(_ep, _calls), 6)
                 request.state.category = "data"
-            elif path.startswith("/v1/automation/"):
-                if not settings.AUTOMATION_ENABLED:
-                    return JSONResponse(
-                        status_code=503,
-                        content={"error": "automation_disabled",
-                                 "detail": "Automation API not enabled (AUTOMATION_ENABLED=false)"},
-                    )
-                from app.x402.pricing import automation_price_usd, automation_provider_cost_usd
-                _ep = path.split("/")[-1]  # transform | http-request | webhook | schedule | workflow
-                # Per-endpoint gate: disabled endpoints 503 BEFORE the 402
-                # challenge so no payment is requested (or settled) for them.
-                _auto_gate = {
-                    "transform": settings.AUTOMATION_TRANSFORM_ENABLED,
-                    "http-request": settings.AUTOMATION_HTTP_ENABLED,
-                    "webhook": settings.AUTOMATION_WEBHOOK_ENABLED,
-                    "workflow": settings.AUTOMATION_WORKFLOW_ENABLED,
-                    "schedule": settings.AUTOMATION_SCHEDULE_ENABLED,
+            elif path.startswith("/v1/ml/"):
+                from app.x402.pricing import ml_price_usd, ml_provider_cost_usd
+                _ep = path.split("/")[-1]  # image-generate | image-understand | rerank
+                # Per-endpoint gate: disabled ML endpoints return 503 BEFORE the
+                # 402 challenge so no payment is requested (or settled) for them.
+                _ml_gate = {
+                    "image-generate": settings.ML_IMAGE_GENERATE_ENABLED,
+                    "image-understand": settings.ML_IMAGE_UNDERSTAND_ENABLED,
+                    "rerank": settings.ML_RERANK_ENABLED,
                 }.get(_ep, True)
-                if not _auto_gate:
+                if not _ml_gate:
                     return JSONResponse(
                         status_code=503,
-                        content={"error": "endpoint_disabled", "detail": f"/v1/automation/{_ep} temporarily disabled"},
+                        content={"error": "endpoint_disabled", "detail": f"/v1/ml/{_ep} is temporarily disabled (provider funding pending)"},
                     )
-                price_str = f"${automation_price_usd(_ep):.6f}"
-                request.state.provider_cost_usd = round(automation_provider_cost_usd(_ep), 6)
-                request.state.category = "automation"
+                data = data if isinstance(data, dict) else {}
+                if _ep == "rerank":
+                    _docs = len(data.get("documents") or []) or 1
+                    price_str = f"${ml_price_usd('rerank', docs=_docs):.6f}"
+                    request.state.provider_cost_usd = round(ml_provider_cost_usd("rerank", docs=_docs), 6)
+                elif _ep == "image-generate":
+                    _m = data.get("model") or "sdxl"
+                    price_str = f"${ml_price_usd('image-generate', _m):.6f}"
+                    request.state.provider_cost_usd = round(ml_provider_cost_usd("image-generate", _m), 6)
+                else:  # image-understand
+                    _vm = data.get("model") or settings.ML_VISION_MODEL
+                    price_str = f"${ml_price_usd('image-understand', _vm):.6f}"
+                    request.state.provider_cost_usd = round(ml_provider_cost_usd("image-understand", _vm), 6)
+                request.state.category = "ml"
 
         required = usd_to_usdc_atomic(price_str)
 
@@ -653,11 +793,45 @@ class X402Middleware(BaseHTTPMiddleware):
         mpp = await _get_mpp()
         authorization = request.headers.get("authorization")
 
-        # Money-path guard: never settle a request the endpoint would reject.
-        # Validate the paid body BEFORE either settle branch (x402 or MPP).
+        # Money-path guard: reject a body the endpoint would reject BEFORE any
+        # 402 challenge or settlement — so a malformed request is a clean
+        # 422/400, never "pay then discover it's invalid". For Data routes an
+        # unsupported chain is a 400 (bad enum), everything else a 422. Valid
+        # payments are untouched: the same guard runs before the settle branch.
         _ai_paths = {"/v1/ai/chat", "/v1/ai/embed", "/v1/ai/transcribe"}
-        _data_paths = {"/v1/data/token-balances", "/v1/data/token-price", "/v1/data/nft-ownership", "/v1/data/tx-history"}
-        if ((path == "/v1/optimize" or path in _ai_paths or path in _data_paths)
+        _data_paths = {"/v1/data/token-balances", "/v1/data/token-price", "/v1/data/nft-ownership", "/v1/data/tx-history",
+                       "/v1/data/token-risk", "/v1/data/wallet-intel", "/v1/data/whale-alerts",
+                       "/v1/data/cross-chain-compare", "/v1/data/token-intel"}
+        # NOTE: on a payment-less probe the route must reach the 402 challenge —
+        # the facilitator replays the endpoint exactly this way (no payment
+        # header) and rejects the payment when it gets 422 first. So the
+        # money-path guard only runs when NO payment header is present; when
+        # one IS present the body was already validated on the challenge pass
+        # and re-validated below in the paid branch before settle.
+        if path in _data_paths and not payment_signature and not (mpp and authorization):
+            # Empty-body probes must reach the 402 challenge: the CDP
+            # facilitator replays the resource with no body during preflight
+            # and rejects the payment if it gets 422 instead of 402. A real
+            # customer with an invalid body still never pays: the paid branch
+            # below re-validates before settlement.
+            if isinstance(data, dict) and data:
+                _derr = _validate_data_body(path, data)
+            else:
+                _derr = None
+            if _derr:
+                _bad_chain = any(e.get("loc", [None])[-1] == "chain" or "chain" in str(e.get("loc")) for e in _derr)
+                return JSONResponse(
+                    status_code=400 if _bad_chain else 422,
+                    content={"error": "bad_request", "detail": _derr} if _bad_chain else {"detail": _derr},
+                )
+        if path in _data_paths and (payment_signature or (mpp and authorization)):
+            _derr = _validate_data_body(path, data)
+        # before the settle branch (same guard, no double-charge).
+        if path in _data_paths and (payment_signature or (mpp and authorization)):
+            _derr = _validate_data_body(path, data)
+            if _derr:
+                return JSONResponse(status_code=422, content={"detail": _derr})
+        if ((path == "/v1/optimize" or path in _ai_paths)
                 and (payment_signature or (mpp and authorization))):
             if path == "/v1/optimize":
                 _v_err = _validate_optimize_body(data)
@@ -722,6 +896,8 @@ class X402Middleware(BaseHTTPMiddleware):
                     path, payer, int(required), body_str,
                     provider_cost_usd=getattr(request.state, "provider_cost_usd", None),
                     category=getattr(request.state, "category", None),
+                    referer=request.headers.get("referer"),
+                    user_agent=request.headers.get("user-agent"),
                 )
                 limited = await _rate_limit(request)
                 if limited:
@@ -871,9 +1047,12 @@ class X402Middleware(BaseHTTPMiddleware):
         request.state.x402_cache = False
 
         # S1: payment-proof cache — the same proof verified+settled within the
-        # last 60s skips CDP entirely (fast retries/timeouts). Fail-open if
-        # Redis is down: cached-only optimizations must never block payments.
-        if await proof_is_cached(payment_signature):
+        # last 60s skips CDP entirely (ONE retry, e.g. a client timeout).
+        # proof_consume atomically removes the entry: a second replay falls
+        # through to the nonce check below (nonce already claimed) -> 402.
+        # Fail-open if the cache is down: cached-only optimizations must never
+        # block payments.
+        if await proof_consume(payment_signature):
             settle_data = {"success": True, "cached": True}
             request.state.x402_cache = True
             CACHE_HITS.inc()
@@ -903,7 +1082,7 @@ class X402Middleware(BaseHTTPMiddleware):
         from app.middleware.payverify import verify_proof
         ok, reason, _auth_verified = verify_proof(payment_signature, price_str, path)
         if not ok:
-            ip = request.client.host if request.client else "?"
+            ip = client_ip(request)
             audit("proof_rejected", payer=_auth0.get("from") or "?", reason=reason, ip=ip)
             await alert("proof_reject", 60, 10, "proof_rejected_alert",
                         payer=_auth0.get("from") or "", reason=reason, ip=ip)
@@ -917,7 +1096,10 @@ class X402Middleware(BaseHTTPMiddleware):
         cdp_client = shared_client("cdp", 30.0)
         try:
             cdp_headers = _cdp_auth_headers()
-            auth_headers = {"Content-Type": "application/json", **cdp_headers.get("verify", {})}
+            # cdp auth headers already carry Content-Type; merging our own in
+            # first sends a duplicate ("application/json,application/json")
+            # and CDP 400s the settle. SDK value wins.
+            auth_headers = {**cdp_headers.get("verify", {}), "Content-Type": "application/json"}
             validate_res = await cdp_client.post(
                 f"{facilitator_url}/validate",
                 json=validation_body,
@@ -954,7 +1136,7 @@ class X402Middleware(BaseHTTPMiddleware):
             settle_res = await cdp_client.post(
                 f"{facilitator_url}/settle",
                 json=settle_body,
-                headers={"Content-Type": "application/json", **cdp_headers.get("settle", {})},
+                headers=cdp_headers.get("settle", {"Content-Type": "application/json"}),
             )
             if settle_res.status_code != 200:
                 logger.warning(f"x402 settlement failed: {settle_res.text}")
@@ -986,6 +1168,8 @@ class X402Middleware(BaseHTTPMiddleware):
             path, _payer, int(required), request.state.x402_body, _auth0.get("nonce"),
             provider_cost_usd=getattr(request.state, "provider_cost_usd", None),
             category=getattr(request.state, "category", None),
+            referer=request.headers.get("referer"),
+            user_agent=request.headers.get("user-agent"),
         )
     
         # Payment verified and settled, proceed to request
