@@ -99,7 +99,9 @@ def create_app(override_openapi: bool = True) -> FastAPI:
 
     # Additive /v1/quantum/* namespace — aliases of the optimization handlers.
     # Keeps /v1/optimize etc. intact for backward compatibility.
+    from app.api.track import router as track_router
     from app.models.referral import Referral  # noqa: F401 (table auto-create)
+    application.include_router(track_router, tags=["Tracking"])
 
     # AI + Research expansion (agent-native platform). Routes self-gate on
     # AI_ENABLED / RESEARCH_ENABLED; pricing + discovery always advertise them.
@@ -107,6 +109,8 @@ def create_app(override_openapi: bool = True) -> FastAPI:
     application.include_router(data_router, tags=["Data"])
     from app.api.aggregate import router as aggregate_router
     application.include_router(aggregate_router, tags=["Aggregation"])
+    from app.api.ml import router as ml_router
+    application.include_router(ml_router, tags=["ML"])
 
     application.include_router(discovery_router, tags=["Discovery"])
     application.include_router(bazaar_router, tags=["Bazaar / MCP"])
