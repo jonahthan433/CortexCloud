@@ -33,3 +33,15 @@ site/index.html.bak.*
 
 # Rotated signing key (regenerated on deploy; never commit)
 server_ecdsa.key
+
+# secrets (runtime)
+.li_token.json
+*.token.json
+
+# one-off probes/debug scripts (not shipped)
+_*.py
+_*.sh
+
+# next.js build output
+site/_next/
+site_pre_landing_bak/

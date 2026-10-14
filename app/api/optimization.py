@@ -26,6 +26,29 @@ logger = logging.getLogger("cortexcloud.api")
 router = APIRouter(prefix="/v1", tags=["optimization"])
 
 
+def _is_public_host(url: str) -> bool:
+    """SSRF guard: reject loopback/private/link-local/reserved targets
+    (stdlib socket.getaddrinfo). A webhook payload includes a signed
+    receipt — never let a paid caller point it at our own infra or a
+    cloud metadata endpoint. ponytail: DNS-rebinding TOCTOU left open —
+    pin/allowlist by domain when a customer needs it."""
+    import ipaddress
+    import socket
+    from urllib.parse import urlparse
+
+    try:
+        host = urlparse(url).hostname
+        addrs = {ai[4][0] for ai in socket.getaddrinfo(host, None)}
+        for a in addrs:
+            ip = ipaddress.ip_address(a.split("%")[0])
+            if (ip.is_loopback or ip.is_private or ip.is_link_local
+                    or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+                return False
+    except Exception:
+        return False
+    return True
+
+
 class OptimizeRequest(BaseModel):
     problem: ProblemInput
     mode: str = Field(
@@ -62,12 +85,10 @@ async def optimize(req: OptimizeRequest, request: Request):
         raise HTTPException(status_code=422, detail="n exceeds 5000 variables")
     if req.webhook_url and not req.webhook_url.startswith(("http://", "https://")):
         raise HTTPException(status_code=422, detail="webhook_url must be http(s)")
+    if req.webhook_url and not _is_public_host(req.webhook_url):
+        raise HTTPException(status_code=422, detail="webhook_url must not target loopback/private/link-local hosts")
     price = effective_price_usd(req.mode, n=req.problem.n)
-    # Pass payer so the runner can backfill provider_cost_usd on the
-    # matching x402_payments row after the solve runs (quantum cost is
-    # only known post-pick).
-    _payer = getattr(request.state, "x402_payer", None)
-    job_id = await create_job(req.problem, req.mode, price, webhook_url=req.webhook_url, payer=_payer)
+    job_id = await create_job(req.problem, req.mode, price, webhook_url=req.webhook_url)
     schedule(job_id)
     return {
         "job_id": job_id,
@@ -124,7 +145,7 @@ async def list_backends() -> dict:
 @router.get("/capabilities", summary="Agent capability catalog")
 async def capabilities() -> dict:
     return {
-        "service": "CortexCloud Optimization Network",
+        "service": "CortexCloud On-Chain Data API",
         "version": "v1",
         "description": FREE_ROUTES,
         "problem_types": ["qubo", "ising"],
@@ -153,27 +174,39 @@ async def capabilities() -> dict:
             "/mcp",
         ],
         "categories": {
-            "quantum": {"status": "available", "vertical": "optimization", "endpoints": ["/v1/optimize", "/v1/estimate"]},
+            "quantum": {"status": "available", "vertical": "optimization", "public": False, "endpoints": ["/v1/optimize", "/v1/estimate"]},
             "ai": {
                 "status": "available" if settings.AI_ENABLED else "disabled",
+                "public": False,
                 "note": "Chat/embed/transcribe via OpenRouter + Gemini. Price pegged to provider cost (35% margin).",
                 "endpoints": ["/v1/ai/chat", "/v1/ai/embed", "/v1/ai/transcribe", "/v1/ai/estimate"],
                 "models": ["gemini-2.5-flash", "gemini-2.0-flash", "gpt-4o-mini", "text-embedding-004"],
             },
             "research": {
                 "status": "available" if (settings.RESEARCH_ENABLED and settings.BRAVE_API_KEY) else "disabled",
+                "public": False,
                 "note": "Grounded web search + cited answers via Brave Search API. Enabled when RESEARCH_ENABLED + BRAVE_API_KEY set.",
                 "endpoints": ["/v1/research/search", "/v1/research/answer", "/v1/research/estimate"],
             },
             "data": {
                 "status": "available" if settings.DATA_ENABLED else "disabled",
-                "note": "Onchain data via Alchemy (Token/NFT/Transfers/Node) + CoinGecko price. Price pegged to verified Alchemy CU cost (~$0.004 floor).",
+                "note": "Onchain data via Alchemy (Token/NFT/Transfers/Node) + CoinGecko price. Tier 1 at the $0.004 floor; Tier 2 intelligence routes fan out to multiple upstreams and are priced accordingly.",
                 "endpoints": [
-                    "/v1/data/token-balances", "/v1/data/token-price", "/v1/data/nft-ownership",
-                    "/v1/data/tx-history", "/v1/data/gas-oracle", "/v1/data/block",
+                    "/v1/data/token-intel", "/v1/data/token-balances", "/v1/data/token-price",
+                    "/v1/data/nft-ownership", "/v1/data/tx-history", "/v1/data/gas-oracle",
+                    "/v1/data/block", "/v1/data/token-risk", "/v1/data/wallet-intel",
+                    "/v1/data/whale-alerts", "/v1/data/cross-chain-compare",
                 ],
                 "providers": ["alchemy", "coingecko"],
                 "supported_chains": sorted(set(DATA_CHAINS.keys()) - {"1", "8453", "42161", "137", "10"}),
+            },
+            "aggregate": {
+                "status": "available" if settings.DATA_ENABLED else "disabled",
+                "note": "Batch onchain data across addresses/tokens in one paid call (Alchemy + CoinGecko).",
+                "endpoints": [
+                    "/v1/aggregate/balances", "/v1/aggregate/prices",
+                    "/v1/aggregate/nfts", "/v1/aggregate/tx-history",
+                ],
             },
         },
     }

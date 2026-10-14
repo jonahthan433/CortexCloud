@@ -61,8 +61,22 @@ async def cache_proof(payment_signature: str) -> None:
     proof_set(payment_signature, "settled")
 
 
-async def proof_is_cached(payment_signature: str) -> bool:
-    return proof_get(payment_signature) is not None
+async def proof_consume(payment_signature: str) -> bool:
+    """Check-and-remove atomically. True = one legit retry of an already
+    settled proof (client timeout). False afterwards: a second replay falls
+    through to the nonce check, which rejects it (nonce already claimed).
+    ponytail: in-process, single-worker; multi-worker needs the same store
+    as nonce dedup (PG)."""
+    with _lock:
+        hit = PROOF_CACHE.get(payment_signature)
+        if hit is None:
+            return False
+        expiry, result = hit
+        if time.time() > expiry:
+            PROOF_CACHE.pop(payment_signature, None)
+            return False
+        PROOF_CACHE.pop(payment_signature, None)
+        return True
 
 
 async def rate_allow(payer_key: str) -> int:

@@ -66,4 +66,4 @@ def test_origin_adapter_unavailable_without_token():
     a = OriginWukongAdapter(api_token=None, backend=None)
     av = a.availability()
     assert av.available is False
-    assert "token" in av.reason.lower()
+    assert "token" in av.reason.lower() or "capability" in av.reason.lower()

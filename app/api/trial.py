@@ -13,6 +13,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.optimizer.problem import ProblemInput, to_qubo
+from app.core.client_ip import client_ip
 from app.solvers import registry
 
 router = APIRouter(prefix="/v1", tags=["trial"])
@@ -56,8 +57,8 @@ async def trial(req: TrialRequest, request: Request):
     if req.mode not in ("auto", "classical", "hybrid", "quantum"):
         raise HTTPException(422, detail=f"mode must be auto|classical|hybrid|quantum")
 
-    # Rate limit
-    ip = request.client.host if request.client else "unknown"
+    # Rate limit (real client IP — the tunnel peer is identical for everyone)
+    ip = client_ip(request)
     now = time.time()
     window = [t for t in _trial_limits[ip] if now - t < _TRIAL_WINDOW_S]
     if len(window) >= _TRIAL_MAX_PER_IP:

@@ -8,7 +8,7 @@ as submissions land.
 ## Canonical listing facts
 
 - Base / paid: `POST https://api.cortexcloud.org/v1/optimize` (x402) · Free: `/v1/estimate`, `/v1/jobs/{id}`, `/v1/backends`, `/v1/capabilities`, `/v1/examples`
-- Prices (USDC on Base, eip155:8453, 6-dec): classical $0.05 (50000) · hybrid $0.10 (100000) · quantum $0.85 (850000) · payee `0x5a0353bc9c75b893a9b5735d3e79f1bd988ea143`
+- Prices (USDC on Base, eip155:8453, 6-dec): classical $0.05 (50000) · hybrid $0.10 (100000) · quantum $1.503 (1503000) · payee `0x5a0353bc9c75b893a9b5735d3e79f1bd988ea143`
 - MCP: `https://api.cortexcloud.org/mcp` (Streamable HTTP; 4 tools; v0.4.0) — verified reachable publicly (HTTP 200), `/openapi.json` and `/.well-known/agentsearch.txt` also 200. No production API changes required for listings.
 - Discovery: `/llms.txt` · `/.well-known/x402.json` · `/.well-known/bazaar` · `/.well-known/agentsearch.txt` · `/openapi.json`
 

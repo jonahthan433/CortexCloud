@@ -80,6 +80,9 @@ class Payment(Base):
     provider_cost_usd: Mapped[float | None] = mapped_column(Numeric(12, 6), nullable=True)
     margin_usd: Mapped[float | None] = mapped_column(Numeric(12, 6), nullable=True)
     category: Mapped[str | None] = mapped_column(String(16), nullable=True)  # quantum|ai|research
+    # Discovery attribution: who sent the buyer. Null for API-only clients.
+    referer: Mapped[str | None] = mapped_column(String(555), nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(String(555), nullable=True)
 
 
 class Nonce(Base):
@@ -115,10 +118,7 @@ class Benchmark(Base):
     quality_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     runtime_ms: Mapped[int] = mapped_column(BigInteger)
     objective: Mapped[float | None] = mapped_column(Numeric(24, 12), nullable=True)
+    provider_cost_usd: Mapped[float | None] = mapped_column(Numeric(18, 10), nullable=True)
     price_usd: Mapped[float | None] = mapped_column(Numeric(18, 10), nullable=True)
     margin_usd: Mapped[float | None] = mapped_column(Numeric(18, 10), nullable=True)
-    provider_cost_usd: Mapped[float | None] = mapped_column(Numeric(18, 10), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
-
-
-from app.models.automation import AutoJob  # noqa: E402,F401

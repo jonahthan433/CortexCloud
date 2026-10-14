@@ -36,6 +36,7 @@ def _candidate(solver, qubo: dict, n: int) -> dict[str, Any]:
     return {
         **est.to_dict(solver.spec),
         "solver_id": solver.spec.id,
+        "provider": getattr(solver, "provider", solver.spec.id),
         "provider_cost_usd": round(provider_cost, 6),
         "cortexcloud_price_usd": round(customer, 6),
         "margin_usd": round(customer - provider_cost, 6),
