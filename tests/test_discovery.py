@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-# MCP tools were removed with the optimization surface (the /mcp service is
-# no longer advertised; the data API is consumed over REST).
+# MCP: the gateway (separate host service, relayed at /mcp) exposes one tool
+# per advertised paid route + free metadata tools; bazaar mirrors that list.
 
 
 
@@ -38,8 +38,14 @@ async def test_bazaar_root(client):
     assert r.status_code == 200
     body = r.json()
     assert body["payment"]["scheme"] == "x402"
-    # MCP tools were removed with the optimization surface
-    assert body["mcp"]["tools"] == []
+    # MCP registry mirrors the live paid surface (rebuilt 2026-10-18)
+    tools = body["mcp"]["tools"]
+    assert len(tools) == 16
+    tool_names = {t["name"] for t in tools}
+    assert "cortex_token_balances" in tool_names
+    assert "cortex_token_intel" in tool_names
+    assert "cortex_capabilities" in tool_names
+    assert all(t["inputSchema"].get("type") == "object" for t in tools)
     ep_paths = {e["path"] for e in body["endpoints"]}
     assert "/v1/data/token-intel" in ep_paths
     assert "/v1/optimize" not in ep_paths
@@ -63,4 +69,6 @@ async def test_health(client):
     assert r.status_code == 200
     body = r.json()
     assert body["database"] in ("healthy", "unhealthy")
-    assert "backends" in body
+    assert body["mcp"] in ("running", "down")
+    # the solver/optimizer surface is gone; /health must not advertise it
+    assert "backends" not in body

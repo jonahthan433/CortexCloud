@@ -1,9 +1,10 @@
-"""CortexCloud Optimization Network — FastAPI assembly.
+"""CortexCloud On-Chain Data API — FastAPI assembly.
 
-Agent-facing surface: /v1/estimate (free), /v1/optimize (x402-paid),
-/v1/jobs/{id}, /v1/backends, /v1/capabilities (free) + discovery
-(/.well-known/x402.json, /.well-known/bazaar, /llms.txt, /openapi.json)
-and the MCP gateway at /x402/v1/mcp. Health/metrics/static unchanged.
+Agent-facing surface: /v1/data/* + /v1/aggregate/* (x402-paid, USDC on
+Base), /v1/capabilities (free) + discovery (/.well-known/x402.json,
+/.well-known/bazaar, /llms.txt, /openapi.json). The MCP gateway is a
+separate host service (relay, no payment logic) exposed by the tunnel
+at https://api.cortexcloud.org/mcp. Health/metrics/static unchanged.
 """
 import json as _json
 import logging
@@ -26,33 +27,15 @@ SITE_DIR = "/opt/CortexCloudAPI/site"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging()
-    logger.info("Initializing CortexCloud Optimization Network...")
-    try:
-        from app.optimizer.runner import requeue_stale_jobs
-        n = await requeue_stale_jobs()
-        if n:
-            logger.info(f"Requeued {n} stale job(s) left by a previous worker")
-    except Exception as e:  # noqa: BLE001
-        logger.error(f"Startup requeue failed (continuing): {e}")
-    # Pre-warm provider availability off-loop so the first /health after boot
-    # is fast instead of triggering 15-45s of cloud discovery in-band.
-    try:
-        import asyncio as _asyncio
-        from app.solvers import registry as _registry
-
-        _asyncio.get_event_loop().create_task(
-            _asyncio.to_thread(_registry.availability_summary)
-        )
-    except Exception as e:  # noqa: BLE001
-        logger.error(f"Startup availability pre-warm failed (continuing): {e}")
+    logger.info("Initializing CortexCloud On-Chain Data API...")
     yield
-    logger.info("Shutting down CortexCloud Optimization Network...")
+    logger.info("Shutting down CortexCloud On-Chain Data API...")
 
 
 def create_app(override_openapi: bool = True) -> FastAPI:
     application = FastAPI(
         title=settings.PROJECT_NAME,
-        description="Optimization infrastructure for AI agents — discover, pay for, and execute classical, hybrid, or quantum optimization through a single API.",
+        description="Pay-per-call on-chain data and intelligence for AI agents: token, wallet, risk, whale, balance, NFT, transaction and cross-chain reads. Evidence-backed JSON, settled in USDC on Base via x402. No API keys, no signup.",
         version="2.0.0",
         lifespan=lifespan,
         # Built-in Swagger UI loads assets from a CDN, which the CSP header
@@ -109,8 +92,6 @@ def create_app(override_openapi: bool = True) -> FastAPI:
     application.include_router(data_router, tags=["Data"])
     from app.api.aggregate import router as aggregate_router
     application.include_router(aggregate_router, tags=["Aggregation"])
-    from app.api.ml import router as ml_router
-    application.include_router(ml_router, tags=["ML"])
 
     application.include_router(discovery_router, tags=["Discovery"])
     application.include_router(bazaar_router, tags=["Bazaar / MCP"])
@@ -197,17 +178,10 @@ def create_app(override_openapi: bool = True) -> FastAPI:
             db_status = "healthy"
         except Exception:  # noqa: BLE001
             pass
-        from app.solvers import registry
-        import asyncio as _asyncio
-        # availability_summary() probes cloud providers (IBM/Braket discovery
-        # can take 15s+) — never run it on the event loop or /health becomes
-        # a self-DoS that blocks every other request.
-        backends = await _asyncio.to_thread(registry.availability_summary)
         return {
             "status": "healthy" if db_status == "healthy" else "degraded",
             "database": db_status,
             "mcp": "running" if _mcp_alive() else "down",
-            "backends": backends,
         }
 
     def _mcp_alive() -> bool:

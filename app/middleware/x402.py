@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 import time
 
 import httpx
@@ -18,7 +19,7 @@ from app.core.client_ip import client_ip
 from app.core.nonce import nonce_seen
 from app.middleware.audit import audit, alert
 from app.core.reqlog import CACHE_HITS, LATENCY, get_req
-from app.x402.pricing import ROUTE_PRICING, ROUTE_DESCRIPTIONS, usd_to_usdc_atomic, price_for_mode
+from app.x402.pricing import ROUTE_PRICING, ROUTE_DESCRIPTIONS, DATA_CHAINS, usd_to_usdc_atomic, price_for_mode
 
 logger = logging.getLogger("cortexcloud.middleware.x402")
 
@@ -82,6 +83,29 @@ async def _rate_limit(request) -> JSONResponse | None:
             headers={"Retry-After": "60"},
         )
     return None
+
+
+def _validate_data_query(path: str, params) -> JSONResponse | None:
+    """Money-path guard for GET Data routes: query params ARE the body.
+    Runs BEFORE any 402 challenge or settlement so an invalid chain/block is
+    a clean 400, never "pay then discover it's invalid" (H3). Mirrors the
+    route handlers' own checks (app/api/data.py `_network` + block tags)."""
+    chain = params.get("chain")
+    if chain and str(chain).lower() not in DATA_CHAINS:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "bad_chain", "detail": f"unsupported chain: {chain}"},
+        )
+    if path == "/v1/data/block":
+        blk = params.get("block")
+        if blk and blk not in ("latest", "earliest", "pending", "safe", "finalized") \
+                and not re.fullmatch(r"0x[0-9a-fA-F]+", blk):
+            return JSONResponse(
+                status_code=400,
+                content={"error": "bad_block", "detail": f"unsupported block tag: {blk}"},
+            )
+    return None
+
 
 try:  # cdp-sdk present on CT; absent elsewhere -> facilitator auth disabled
     from cdp.x402.x402 import create_cdp_auth_headers as _cdp_auth_headers_fn
@@ -754,35 +778,6 @@ class X402Middleware(BaseHTTPMiddleware):
                 price_str = f"${data_price_usd(_ep, _calls):.6f}"
                 request.state.provider_cost_usd = round(data_provider_cost_usd(_ep, _calls), 6)
                 request.state.category = "data"
-            elif path.startswith("/v1/ml/"):
-                from app.x402.pricing import ml_price_usd, ml_provider_cost_usd
-                _ep = path.split("/")[-1]  # image-generate | image-understand | rerank
-                # Per-endpoint gate: disabled ML endpoints return 503 BEFORE the
-                # 402 challenge so no payment is requested (or settled) for them.
-                _ml_gate = {
-                    "image-generate": settings.ML_IMAGE_GENERATE_ENABLED,
-                    "image-understand": settings.ML_IMAGE_UNDERSTAND_ENABLED,
-                    "rerank": settings.ML_RERANK_ENABLED,
-                }.get(_ep, True)
-                if not _ml_gate:
-                    return JSONResponse(
-                        status_code=503,
-                        content={"error": "endpoint_disabled", "detail": f"/v1/ml/{_ep} is temporarily disabled (provider funding pending)"},
-                    )
-                data = data if isinstance(data, dict) else {}
-                if _ep == "rerank":
-                    _docs = len(data.get("documents") or []) or 1
-                    price_str = f"${ml_price_usd('rerank', docs=_docs):.6f}"
-                    request.state.provider_cost_usd = round(ml_provider_cost_usd("rerank", docs=_docs), 6)
-                elif _ep == "image-generate":
-                    _m = data.get("model") or "sdxl"
-                    price_str = f"${ml_price_usd('image-generate', _m):.6f}"
-                    request.state.provider_cost_usd = round(ml_provider_cost_usd("image-generate", _m), 6)
-                else:  # image-understand
-                    _vm = data.get("model") or settings.ML_VISION_MODEL
-                    price_str = f"${ml_price_usd('image-understand', _vm):.6f}"
-                    request.state.provider_cost_usd = round(ml_provider_cost_usd("image-understand", _vm), 6)
-                request.state.category = "ml"
 
         required = usd_to_usdc_atomic(price_str)
 
@@ -802,6 +797,12 @@ class X402Middleware(BaseHTTPMiddleware):
         _data_paths = {"/v1/data/token-balances", "/v1/data/token-price", "/v1/data/nft-ownership", "/v1/data/tx-history",
                        "/v1/data/token-risk", "/v1/data/wallet-intel", "/v1/data/whale-alerts",
                        "/v1/data/cross-chain-compare", "/v1/data/token-intel"}
+        # GET data routes: query params are the body — validate BEFORE any
+        # challenge/settlement (H3: no pay-then-400 on an invalid chain/block).
+        if path in ("/v1/data/block", "/v1/data/gas-oracle"):
+            _q_err = _validate_data_query(path, request.query_params)
+            if _q_err:
+                return _q_err
         # NOTE: on a payment-less probe the route must reach the 402 challenge —
         # the facilitator replays the endpoint exactly this way (no payment
         # header) and rejects the payment when it gets 422 first. So the
@@ -824,9 +825,8 @@ class X402Middleware(BaseHTTPMiddleware):
                     status_code=400 if _bad_chain else 422,
                     content={"error": "bad_request", "detail": _derr} if _bad_chain else {"detail": _derr},
                 )
-        if path in _data_paths and (payment_signature or (mpp and authorization)):
-            _derr = _validate_data_body(path, data)
-        # before the settle branch (same guard, no double-charge).
+        # Re-validate on the paid pass before the settle branch (same guard,
+        # no double-charge).
         if path in _data_paths and (payment_signature or (mpp and authorization)):
             _derr = _validate_data_body(path, data)
             if _derr:
@@ -1052,7 +1052,7 @@ class X402Middleware(BaseHTTPMiddleware):
         # through to the nonce check below (nonce already claimed) -> 402.
         # Fail-open if the cache is down: cached-only optimizations must never
         # block payments.
-        if await proof_consume(payment_signature):
+        if await proof_consume(payment_signature, path):
             settle_data = {"success": True, "cached": True}
             request.state.x402_cache = True
             CACHE_HITS.inc()
@@ -1091,6 +1091,13 @@ class X402Middleware(BaseHTTPMiddleware):
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
                 content={"error": "Payment verification failed", "details": reason},
             )
+
+        # S5 fix (H3): payer rate limit BEFORE the facilitator validate/settle
+        # calls — an over-limit payer must never be charged for a request we
+        # will not serve. (Moved up from after settlement.)
+        limited = await _rate_limit(request)
+        if limited:
+            return limited
 
         # S2: shared pooled CDP client (2 calls per payment — pooling pays).
         cdp_client = shared_client("cdp", 30.0)
@@ -1159,7 +1166,7 @@ class X402Middleware(BaseHTTPMiddleware):
             )
     
         # S1: remember this proof so retries within 60s skip CDP.
-        await cache_proof(payment_signature)
+        await cache_proof(payment_signature, path)
 
         # Record the settled payment in PostgreSQL (jobs/payments ledger).
         # Telemetry never blocks a settled payment.
@@ -1172,10 +1179,8 @@ class X402Middleware(BaseHTTPMiddleware):
             user_agent=request.headers.get("user-agent"),
         )
     
-        # Payment verified and settled, proceed to request
-        limited = await _rate_limit(request)
-        if limited:
-            return limited
+        # Payment verified and settled, proceed to request. The payer rate
+        # limit was already enforced pre-settlement (above).
         response = await call_next(request)
         success_payload = json.dumps({"success": True, "details": settle_data})
         response.headers["X-PAYMENT-RESPONSE"] = base64.b64encode(success_payload.encode()).decode()

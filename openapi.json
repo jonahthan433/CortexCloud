@@ -2,11 +2,11 @@
   "openapi": "3.1.0",
   "info": {
     "title": "CortexCloud On-Chain Data API",
-    "description": "Optimization infrastructure for AI agents \u2014 discover, pay for, and execute classical, hybrid, or quantum optimization through a single API.",
+    "description": "Pay-per-call on-chain data and intelligence for AI agents: token, wallet, risk, whale, balance, NFT, transaction and cross-chain reads. Evidence-backed JSON, settled in USDC on Base via x402. No API keys, no signup.",
     "version": "2.0.0",
-    "x-guidance": "CortexCloud \u2014 optimization infrastructure for AI agents. Discover, pay for, and execute classical, hybrid, or quantum optimization through a single API. POST /v1/estimate is free. POST /v1/optimize returns HTTP 402 with an x402 PaymentRequirements challenge (USDC on Base, chain 8453). Sign the challenge with your wallet and resend with the payment-signature header. Poll GET /v1/jobs/{job_id}. No API keys, no subscriptions.",
+    "x-guidance": "CortexCloud \u2014 pay-per-call on-chain data for AI agents. Every paid route is POST/GET under /v1/data or /v1/aggregate and returns HTTP 402 with an x402 PaymentRequirements challenge (USDC on Base, eip155:8453) when no payment is attached. Sign the challenge (EIP-3009, gasless) and resend with the payment-signature header; the data comes back in the same response. GET /v1/capabilities lists every route and price for free. Discovery: /.well-known/x402.json, /.well-known/bazaar, /llms.txt, /openapi.json, and the MCP server at /mcp. No API keys, no subscriptions.",
     "x-apisguru-categories": [
-      "ai-ml"
+      "blockchain"
     ],
     "contact": {
       "email": "team@cortexcloud.org"

@@ -47,9 +47,9 @@ spec["paths"] = {k: v for k, v in spec["paths"].items() if not k.startswith("/in
 spec.setdefault("info", {})["contact"] = {"email": "jonathan@cortexcloud.org"}
 spec["info"]["x-guidance"] = (
     "Pay-per-call API for AI agents. Free: POST /v1/estimate, GET /v1/backends, "
-    "GET /v1/capabilities, GET /v1/examples, POST /v1/simulate, POST /v1/ml/estimate. "
+    "GET /v1/capabilities, GET /v1/examples, POST /v1/simulate. "
     "Paid (USDC on Base via x402, price in x-payment-info): POST /v1/optimize, "
-    "/v1/ai/*, /v1/research/*, /v1/data/*, /v1/ml/*. Call any paid route without a "
+    "/v1/ai/*, /v1/research/*, /v1/data/*. Call any paid route without a "
     "payment-signature header to receive a 402 challenge with the exact amount; "
     "settle via x402 (EIP-3009 USDC on Base) or MPP and retry with the header."
 )

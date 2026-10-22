@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>API reference — CortexCloud</title>
-<meta name="description" content="CortexCloud API reference: every endpoint, schema, pricing and the x402 payment flow. Estimate free; paid calls from $0.004 in USDC on Base.">
+<meta name="description" content="CortexCloud API reference: every endpoint, schema, pricing and the x402 payment flow. Paid calls from $0.004 in USDC on Base; the 402 challenge is always free.">
 <meta name="robots" content="index, follow">
 <meta name="theme-color" content="#0a0a0a">
 <script src="/theme.js"></script>
@@ -87,10 +87,10 @@ pre .tp{color:var(--muted)}
 <header class="docs wrap">
   <p class="eyebrow">API reference</p>
   <h1>Cortex<span class="mark">Cloud</span></h1>
-  <p class="sub">Every endpoint, schema and price, live from <code>/openapi.json</code>. Estimates are free; paid calls start at $0.004, settled in USDC on Base via x402. No API keys, no signup.</p>
+  <p class="sub">Every endpoint, schema and price, live from <code>/openapi.json</code>. Any paid route answers an unpaid request with a free 402 challenge that carries the exact price; paid calls start at $0.004, settled in USDC on Base via x402. No API keys, no signup.</p>
   <div class="cta">
     <a class="btn" href="/">Back to home</a>
-    <a class="btn" href="/v1/examples">Free examples</a>
+    <a class="btn" href="/demo">Paid call example</a>
     <a class="btn" href="/llms.txt">llms.txt</a>
   </div>
 </header>
@@ -107,7 +107,7 @@ pre .tp{color:var(--muted)}
 </section>
 
 <footer class="foot wrap">
-  <p>CortexCloud — agent-native x402 API platform. Estimates free; paid calls from $0.004 in USDC on Base.</p>
+  <p>CortexCloud — agent-native x402 API platform. Pay per call; paid calls from $0.004 in USDC on Base.</p>
   <div data-theme-toggle style="margin:0 0 0.75rem"></div>
   <div class="links">
     <a href="/">Home</a>
@@ -115,6 +115,7 @@ pre .tp{color:var(--muted)}
     <a href="/openapi.json">OpenAPI</a>
     <a href="/.well-known/x402.json">x402.json</a>
     <a href="/.well-known/bazaar">Bazaar</a>
+    <a href="/mcp">MCP (HTTP)</a>
     <a href="/health">Status</a>
     <a href="https://github.com/jonahthan433/CortexCloud">GitHub</a>
   </div>
@@ -185,13 +186,6 @@ function paint(pre){var raw=pre.dataset.raw;if(raw==null){raw=pre.textContent;pr
       else if(p.type==='boolean')o[k]=true;
       else if(p.type==='object')o[k]={};
       else if(p.type==='array')o[k]=[];
-    }
-    // give ProblemInput a real, self-consistent working payload so "Run"
-    // succeeds out of the box. n MUST equal len(linear) or the API 422s,
-    // so pin n=4 with a 4-entry linear array (ignore the generic minimum).
-    if(sch.properties&&sch.properties.data&&sch.properties.problem_type!==undefined&&o.data&&typeof o.data==='object'&&Object.keys(o.data).length===0){
-      o.n=4;
-      o.data={linear:[1.0,-2.0,3.0,-4.0],quadratic:{'0,1':-1.5,'1,2':0.5,'2,3':-2.0}};
     }
     return o;}
     return null;

@@ -10,14 +10,15 @@ import pytest
 
 def test_public_product_routes_are_data_only():
     """The advertised product is the on-chain data API; legacy categories
-    (optimization/AI/research/ML/automation) stay paywalled but unadvertised."""
+    (optimization/AI/research/automation) stay paywalled but unadvertised.
+    ML was removed from the product entirely (owner decision 2026-10-18)."""
     from app.x402.pricing import PUBLIC_PRODUCT_ROUTES, ROUTE_PRICING, public_routes
 
     assert "POST /v1/data/token-intel" in PUBLIC_PRODUCT_ROUTES
     assert "POST /v1/optimize" not in PUBLIC_PRODUCT_ROUTES
     assert "POST /v1/ai/chat" not in PUBLIC_PRODUCT_ROUTES
     assert "POST /v1/research/search" not in PUBLIC_PRODUCT_ROUTES
-    assert "POST /v1/ml/rerank" not in PUBLIC_PRODUCT_ROUTES
+    assert not [k for k in ROUTE_PRICING if k.split(" ", 1)[1].startswith("/v1/ml")], "ML routes must be gone"
     # paywall still gates everything (no free-serving regression)
     for r in PUBLIC_PRODUCT_ROUTES:
         assert r in ROUTE_PRICING

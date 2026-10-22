@@ -3,41 +3,45 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Benchmarks — CortexCloud: real solver performance data</title>
-<meta name="description" content="Production benchmark data for CortexCloud's QUBO/Ising solvers: brute-force classical, simulated annealing, hybrid QAOA, and real quantum hardware (IBM, Rigetti). Every number from a real paid execution.">
+<title>Latency &amp; pricing — CortexCloud</title>
+<meta name="description" content="Measured server-side latency for CortexCloud's x402 data API and the published price for every route. Data calls from $0.004, settled in USDC on Base.">
 <meta name="robots" content="index, follow">
 <meta name="theme-color" content="#0a0a0b">
 <script src="/theme.js"></script>
 <link rel="stylesheet" href="/theme.css">
 <link rel="canonical" href="https://api.cortexcloud.org/benchmarks.html">
 <meta property="og:type" content="website">
-<meta property="og:title" content="CortexCloud — Real solver benchmarks, not marketing">
-<meta property="og:description" content="Classical, hybrid and real quantum solver performance from production executions. No synthetic data.">
+<meta property="og:url" content="https://api.cortexcloud.org/benchmarks.html">
+<meta property="og:title" content="CortexCloud — measured latency and published prices">
+<meta property="og:description" content="Server-side p50/p95 for the free discovery routes and the 402 challenge, plus the price of every paid data route.">
 <style>
   :root {
     --bg: #0a0a0b; --ink: #f4f4f5; --muted: #a1a1aa; --dim: #71717a;
     --line: rgba(255,255,255,0.08); --line-d: rgba(255,255,255,0.16); --panel: #121214; --panel2: #1a1a1d;
     --emerald: #10b981; --emerald-l: #34d399; --blue: #60a5fa; --amber: #fbbf24; --redl: #f87171;
-    --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: "Geist", ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  body { font-family: "Inter", ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.6; -webkit-font-smoothing: antialiased; }
   a { color: var(--emerald-l); text-decoration: none; }
+  a:hover { text-decoration: underline; }
   .wrap { max-width: 860px; margin: 0 auto; padding: 2.5rem 1.5rem; }
   .meta { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--emerald); margin-bottom: 0.8rem; }
   h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); letter-spacing: -0.03em; margin-bottom: 0.6rem; }
-  .sub { color: var(--muted); max-width: 60ch; margin-bottom: 2rem; }
-  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-bottom: 2rem; }
+  h2 { font-size: 1.15rem; letter-spacing: -0.01em; margin: 2.5rem 0 0.6rem; }
+  .sub { color: var(--muted); max-width: 62ch; margin-bottom: 1.5rem; }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-bottom: 1rem; }
   th { font-family: var(--mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); text-align: left; padding: 0.8rem 1rem; border-bottom: 1px solid var(--line-d); background: var(--panel2); }
-  td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--line); font-size: 0.92rem; }
+  td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--line); font-size: 0.92rem; }
   tr:last-child td { border-bottom: none; }
-  td.mono, .mono { font-family: var(--mono); font-size: 0.85rem; }
+  td.mono, .mono { font-family: var(--mono); font-size: 0.84rem; }
+  td.num { text-align: right; font-family: var(--mono); font-size: 0.84rem; }
   .tag { display: inline-block; border-radius: 999px; padding: 0.1rem 0.55rem; font-size: 0.68rem; font-weight: 700; }
-  .tag.c { background: rgba(16,185,129,0.12); color: var(--emerald-l); border: 1px solid rgba(16,185,129,0.35); }
-  .tag.h { background: rgba(96,165,250,0.12); color: var(--blue); border: 1px solid rgba(96,165,250,0.35); }
-  .tag.q { background: rgba(251,191,36,0.12); color: var(--amber); border: 1px solid rgba(251,191,36,0.35); }
+  .tag.free { background: rgba(16,185,129,0.12); color: var(--emerald-l); border: 1px solid rgba(16,185,129,0.35); }
+  .tag.paid { background: rgba(96,165,250,0.12); color: var(--blue); border: 1px solid rgba(96,165,250,0.35); }
+  .tag.flagship { background: rgba(251,191,36,0.12); color: var(--amber); border: 1px solid rgba(251,191,36,0.35); }
   .note { color: var(--dim); font-size: 0.82rem; }
-  .note a { color: var(--muted); text-decoration: underline; }
+  .note b { color: var(--muted); }
   .insight { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--emerald); padding: 1rem 1.2rem; margin: 1.5rem 0; font-size: 0.92rem; color: var(--muted); }
   .insight b { color: var(--ink); }
   @media (max-width: 600px) { table { font-size: 0.82rem; } td, th { padding: 0.6rem 0.7rem; } }
@@ -46,25 +50,52 @@
 </head>
 <body>
 <main class="wrap">
-  <div class="meta">CortexCloud · Production Data</div>
-  <h1>Real benchmarks, not marketing</h1>
-  <p class="sub">Every number below comes from a real paid execution on the CortexCloud API — production runs measured end to end, including quantum queue time. No synthetic data. The live endpoint is <a href="/benchmarks">/benchmarks</a> (JSON, agent-readable).</p>
+  <div class="meta">CortexCloud · Latency &amp; Pricing</div>
+  <h1>Measured latency, published prices</h1>
+  <p class="sub">Two things an agent needs before it spends money: how fast the endpoint answers, and exactly what it costs. Both are listed here. The numbers below are measured on the API instance itself, not estimated.</p>
 
+  <h2>Server-side latency</h2>
+  <p class="note" style="margin-bottom:0.9rem">30 sequential requests per route, measured over loopback on the API instance on <b>2026-10-22</b>. This isolates the service from the network path between you and Cloudflare.</p>
   <table>
-    <thead><tr><th>Solver</th><th>Mode</th><th>Runs</th><th>Avg</th><th>Min</th><th>Max</th></tr></thead>
+    <thead><tr><th>Route</th><th>Kind</th><th class="num">p50</th><th class="num">p95</th></tr></thead>
     <tbody>
-      <tr><td class="mono">brute-force</td><td><span class="tag c">classical</span></td><td class="mono">13</td><td class="mono">6.6 s</td><td class="mono">10 ms</td><td class="mono">30.5 s</td></tr>
-      <tr><td class="mono">qaoa-local</td><td><span class="tag h">hybrid</span></td><td class="mono">3</td><td class="mono">19 ms</td><td class="mono">19 ms</td><td class="mono">20 ms</td></tr>
-      <tr><td class="mono">rigetti</td><td><span class="tag q">quantum</span></td><td class="mono">3</td><td class="mono">28.9 s</td><td class="mono">13.6 s</td><td class="mono">38.9 s</td></tr>
-      <tr><td class="mono">ibm</td><td><span class="tag q">quantum</span></td><td class="mono">2</td><td class="mono">32.1 s</td><td class="mono">29.8 s</td><td class="mono">34.4 s</td></tr>
+      <tr><td class="mono">GET /health</td><td><span class="tag free">free</span></td><td class="num">4.1 ms</td><td class="num">5.4 ms</td></tr>
+      <tr><td class="mono">GET /v1/capabilities</td><td><span class="tag free">free</span></td><td class="num">2.0 ms</td><td class="num">2.5 ms</td></tr>
+      <tr><td class="mono">POST /v1/data/token-price</td><td><span class="tag paid">402 challenge</span></td><td class="num">1.8 ms</td><td class="num">3.3 ms</td></tr>
+      <tr><td class="mono">POST /v1/data/token-intel</td><td><span class="tag paid">402 challenge</span></td><td class="num">2.4 ms</td><td class="num">4.1 ms</td></tr>
     </tbody>
   </table>
+  <p class="note">The 402 challenge rows measure challenge generation only — price, payee, asset and network — which is the free request an agent makes before paying. A paid response additionally waits on the upstream providers (Alchemy, CoinGecko) plus payment verification; that time varies with the provider and is not included above. We don't publish a latency figure we have not measured.</p>
 
   <div class="insight">
-    <b>What this means for your problem:</b> exact classical solves are milliseconds for small instances (n ≤ 20) and sub-second for most practical QUBOs; hybrid QAOA is the fast middle ground; real QPU runs cost 30-40 seconds of wall time mostly in queue — worth it only when you need hardware-native results at n beyond classical limits. Estimate before you pay: <a href="/v1/estimate">POST /v1/estimate</a> is free.
+    <b>What this means for an agent:</b> discovery and pricing are single-digit-millisecond server work, so the cost of asking "what does this cost?" is effectively zero. Budget your timeout around the provider call, not around the challenge.
   </div>
 
-  <p class="note">18 benchmark evidence rows recorded from production executions. Quantum runtimes include real QPU queue time + execution. Pay-per-call: classical $0.05-0.25 · hybrid $0.10 · quantum $1.503 (x402, USDC on Base). <a href="/">Back to homepage</a> · <a href="/benchmarks">Live JSON endpoint</a>.</p>
+  <h2>Prices per call</h2>
+  <p class="note" style="margin-bottom:0.9rem">Published prices, in USDC on Base. The same table is served live at <a href="/v1/capabilities">/v1/capabilities</a> and <a href="/.well-known/x402.json">/.well-known/x402.json</a>.</p>
+  <table>
+    <thead><tr><th>Route</th><th>Price</th><th>Tier</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">POST /v1/data/token-intel</td><td class="mono">$0.030</td><td><span class="tag flagship">flagship</span></td></tr>
+      <tr><td class="mono">POST /v1/data/cross-chain-compare</td><td class="mono">$0.040</td><td><span class="tag paid">intelligence</span></td></tr>
+      <tr><td class="mono">POST /v1/data/whale-alerts</td><td class="mono">$0.030</td><td><span class="tag paid">intelligence</span></td></tr>
+      <tr><td class="mono">POST /v1/data/token-risk</td><td class="mono">$0.020</td><td><span class="tag paid">intelligence</span></td></tr>
+      <tr><td class="mono">POST /v1/data/wallet-intel</td><td class="mono">$0.006</td><td><span class="tag paid">intelligence</span></td></tr>
+      <tr><td class="mono">POST /v1/data/token-price</td><td class="mono">$0.004</td><td><span class="tag paid">data</span></td></tr>
+      <tr><td class="mono">POST /v1/data/token-balances</td><td class="mono">$0.004</td><td><span class="tag paid">data</span></td></tr>
+      <tr><td class="mono">POST /v1/data/nft-ownership</td><td class="mono">$0.004</td><td><span class="tag paid">data</span></td></tr>
+      <tr><td class="mono">POST /v1/data/tx-history</td><td class="mono">$0.004</td><td><span class="tag paid">data</span></td></tr>
+      <tr><td class="mono">GET /v1/data/gas-oracle</td><td class="mono">$0.004</td><td><span class="tag paid">data</span></td></tr>
+      <tr><td class="mono">GET /v1/data/block</td><td class="mono">$0.004</td><td><span class="tag paid">data</span></td></tr>
+      <tr><td class="mono">POST /v1/aggregate/prices</td><td class="mono">$0.004</td><td><span class="tag paid">batch</span></td></tr>
+      <tr><td class="mono">POST /v1/aggregate/balances</td><td class="mono">$0.004</td><td><span class="tag paid">batch</span></td></tr>
+      <tr><td class="mono">POST /v1/aggregate/nfts</td><td class="mono">$0.004</td><td><span class="tag paid">batch</span></td></tr>
+      <tr><td class="mono">POST /v1/aggregate/tx-history</td><td class="mono">$0.004</td><td><span class="tag paid">batch</span></td></tr>
+    </tbody>
+  </table>
+  <p class="note">Batch routes take up to 20 addresses or tokens in a single call for the flat $0.004 price — the quoted amount covers the whole batch, not each item.</p>
+
+  <p class="note" style="margin-top:2rem">Method and raw numbers available on request. <a href="/">Back to homepage</a> · <a href="/docs">API reference</a> · <a href="/v1/capabilities">Live capabilities</a> · <a href="/.well-known/x402.json">x402 manifest</a></p>
 </main>
 <div style="max-width:720px;margin:0 auto;padding:0 1.5rem 3rem"><div data-theme-toggle></div></div>
 <link rel="stylesheet" href="/theme-toggle.css">

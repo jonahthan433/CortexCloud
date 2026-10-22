@@ -82,19 +82,6 @@ class Settings(BaseSettings):
     # Behind DATA_ENABLED (default False) — staging only until production
     # validation is approved. No other providers (Helius/Birdeye/Blocknative) yet.
     DATA_ENABLED: bool = Field(default=False, env="DATA_ENABLED")
-    # ML API: image-generate/image-understand (fal primary, Replicate fallback),
-    # rerank (Cohere), Jina where useful. Behind ML_ENABLED (default False).
-    ML_ENABLED: bool = Field(default=False, env="ML_ENABLED")
-    # Per-endpoint gates. rerank is production-ready; image-generate and
-    # image-understand are disabled until their providers are funded
-    # (fal/Replicate/OpenRouter credits). Default to ML_ENABLED so flipping the
-    # master flag still works; set explicitly false to disable one endpoint.
-    ML_RERANK_ENABLED: bool = Field(default=True, env="ML_RERANK_ENABLED")
-    ML_IMAGE_GENERATE_ENABLED: bool = Field(default=True, env="ML_IMAGE_GENERATE_ENABLED")
-    ML_IMAGE_UNDERSTAND_ENABLED: bool = Field(default=True, env="ML_IMAGE_UNDERSTAND_ENABLED")
-    # Vision model for image-understand (OpenRouter). Default paid gemini;
-    # set to a ':free' OpenRouter multimodal model for validation (cost $0).
-    ML_VISION_MODEL: str = Field(default="google/gemini-2.5-flash", env="ML_VISION_MODEL")
     FAL_KEY: Optional[str] = Field(default=None, env="FAL_KEY")
     REPLICATE_API_KEY: Optional[str] = Field(default=None, env="REPLICATE_API_KEY")
     COHERE_API_KEY: Optional[str] = Field(default=None, env="COHERE_API_KEY")
@@ -102,23 +89,6 @@ class Settings(BaseSettings):
     ALCHEMY_API_KEY: Optional[str] = Field(default=None, env="ALCHEMY_API_KEY")
     COINGECKO_API_KEY: Optional[str] = Field(default=None, env="COINGECKO_API_KEY")
     OPENROUTER_API_KEY: Optional[str] = Field(default=None, env="OPENROUTER_API_KEY")
-    # ML API: image-generate/image-understand (fal primary, Replicate fallback),
-    # rerank (Cohere), Jina where useful. Behind ML_ENABLED (default False).
-    ML_ENABLED: bool = Field(default=False, env="ML_ENABLED")
-    # Per-endpoint gates. rerank is production-ready; image-generate and
-    # image-understand are disabled until their providers are funded
-    # (fal/Replicate/OpenRouter credits). Default to ML_ENABLED so flipping the
-    # master flag still works; set explicitly false to disable one endpoint.
-    ML_RERANK_ENABLED: bool = Field(default=True, env="ML_RERANK_ENABLED")
-    ML_IMAGE_GENERATE_ENABLED: bool = Field(default=True, env="ML_IMAGE_GENERATE_ENABLED")
-    ML_IMAGE_UNDERSTAND_ENABLED: bool = Field(default=True, env="ML_IMAGE_UNDERSTAND_ENABLED")
-    # Vision model for image-understand (OpenRouter). Default paid gemini;
-    # set to a ':free' OpenRouter multimodal model for validation (cost $0).
-    ML_VISION_MODEL: str = Field(default="google/gemini-2.5-flash", env="ML_VISION_MODEL")
-    FAL_KEY: Optional[str] = Field(default=None, env="FAL_KEY")
-    REPLICATE_API_KEY: Optional[str] = Field(default=None, env="REPLICATE_API_KEY")
-    COHERE_API_KEY: Optional[str] = Field(default=None, env="COHERE_API_KEY")
-    JINA_API_KEY: Optional[str] = Field(default=None, env="JINA_API_KEY")
 
     GEMINI_API_KEY: Optional[str] = Field(default=None, env="GEMINI_API_KEY")
     BRAVE_API_KEY: Optional[str] = Field(default=None, env="BRAVE_API_KEY")
@@ -152,6 +122,7 @@ class Settings(BaseSettings):
     # must present this static key as `x-api-key`. Overrides x402 payment
     # settlement for private deployments (set X402_ENABLED=false alongside).
     PRIVATE_API_KEY: Optional[str] = Field(default=None, env="PRIVATE_API_KEY")
+    AUTOMATION_WEBHOOK_SECRET: Optional[str] = Field(default=None, env="AUTOMATION_WEBHOOK_SECRET")
     # Signs execution receipts (HMAC-SHA256) attached to final job payloads.
     # Optional: unset => receipts emit signed:false (hash-verifiable only).
     RECEIPT_SIGNING_KEY: Optional[str] = Field(default=None, env="RECEIPT_SIGNING_KEY")

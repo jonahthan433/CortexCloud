@@ -37,7 +37,6 @@ async def test_removed_routes_return_404(client):
         ("POST", "/v1/trial"),
         ("POST", "/v1/simulate"),
         ("POST", "/v1/solvers/portfolio"),
-        ("GET", "/v1/track"),
         ("GET", "/benchmarks"),
     ]:
         r = await client.request(method, path, json={} if method == "POST" else None)

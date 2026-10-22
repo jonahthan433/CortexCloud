@@ -109,7 +109,7 @@ pre .tp{color:var(--muted)}
     <a class="btn" href="/docs">API reference</a>
   </div>
   <div class="meta">
-    <span>Estimate <b>free</b></span>
+    <span>Challenge <b>free</b></span>
     <span>Data calls from <b>$0.004</b></span>
     <span>Settled <b>USDC on Base</b></span>
   </div>
@@ -117,24 +117,24 @@ pre .tp{color:var(--muted)}
 
 <section class="wrap">
   <h2>How an agent uses it</h2>
-  <p class="sec-sub">Three requests, zero accounts. The entire loop is machine-native: discover, estimate, then pay per call.</p>
+  <p class="sec-sub">Three requests, zero accounts. The entire loop is machine-native: discover, read the price, then pay per call.</p>
   <div class="steps">
     <div class="step"><h3>Discover</h3><p><code>/.well-known/x402.json</code>, <code>/.well-known/bazaar</code>, <code>/llms.txt</code>, <code>/openapi.json</code>, and <code>/.well-known/agentsearch.txt</code>. Agents find CortexCloud the same way a crawler finds a site.</p></div>
-    <div class="step"><h3>Estimate — free</h3><p><code>POST /v1/estimate</code> returns the recommended mode, algorithm, backend, runtime, and exact price. No payment, no signup.</p></div>
-    <div class="step"><h3>Pay &amp; run</h3><p>The endpoint issues an x402 challenge (USDC on Base). The agent settles, the job executes, and the result is returned or polled.</p></div>
+    <div class="step"><h3>Price — free</h3><p>Call the endpoint without payment and the 402 challenge returns the exact price, payee, asset, and network. <code>GET /v1/capabilities</code> lists every route and price in one free request.</p></div>
+    <div class="step"><h3>Pay &amp; run</h3><p>The endpoint issues an x402 challenge (USDC on Base). The agent signs an EIP-3009 authorization, resends with the payment header, and the data comes back in the same response.</p></div>
   </div>
 </section>
 
 <section class="wrap">
   <h2>What's callable</h2>
-  <p class="sec-sub">Six live categories on one payment rail. Live pricing; the estimate endpoint is free.</p>
+  <p class="sec-sub">Eight data categories on one payment rail. Prices are published per route; the challenge is always free.</p>
   <div class="cats">
     <div class="cat"><h3>Token intelligence</h3><div class="price">$0.030</div><p>Flagship. One call returns deployment check, metadata, spot price, 24h change, optional age/liquidity/market-cap, and recent activity — each fact with its source, a checked_at timestamp, and explicit missing-data indicators.</p></div>
     <div class="cat"><h3>Token prices</h3><div class="price">$0.004</div><p>Spot USD price and 24h change for any coin or contract, via CoinGecko with Alchemy fallback.</p></div>
     <div class="cat"><h3>Contract &amp; liquidity risk</h3><div class="price">$0.020</div><p>Risk verdict with evidence: contract existence, metadata, age/liquidity, recent mints and burns.</p></div>
     <div class="cat"><h3>Wallet intelligence</h3><div class="price">$0.006</div><p>Native balance, holdings, recent activity, and counterparty relationships for any address.</p></div>
     <div class="cat"><h3>Whale activity</h3><div class="price">$0.030</div><p>Large-transfer alerts with tx hashes, blocks, and timestamps.</p></div>
-    <div class="cat"><h3>Balances &amp; history</h3><div class="price">$0.004</div><p>ERC-20 balances, NFT ownership, and normalized transaction history per chain. Batch across many addresses at the same price.</p></div>
+    <div class="cat"><h3>Balances &amp; history</h3><div class="price">$0.004</div><p>ERC-20 balances, NFT ownership, and normalized transaction history per chain. Batch routes take up to 20 addresses in one call for the flat $0.004 price.</p></div>
     <div class="cat"><h3>Cross-chain comparison</h3><div class="price">$0.040</div><p>One contract across up to five chains: deployment, price, activity, and the best-liquidity chain — in one call.</p></div>
     <div class="cat"><h3>Chain state</h3><div class="price">$0.004</div><p>Gas oracle (base + priority fee) and block lookups for every supported chain.</p></div>
   </div>
@@ -167,6 +167,23 @@ pre .tp{color:var(--muted)}
   </div>
 </section>
 
+<section class="wrap" id="mcp">
+  <h2>Use it from an MCP client</h2>
+  <p class="sec-sub">The same 15 paid routes plus two free tools are exposed over Streamable HTTP. Point any MCP client at the URL — nothing to install, no key. A tool call without payment returns the x402 challenge inside the tool result, so the agent sees the price before it pays.</p>
+  <div class="grid3">
+    <div class="card"><h3>Endpoint</h3><p>A single remote MCP server, version 0.5.0, served next to the API.</p><pre>https://api.cortexcloud.org/mcp</pre></div>
+    <div class="card"><h3>Client config</h3><p>For clients that speak remote MCP over HTTP.</p><pre>{
+  "mcpServers": {
+    "cortexcloud": {
+      "type": "http",
+      "url": "https://api.cortexcloud.org/mcp"
+    }
+  }
+}</pre></div>
+    <div class="card"><h3>Free tools</h3><p><code>cortex_capabilities</code> returns the live catalog; <code>cortex_prices</code> returns the price table. Both cost nothing and need no wallet.</p><a class="btn" href="/docs">See the routes</a></div>
+  </div>
+</section>
+
 <section class="wrap">
   <h2>Start in 60 seconds</h2>
   <p class="sec-sub">From landing to first paid data call without creating an account.</p>
@@ -196,6 +213,8 @@ pre .tp{color:var(--muted)}
   <div class="links">
     <a href="/docs">API reference</a>
     <a href="/v1/capabilities">Capabilities</a>
+    <a href="#mcp">MCP</a>
+    <a href="/benchmarks.html">Latency &amp; pricing</a>
     <a href="/llms.txt">llms.txt</a>
     <a href="/.well-known/x402.json">x402.json</a>
     <a href="/.well-known/bazaar">Bazaar</a>

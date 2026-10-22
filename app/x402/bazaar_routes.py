@@ -1,12 +1,12 @@
-"""Bazaar discovery root + MCP gateway (x402-wrapped /v1/* surface).
+"""Bazaar discovery root (agent index of the x402-wrapped /v1/* surface).
 
-- /.well-known/bazaar   — human/agent index of what this service offers
-- /x402/v1/mcp          — MCP (Streamable HTTP style) gateway: tools/list,
-                          tools/call; paid tools forward the signed payment
-                          challenge/verification to the REST layer.
+- /.well-known/bazaar — human/agent index: endpoints, prices, MCP tool
+  registry (mcp.tools) and payment terms.
 
-The MCP layer never implements payment logic — it relays HTTP + payment
-headers to /v1/* and returns whatever the gateway says, 402 included.
+The MCP gateway itself is a separate host service (zero-dependency relay,
+exposed by the tunnel at https://api.cortexcloud.org/mcp). It holds no
+payment logic: it relays HTTP + payment headers to /v1/* and returns
+whatever the API says, 402 challenge included.
 """
 from __future__ import annotations
 

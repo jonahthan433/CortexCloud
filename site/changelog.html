@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Changelog — CortexCloud</title>
-<meta name="description" content="CortexCloud changelog: what changed, when, and why. Backend availability, new solver results, API fixes.">
+<meta name="description" content="CortexCloud changelog: what changed, when, and why — routes, pricing, discovery surfaces and the MCP server.">
 <meta name="robots" content="index, follow">
 <meta name="theme-color" content="#0a0a0b">
 <script src="/theme.js"></script>
@@ -14,11 +14,12 @@
     --bg: #0a0a0b; --ink: #f4f4f5; --muted: #a1a1aa; --dim: #71717a;
     --line: rgba(255,255,255,0.08); --line-d: rgba(255,255,255,0.16); --panel: #121214; --panel2: #1a1a1d;
     --emerald: #10b981; --emerald-l: #34d399; --blue: #60a5fa; --amber: #fbbf24;
-    --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: "Geist", ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  body { font-family: "Inter", ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.6; -webkit-font-smoothing: antialiased; }
   a { color: var(--emerald-l); text-decoration: none; }
+  a:hover { text-decoration: underline; }
   .wrap { max-width: 720px; margin: 0 auto; padding: 2.5rem 1.5rem; }
   .meta { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--emerald); margin-bottom: 0.8rem; }
   h1 { font-size: clamp(1.8rem, 4vw, 2.4rem); letter-spacing: -0.03em; margin-bottom: 2rem; }
@@ -29,6 +30,7 @@
   .entry p { color: var(--muted); font-size: 0.9rem; margin-bottom: 0.35rem; }
   .entry ul { color: var(--muted); font-size: 0.9rem; padding-left: 1.2rem; margin-top: 0.4rem; }
   .entry li { margin-bottom: 0.2rem; }
+  .entry code { font-family: var(--mono); font-size: 0.85em; color: var(--ink); }
   .tag { display: inline-block; border-radius: 999px; padding: 0.08rem 0.5rem; font-size: 0.66rem; font-weight: 700; margin-right: 0.4rem; vertical-align: 1px; }
   .tag.new { background: rgba(16,185,129,0.12); color: var(--emerald-l); border: 1px solid rgba(16,185,129,0.35); }
   .tag.fix { background: rgba(96,165,250,0.12); color: var(--blue); border: 1px solid rgba(96,165,250,0.35); }
@@ -42,35 +44,27 @@
   <h1>What changed</h1>
 
   <div class="entry">
-    <div class="date">2026-08-19</div>
-    <h2><span class="tag perf">perf</span>Event loop stays responsive during provider warm-up</h2>
-    <p>Solver selection and health checks no longer block the API during cold-start quantum-provider discovery. Startup pre-warms availability in the background; /health answers in milliseconds.</p>
-  </div>
-
-  <div class="entry">
-    <div class="date">2026-08-18</div>
-    <h2><span class="tag new">new</span>Domain presets, dry-run simulation, webhooks, execution receipts</h2>
+    <div class="date">2026-10-22</div>
+    <h2><span class="tag fix">fix</span>Site copy matches the data-only surface</h2>
     <ul>
-      <li>POST /v1/solvers/portfolio · /v1/solvers/bin-packing · /v1/solvers/routing — plain constraints to QUBO, free</li>
-      <li>POST /v1/simulate — feasibility + confidence before you pay</li>
-      <li>webhook_url on /v1/optimize — solution pushed on completion</li>
-      <li>Signed execution receipts on every final job payload (HMAC-SHA256)</li>
+      <li>Removed the last references to free estimates and solver selection from the homepage and API reference — <code>/v1/estimate</code> does not exist.</li>
+      <li>The pricing step now documents what an agent actually gets for free: the 402 challenge carrying price, payee, asset and network.</li>
+      <li>Added an MCP section to the homepage and a measured latency table to <a href="/benchmarks.html">latency &amp; pricing</a>.</li>
     </ul>
   </div>
 
   <div class="entry">
-    <div class="date">2026-08-17</div>
-    <h2><span class="tag new">new</span>Enterprise single-tenant bundle</h2>
-    <p>Dockerfile + docker-compose + PRIVATE_API_KEY mode for private deployments. Same API, no blockchain settlement required.</p>
+    <div class="date">2026-10-18</div>
+    <h2><span class="tag new">new</span>On-chain data only, plus a working MCP server</h2>
+    <ul>
+      <li><code>/v1/ml/*</code> and the optimization surface are gone. The product is one paid data API: 15 routes across token, wallet, risk, whale, balance, NFT, history and cross-chain reads, from $0.004.</li>
+      <li>MCP server v0.5.0 at <code>https://api.cortexcloud.org/mcp</code> — Streamable HTTP, 15 paid tools plus <code>cortex_capabilities</code> and <code>cortex_prices</code>. Unpaid tool calls return the x402 challenge inside the result.</li>
+      <li>Bazaar registry rebuilt from the paid route table, so discovery cannot drift from what is billable.</li>
+      <li>Payment headers relay through the MCP server unchanged; it holds no funds and never signs.</li>
+    </ul>
   </div>
 
-  <div class="entry">
-    <div class="date">2026-08-16</div>
-    <h2><span class="tag fix">fix</span>x402scan visibility + OpenAPI compliance</h2>
-    <p>All routes now declare auth mode (security: [], x-payment-info on /v1/optimize); duplicate payment options removed. Official x402 validator warnings reduced 34 to 1.</p>
-  </div>
-
-  <p style="margin-top:2rem; color:var(--dim); font-size:0.85rem;">Full history in the <a href="https://github.com/jonahthan433/CortexCloudAPI" rel="noopener">GitHub repository</a>. · <a href="/">Homepage</a> · <a href="/benchmarks.html">Benchmarks</a></p>
+  <p style="margin-top:2rem; color:var(--dim); font-size:0.85rem;">Full commit history in the <a href="https://github.com/jonahthan433/CortexCloudAPI" rel="noopener">GitHub repository</a>. · <a href="/">Homepage</a> · <a href="/docs">API reference</a> · <a href="/benchmarks.html">Latency &amp; pricing</a></p>
 </main>
 <div style="max-width:720px;margin:0 auto;padding:0 1.5rem 3rem"><div data-theme-toggle></div></div>
 <link rel="stylesheet" href="/theme-toggle.css">

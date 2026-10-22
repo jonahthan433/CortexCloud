@@ -75,11 +75,9 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
             return JSONResponse(status_code=415, content={"detail": "Content-Type must be application/json"})
 
         raw = await request.body()
-        _max = 10_000_000 if request.url.path.startswith("/v1/ml/") else MAX_BODY
-        if len(raw) > _max:
+        if len(raw) > MAX_BODY:
             audit("rejected", kind="oversize", ip=ip, path=request.url.path, bytes=len(raw))
-            _detail = "Request body too large (max 10MB for ML image routes, 1MB otherwise)"
-            return JSONResponse(status_code=413, content={"detail": _detail})
+            return JSONResponse(status_code=413, content={"detail": "Request body too large (max 1MB)"})
 
         try:
             data = json.loads(raw)

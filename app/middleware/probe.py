@@ -20,8 +20,15 @@ class ProbeMiddleware(BaseHTTPMiddleware):
             except Exception:
                 return Response(status_code=204)
             if method == "HEAD":
+                # H2: strip body-describing headers before answering with an
+                # empty body. Copying the GET response's Content-Length onto
+                # an empty body made uvicorn raise "Response content shorter
+                # than Content-Length" and abort the connection on every HEAD
+                # to a GET route without a payment header.
+                _drop = {"content-length", "content-encoding", "transfer-encoding"}
+                headers = {k: v for k, v in resp.headers.items() if k.lower() not in _drop}
                 return Response(status_code=resp.status_code,
-                                headers=dict(resp.headers), content=b"")
+                                headers=headers, content=b"")
             return Response(status_code=200,
                             headers={"allow": "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS"},
                             content=b"")
