@@ -913,12 +913,57 @@ class X402Middleware(BaseHTTPMiddleware):
             # resource object, bazaar input schema all mandatory).
             schema_input = _input_schema(path)
             input_key = "queryParams" if path in QUERY_ROUTES else "body"
+
+            input_example = INPUT_EXAMPLES.get(path) or {}
+            if method == "GET":
+                bazaar_input = {"type": "http", "method": "GET"}
+                if input_example:
+                    bazaar_input["queryParams"] = {k: str(v) for k, v in input_example.items()}
+                bazaar_input_props = {
+                    "type": {"type": "string", "const": "http"},
+                    "method": {"type": "string", "const": "GET"},
+                    "queryParams": {"type": "object", "additionalProperties": {"type": "string"}},
+                }
+                bazaar_input_required = ["type", "method"]
+            else:
+                bazaar_input = {"type": "http", "method": method, "bodyType": "json", "body": input_example}
+                bazaar_input_props = {
+                    "type": {"type": "string", "const": "http"},
+                    "method": {"type": "string", "enum": ["POST", "PUT", "PATCH"]},
+                    "bodyType": {"type": "string", "const": "json"},
+                    "body": schema_input,
+                }
+                bazaar_input_required = ["type", "method", "bodyType", "body"]
+            _output_example = OUTPUT_EXAMPLES.get(path)
+            bazaar_output = {"type": "json"}
+            if _output_example:
+                bazaar_output["example"] = _output_example
+            bazaar_schema = {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                    "input": {
+                        "type": "object",
+                        "properties": bazaar_input_props,
+                        "required": bazaar_input_required,
+                    },
+                    "output": {
+                        "type": "object",
+                        "properties": {"type": {"type": "string"}, "example": {}},
+                        "required": ["type"],
+                    },
+                },
+                "required": ["input"],
+            }
             challenge = {
                 "x402Version": 2,
                 "resource": {
-                "url": _resource_url(request, path),
+                    "url": _resource_url(request, path),
                     "description": _PATH_DESCRIPTIONS.get(path, "Access to this resource"),
                     "mimeType": "application/json",
+                    "serviceName": "CortexCloud",
+                    "tags": ["onchain", "crypto", "blockchain", "data", "x402"],
+                    "iconUrl": "https://api.cortexcloud.org/cortex-logo-v2.png",
                 },
                 "accepts": [
                     {
@@ -951,26 +996,11 @@ class X402Middleware(BaseHTTPMiddleware):
                 ],
                 "extensions": {
                     "bazaar": {
-                        "discoverable": True,
                         "info": {
-                            "input": {
-                                "type": "http",
-                                "method": method,
-                                "bodyType": "json",
-                                "body": INPUT_EXAMPLES.get(path, {"mode": "auto", "problem": {"problem_type": "qubo", "n": 2, "data": {"linear": [0.0, 0.0]}}}),
-                            },
-                            "output": {
-                                "type": "object",
-                                "format": "application/json",
-                                "example": OUTPUT_EXAMPLES.get(path, {}),
-                            },
+                            "input": bazaar_input,
+                            "output": bazaar_output,
                         },
-                        "schema": {
-                            "properties": {
-                                "input": {"properties": {input_key: schema_input}},
-                                "output": {"properties": {"example": OUTPUT_EXAMPLES.get(path, {})}},
-                            }
-                        }
+                        "schema": bazaar_schema,
                     }
                 },
             }
