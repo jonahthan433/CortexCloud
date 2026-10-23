@@ -19,6 +19,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 # check per request, no caching; fine for the volume we see.
 
 from app.middleware.audit import audit
+from app.x402.pricing import ROUTE_PRICING
 
 MAX_BODY = 1_000_000   # 1MB max JSON body
 MAX_DEPTH = 24         # nested JSON depth
@@ -67,6 +68,17 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
         if request.method not in ("POST", "PUT", "PATCH", "DELETE"):
             return await call_next(request)
 
+        path = request.url.path
+        if path in _PAID_PATHS and not _has_payment_credential(request):
+            # Unpaid probe on a paid route: let x402 answer with the 402
+            # challenge. Only a cheap size guard runs here; the paid pass is
+            # fully validated below before any settlement.
+            cl = request.headers.get("content-length")
+            if cl and cl.isdigit() and int(cl) > MAX_BODY:
+                audit("rejected", kind="oversize", ip=ip, path=path, bytes=int(cl))
+                return JSONResponse(status_code=413, content={"detail": "Request body too large (max 1MB)"})
+            return await call_next(request)
+
         ct = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
         if ct == "application/x-www-form-urlencoded" or ct.startswith("multipart/form-data"):
             return await call_next(request)
@@ -110,6 +122,23 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
                         content={"detail": f"ssrf_blocked: {why}"},
                     )
         return await call_next(request)
+
+
+# Method-stripped paths that carry a price. On these routes an unpaid probe
+# MUST reach the x402 402 challenge before content-type/JSON validation can
+# reject it: facilitators replay the resource with no body during preflight
+# and reject the payment when they get 415/400 instead. A request that DOES
+# carry a payment credential still runs every check here (before x402
+# settles), so a malformed paid request is never charged.
+_PAID_PATHS = frozenset(
+    (k.split(" ", 1)[1] if " " in k else k)
+    for k, v in ROUTE_PRICING.items()
+    if v and v != "$0.00"
+)
+
+
+def _has_payment_credential(request) -> bool:
+    return bool(request.headers.get("payment-signature") or request.headers.get("authorization"))
 
 
 # module-level alias for tests/legacy callers
