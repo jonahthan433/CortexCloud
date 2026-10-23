@@ -1864,5 +1864,10 @@
   ],
   "x-logo": {
     "url": "https://api.cortexcloud.org/cortex-logo.png"
+  },
+  "x-agentcash-provenance": {
+    "ownershipProofs": [
+      "0x999f304e610da25711ff3977bcdf348e3d0eaf0e38ba65b39baab727d3e3efc045e54695f0e5b864bfaf28e35ea2201b8c17e6b5a4bfe017fd15266e7428721b1c"
+    ]
   }
 }
