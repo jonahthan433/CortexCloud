@@ -30,6 +30,11 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing CortexCloud On-Chain Data API...")
     yield
     logger.info("Shutting down CortexCloud On-Chain Data API...")
+    try:
+        from app.middleware.x402 import close_mpp
+        await close_mpp()
+    except Exception as _e:
+        logger.warning(f"MPP store shutdown failed: {_e}")
 
 
 def create_app(override_openapi: bool = True) -> FastAPI:

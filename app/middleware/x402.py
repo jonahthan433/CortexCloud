@@ -160,11 +160,12 @@ TEMPO_USDC = "0x20C000000000000000000000b9537d11c60E8b50"
 
 _mpp_instance = None
 _mpp_init_attempted = False
+_mpp_store = None
 
 
 async def _get_mpp():
     """Lazily build the Mpp server singleton. None when disabled/unconfigured."""
-    global _mpp_instance, _mpp_init_attempted
+    global _mpp_instance, _mpp_init_attempted, _mpp_store
     if _mpp_init_attempted:
         return _mpp_instance
     _mpp_init_attempted = True
@@ -172,6 +173,7 @@ async def _get_mpp():
         return None
     try:
         store = await _SQLiteStore.create(settings.MPP_STORE_PATH)
+        _mpp_store = store
         _mpp_instance = _Mpp.create(
             method=_tempo(
                 currency=TEMPO_USDC,
@@ -187,6 +189,18 @@ async def _get_mpp():
         logger.error(f"MPP init failed (MPP disabled): {e}")
         _mpp_instance = None
     return _mpp_instance
+
+
+async def close_mpp() -> None:
+    """Close the MPP store so its aiosqlite worker thread can exit cleanly."""
+    global _mpp_store
+    store, _mpp_store = _mpp_store, None
+    if store is not None:
+        try:
+            await store.close()
+            logger.info("MPP store closed")
+        except Exception as e:
+            logger.warning(f"MPP store close failed: {e}")
 
 
 async def _record_payment(path: str, payer: str, amount_atomic: int, body_str: str | None,
