@@ -1142,6 +1142,12 @@ class X402Middleware(BaseHTTPMiddleware):
 
         # Path-only lookup: any method on a paid path gets the paywall.
         price_str = _PATH_PRICING.get(path)
+        if price_str is None and method == "GET" and path == "/v1/webhooks/whale-alerts":
+            # Discovery probe surface: a parameterless GET advertises the paid
+            # registration resource ($0.10). Paying it is refused pre-settle by
+            # the money-path guard (a GET carries no registration body), so no
+            # client is ever charged for a list it did not buy.
+            price_str = ROUTE_PRICING["POST /v1/webhooks/whale-alerts"]
         if price_str is None or price_str == "$0.00":
             return await call_next(request)
 
