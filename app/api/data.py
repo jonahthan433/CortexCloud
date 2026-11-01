@@ -488,8 +488,11 @@ async def _solana_token_price(req: TokenPriceRequest) -> dict | JSONResponse:
     provider_cost = helius_provider_cost_usd(1)
     mint = (req.contract or "").strip()
     if mint and not _BASE58.fullmatch(mint):
-        return JSONResponse(status_code=400,
-                            content={"error": "bad_request",
+        # The chain is supported; the field shape is wrong -> 422 (validation),
+        # not a bad_chain 400. Nothing is billed: the money-path guard
+        # re-validates the paid request before settlement.
+        return JSONResponse(status_code=422,
+                            content={"error": "invalid_contract",
                                      "detail": "Solana contract must be a base58 mint address"})
     cache_key = _cache_key(endpoint, "solana", mint, str(req.id or ""))
     hit = _cached_get(endpoint, cache_key)
@@ -1350,21 +1353,21 @@ class MarketSnapshotRequest(BaseModel):
     min_usd: float = Field(default=100000.0, ge=0, description="USD floor for whale alerts.")
     limit: int = Field(default=50, ge=1, le=100, description="Transfers to scan per direction.")
 
-    @field_validator("contract")
-    @classmethod
-    def _contract(cls, v: str) -> str:
-        if not isinstance(v, str) or not _EVM_HEX.fullmatch(v):
+    @model_validator(mode="after")
+    def _shapes(self):
+        # Solana is rejected by the route with a structured chain_not_supported
+        # (400) before any provider call; its addresses are base58, so the EVM
+        # shape check must not fire first and turn that into a generic 422.
+        if is_solana(self.chain):
+            return self
+        if not isinstance(self.contract, str) or not _EVM_HEX.fullmatch(self.contract):
             raise ValueError("contract must be a 0x-prefixed 40-hex EVM address")
-        return v.lower()
-
-    @field_validator("address")
-    @classmethod
-    def _wallet(cls, v):
-        if v is None:
-            return v
-        if not isinstance(v, str) or not _EVM_HEX.fullmatch(v):
+        if self.address is not None and not _EVM_HEX.fullmatch(self.address):
             raise ValueError("address must be a 0x-prefixed 40-hex EVM address")
-        return v.lower()
+        self.contract = self.contract.lower()
+        if self.address is not None:
+            self.address = self.address.lower()
+        return self
 
 
 @router.post("/market-snapshot")

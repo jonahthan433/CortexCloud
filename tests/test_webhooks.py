@@ -397,32 +397,38 @@ async def test_failed_delivery_does_not_accrue(monkeypatch):
 # ---------------------------------------------------------------------------
 # Money path: paid POST, free owner-scoped GET, free DELETE
 # ---------------------------------------------------------------------------
-async def test_paywall_prices_registration_and_keeps_list_free(client, monkeypatch):
-    from app.core.config import settings
+async def test_paywall_prices_registration_and_keeps_list_free(monkeypatch):
+    from httpx import ASGITransport, AsyncClient
 
-    # The autouse fixture disables x402 for route-level tests; this one is
-    # about the paywall decision itself.
+    from app.core.config import settings
+    from app.main import create_app
+
+    # The autouse fixture disables x402 for route-level tests, and the paywall
+    # middleware is only installed by create_app when x402 is on — so this test
+    # builds its own app after flipping the flag.
     monkeypatch.setattr(settings, "X402_ENABLED", True, raising=False)
     # A challenge needs a recipient; the test env has no .env, so pin ours.
     monkeypatch.setattr(settings, "WALLET_ADDRESS", OWNER, raising=False)
 
-    # Parameterless GET advertises the paid resource; with ?owner= it is free.
-    r = await client.get("/v1/webhooks/whale-alerts")
-    assert r.status_code == 402, r.text
-    challenge = r.json()
-    accept = challenge["accepts"][0]
-    assert int(accept["amount"]) == 100_000  # $0.10 in USDC atomic units
+    transport = ASGITransport(app=create_app(True))
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        # Parameterless GET advertises the paid resource; ?owner= is free.
+        r = await c.get("/v1/webhooks/whale-alerts")
+        assert r.status_code == 402, r.text
+        challenge = r.json()
+        accept = challenge["accepts"][0]
+        assert int(accept["amount"]) == 100_000  # $0.10 in USDC atomic units
 
-    post = await client.post("/v1/webhooks/whale-alerts", json={"url": URL, "address": ADDR})
-    assert post.status_code == 402, post.text
-    assert int(post.json()["accepts"][0]["amount"]) == 100_000
+        post = await c.post("/v1/webhooks/whale-alerts", json={"url": URL, "address": ADDR})
+        assert post.status_code == 402, post.text
+        assert int(post.json()["accepts"][0]["amount"]) == 100_000
 
-    listed = await client.get("/v1/webhooks/whale-alerts", params={"owner": OWNER})
-    assert listed.status_code == 200, listed.text
-    assert listed.json()["count"] == 0
+        listed = await c.get("/v1/webhooks/whale-alerts", params={"owner": OWNER})
+        assert listed.status_code == 200, listed.text
+        assert listed.json()["count"] == 0
 
-    deleted = await client.delete("/v1/webhooks/whale-alerts/nope")
-    assert deleted.status_code == 401, deleted.text
+        deleted = await c.delete("/v1/webhooks/whale-alerts/nope")
+        assert deleted.status_code == 401, deleted.text
 
 
 def test_registration_is_priced_in_the_single_source():

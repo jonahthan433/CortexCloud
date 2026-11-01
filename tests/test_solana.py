@@ -84,7 +84,8 @@ async def test_solana_token_balances_uses_helius(client, monkeypatch):
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["chain"] == "solana"
-    assert body["balances"] == [{"mint": MINT, "raw": "1500000", "decimals": 6, "uiAmount": 1.5}]
+    # Wrapper keys are snake_case like the rest of the API surface.
+    assert body["balances"] == [{"mint": MINT, "raw": "1500000", "decimals": 6, "ui_amount": 1.5}]
     assert body["evidence"]["token_accounts"]["source"] == "helius"
     assert body["evidence"]["balances"]["checked_at"]
     assert body["price_usd"] == 0.004
