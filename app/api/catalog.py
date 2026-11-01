@@ -63,17 +63,10 @@ async def capabilities() -> dict:
                     "/v1/data/wallet-intel",
                     "/v1/data/whale-alerts",
                     "/v1/data/cross-chain-compare",
+                    "/v1/data/market-snapshot",
                 ],
                 "providers": ["alchemy", "coingecko", "helius"],
                 "supported_chains": sorted(set(DATA_CHAINS.keys()) - {"1", "8453", "42161", "137", "10"}),
-        "solana": {
-            "aliases": ["solana", "sol"],
-            "provider": "helius" if settings.HELIUS_API_KEY else "not_configured",
-            "endpoints": [f"/v1/data/{e}" for e in HELIUS_ENDPOINTS],
-            "note": "Solana is supported on token-balances, tx-history and token-price only; "
-                    "every other route returns chain_not_supported. Set HELIUS_API_KEY to enable.",
-            "settlement": "x402 (USDC on Base) — Solana is the READ chain, not the payment chain.",
-        },
             },
             "webhooks": {
                 "status": "available" if (settings.DATA_ENABLED and settings.WEBHOOKS_ENABLED) else "disabled",

@@ -462,7 +462,7 @@ OUTPUT_EXAMPLES.update({'/v1/data/token-price': {'id': 'ethereum',
                            'note': 'USD floor applied to native-asset transfers only; erc20 values are raw '
                                    '(call /token-price for USD). ponytail: no price oracle wired.',
                            'cache_hit': False,
-                           'price_usd': 0.03,
+                           'price_usd': 0.05,
                            'currency': 'USDC',
                            'alerts': [{'direction': 'out',
                                        'hash': '0xfca2ff3d5910e8a2557e21b52646bf0319f7df1b050a55320b62790efc4797bb',
@@ -593,6 +593,86 @@ OUTPUT_EXAMPLES.update({'/v1/data/token-price': {'id': 'ethereum',
                                                                 'decimal': '0x12'},
                                                 'metadata': {'blockTimestamp': '2015-10-01T18:34:11.000Z'},
                                                 '_from_address': '0xd8da6bf26964af9d7eed9e03e53415d37aa96045'}]}})
+
+# Composed and side-effect routes (2026-10-31). The snapshot example is the
+# three real captures above merged under one $0.070 stamp — the bundle settles
+# once, so the sub-routes' own price/cost stamps are stripped. The webhook
+# example is the registration response; the management token is shown once and
+# only its hash is persisted. Replace with live captures after the first public
+# paid call on each route.
+OUTPUT_EXAMPLES.update({
+    '/v1/data/market-snapshot': {
+        'contract': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+        'chain': 'ethereum',
+        'address': '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
+        'token': {
+            'contract': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+            'chain': 'ethereum',
+            'verdict': 'low',
+            'risk_flags': [],
+            'facts': {
+                'contract_deployed': {'value': True, 'source': 'alchemy eth_getCode', 'checked_at': '2026-10-31T19:56:00+00:00'},
+                'symbol': {'value': 'USDC', 'source': 'alchemy alchemy_getTokenMetadata', 'checked_at': '2026-10-31T19:56:00+00:00'},
+                'price_usd': {'value': 1.0001, 'source': 'coingecko /simple/token_price/ethereum', 'checked_at': '2026-10-31T19:56:00+00:00'},
+                'age_days': {'value': 2000, 'source': 'coingecko /coins/usd-coin', 'checked_at': '2026-10-31T19:56:00+00:00'},
+                'liquidity_usd_24h': {'value': 5000000000, 'source': 'coingecko /coins/usd-coin', 'checked_at': '2026-10-31T19:56:00+00:00'},
+                'recent_transfer_count': {'value': 25, 'source': 'alchemy alchemy_getAssetTransfers', 'checked_at': '2026-10-31T19:56:00+00:00'},
+                'latest_transfer': {'value': {'hash': '0x...', 'block_num': '0x18eca09', 'value': 100.0, 'from': '0x...', 'to': '0x...', 'timestamp': '2026-10-31T19:55:00Z'}, 'source': 'alchemy alchemy_getAssetTransfers', 'checked_at': '2026-10-31T19:56:00+00:00'},
+            },
+        },
+        'whale_activity': {
+            'watched_address': '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
+            'chain': 'ethereum',
+            'min_usd': 100000.0,
+            'alerts_count': 2,
+            'note': 'USD floor applied to native-asset transfers only; erc20 values are raw (call /token-price for USD).',
+            'cache_hit': False,
+            'alerts': [
+                {'direction': 'out', 'hash': '0x...', 'block_num': '0x18eca09', 'asset': 'ETH',
+                 'category': 'external', 'value': 250.0, 'value_usd_est': 250.0,
+                 'from': '0xd8da6bf26964af9d7eed9e03e53415d37aa96045', 'to': '0x...',
+                 'block_timestamp': '2026-10-31T19:54:00Z', 'usd_estimated': True},
+            ],
+        },
+        'risk': {
+            'contract': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+            'chain': 'ethereum',
+            'verdict': 'low',
+            'risk_flags': [],
+            'cache_hit': False,
+            'evidence': [
+                {'check': 'contract_exists', 'source': 'alchemy eth_getCode', 'result': True},
+                {'check': 'token_metadata', 'source': 'alchemy alchemy_getTokenMetadata', 'symbol': 'USDC', 'name': 'USDC', 'decimals': 6},
+                {'check': 'age_liquidity', 'source': 'coingecko /coins/usd-coin', 'genesis_date': None, 'age_days': None, 'total_volume_usd_24h': 12737136578, 'market_cap_usd': 72074606956},
+            ],
+        },
+        'snapshot_at': '2026-10-31T19:56:00+00:00',
+        'partial': False,
+        'sections': {'requested': 3, 'ok': 3, 'failed': 0},
+        'cache_hit': False,
+        'price_usd': 0.07,
+        'provider_cost_usd': 0.000135,
+        'margin_usd': 0.069865,
+        'currency': 'USDC',
+    },
+    '/v1/webhooks/whale-alerts': {
+        'id': '3f5c2e6a-9a0b-4c8d-9e7f-1a2b3c4d5e6f',
+        'url': 'https://example.com/hooks/whales',
+        'address': '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
+        'chain': 'ethereum',
+        'min_usd': 100000.0,
+        'limit': 50,
+        'active': True,
+        'signed': True,
+        'deliveries': 0,
+        'amount_due_usd': 0.0,
+        'delivery_price_usd': 0.02,
+        'price_usd': 0.1,
+        'currency': 'USDC',
+        'management_token': 'ccwh_... (returned once; only a hash is stored)',
+        'list': '/v1/webhooks/whale-alerts?owner=0x...',
+    },
+})
 
 # Per-route request schemas for the 402 challenge bazaar extension + the
 # money-path validation guard. Each must satisfy its own example (x402scan
