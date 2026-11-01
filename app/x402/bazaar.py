@@ -3,7 +3,7 @@
 x402's bazaar extension lets agents discover what a paid endpoint does:
 input schema, output example, pricing — all derived from the x402
 pricing table. The registry below mirrors the live paid data surface
-(15 routes) plus the free capabilities tool and is served at
+(17 routes) plus the free capabilities tool and is served at
 /.well-known/bazaar (mcp.tools).
 
 The MCP gateway itself is a separate host service — a zero-dependency
@@ -33,6 +33,8 @@ _SPEC: tuple[tuple[str, str, str], ...] = (
     ("cortex_whale_alerts", "POST", "/v1/data/whale-alerts"),
     ("cortex_cross_chain_compare", "POST", "/v1/data/cross-chain-compare"),
     ("cortex_token_intel", "POST", "/v1/data/token-intel"),
+    ("cortex_market_snapshot", "POST", "/v1/data/market-snapshot"),
+    ("cortex_whale_alert_webhook", "POST", "/v1/webhooks/whale-alerts"),
     ("cortex_aggregate_balances", "POST", "/v1/aggregate/balances"),
     ("cortex_aggregate_nfts", "POST", "/v1/aggregate/nfts"),
     ("cortex_aggregate_prices", "POST", "/v1/aggregate/prices"),

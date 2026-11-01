@@ -23,7 +23,6 @@ or `POST /v1/simulate` — both free, no wallet.
 | **Research** (start here) | $0.006 | `POST /v1/research/search`, `/answer` |
 | **AI** | $0.004 | `POST /v1/ai/chat`, `/embed`, `/transcribe` |
 | **Optimization / Quantum** (differentiator) | $0.05 | `POST /v1/optimize` (QUBO/Ising: scheduling, routing, portfolio) |
-| **ML** | — | Preview only; not yet generally available |
 
 ## Portfolio Optimization (Optimization/Quantum)
 
@@ -62,6 +61,42 @@ curl -X POST https://api.cortexcloud.org/v1/optimize \
 Paid endpoints return an x402 `402 Payment Required` with USDC terms on Base.
 Your x402 client settles the per-call price (from $0.05) and retries. No API key,
 no account. Free endpoints: `/v1/trial` and `/v1/estimate`.
+
+## Paid client examples (copy-paste)
+
+Two reference buyers, both do the whole 402 -> sign -> replay loop for you:
+
+- `examples/paid_client.py` — official Python SDK (`x402` + `eth-account` + `httpx`)
+- `examples/paid_client.ts` — TypeScript / Bun (`@x402/fetch` + `@x402/evm` + `viem`)
+
+```bash
+pip install "x402" eth-account httpx
+TEST_BUYER_KEY=0x... python examples/paid_client.py
+
+bun add @x402/fetch @x402/evm viem
+CC_PRIVATE_KEY=0x... \
+CC_PATH=/v1/data/market-snapshot \
+CC_BODY='{"contract":"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48","chain":"ethereum"}' \
+  bun run examples/paid_client.ts
+```
+
+Both default to `POST /v1/data/token-price` ($0.004) and accept `CC_URL`,
+`CC_PATH`, `CC_BODY` overrides. The npm package `x402-fetch` is the deprecated
+v1 client (it sends `X-PAYMENT`); this API settles x402 v2
+(`PAYMENT-SIGNATURE`), so the TypeScript example uses its successor
+`@x402/fetch`.
+
+## New on the data surface
+
+- `POST /v1/data/market-snapshot` — $0.070: token-intel + whale-alerts +
+  token-risk fanned out in parallel (one 402 instead of three).
+- `POST /v1/webhooks/whale-alerts` — $0.100 registration, $0.020 per delivered
+  alert, HMAC-SHA256 signed when you supply a secret. `GET` (with `?owner=`)
+  and `DELETE` (with `?token=`) are free.
+- Solana (`"chain": "solana"`) on `token-balances`, `tx-history` and
+  `token-price` via Helius; every other route answers a structured
+  `chain_not_supported` instead of guessing.
+- `whale-alerts` is now $0.050 (was $0.030) — three upstream scans per call.
 
 ## Discovery
 

@@ -33,12 +33,13 @@ import asyncio
 import hashlib
 import json
 import logging
+import re
 from datetime import datetime, timezone
 
 import httpx
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.core.cache import TTLCache
 from app.core.config import settings
@@ -46,9 +47,12 @@ from app.x402.pricing import (
     DATA_CHAINS,
     DATA_PROVIDERS,
     DATA_TTL_S,
+    HELIUS_ENDPOINTS,
     data_provider_cost_usd,
     data_price_usd,
     DEFAULT_CHAIN,
+    helius_provider_cost_usd,
+    is_solana,
 )
 
 logger = logging.getLogger("cortexcloud.api.data")
@@ -57,9 +61,18 @@ router = APIRouter(prefix="/v1/data", tags=["data"])
 
 ALCHEMY_BASE = "https://{network}.g.alchemy.com"
 COINGECKO_BASE = "https://api.coingecko.com/api/v3"
+# Solana via Helius. The API key rides in the URL/query — never log these URLs.
+HELIUS_RPC_URL = "https://mainnet.helius-rpc.com/?api-key={key}"
+HELIUS_TX_URL = "https://api.helius.xyz/v0/addresses/{address}/transactions"
+SOLANA_TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 # ponytail: in-process cache (single worker). Swap to Redis by pointing TTLCache
 # at a redis-backed store — same .get/.set API. No provider/route changes needed.
 _CACHES: dict[str, TTLCache] = {ep: TTLCache(ttl_s) for ep, ttl_s in DATA_TTL_S.items()}
+
+# Address formats. EVM addresses are case-insensitive and normalized to lower;
+# Solana base58 public keys are case-SENSITIVE and must be passed through.
+_EVM_HEX = re.compile(r"0x[0-9a-fA-F]{40}")
+_BASE58 = re.compile(r"[1-9A-HJ-NP-Za-km-z]{32,44}")
 
 # Caller chain -> CoinGecko asset platform id (for price-by-contract).
 # Not the same namespace as DATA_CHAINS (Alchemy network slugs).
@@ -87,15 +100,25 @@ def _hex_int(v) -> int | None:
 # money-path guard; re-validated here too).
 # ---------------------------------------------------------------------------
 class AddressRequest(BaseModel):
-    address: str = Field(description="EVM address (0x-prefixed, 40 hex).")
-    chain: str = Field(default=DEFAULT_CHAIN, description="ethereum|base|arbitrum|polygon|optimism or chain id.")
+    address: str = Field(description="EVM address (0x-prefixed, 40 hex) or base58 Solana public key.")
+    chain: str = Field(default=DEFAULT_CHAIN, description="ethereum|base|arbitrum|polygon|optimism|solana or chain id.")
 
     @field_validator("address")
     @classmethod
     def _addr(cls, v: str) -> str:
-        if not isinstance(v, str) or not __import__("re").fullmatch(r"0x[0-9a-fA-F]{40}", v):
+        if not isinstance(v, str) or not (_EVM_HEX.fullmatch(v) or _BASE58.fullmatch(v)):
+            raise ValueError("address must be a 0x-prefixed 40-hex EVM address or a base58 Solana public key")
+        # EVM addresses are case-insensitive; base58 keys are not.
+        return v.lower() if v.startswith("0x") else v
+
+    @model_validator(mode="after")
+    def _addr_matches_chain(self):
+        if is_solana(self.chain):
+            if not _BASE58.fullmatch(self.address):
+                raise ValueError("address must be a base58 Solana public key when chain=solana")
+        elif not _EVM_HEX.fullmatch(self.address):
             raise ValueError("address must be a 0x-prefixed 40-hex EVM address")
-        return v.lower()
+        return self
 
 
 class TokenBalancesRequest(AddressRequest):
@@ -108,9 +131,9 @@ class TokenBalancesRequest(AddressRequest):
         if v is None:
             return v
         for t in v:
-            if not __import__("re").fullmatch(r"0x[0-9a-fA-F]{40}", t):
+            if not (_EVM_HEX.fullmatch(t) or _BASE58.fullmatch(t)):
                 raise ValueError(f"invalid token contract: {t}")
-        return [t.lower() for t in v]
+        return [t.lower() if t.startswith("0x") else t for t in v]
 
 
 class TokenPriceRequest(BaseModel):
@@ -251,12 +274,313 @@ async def _alchemy_rpc(network: str, method: str, params: list) -> tuple[int, di
 
 
 # ---------------------------------------------------------------------------
+# Solana (Helius) helpers. Same evidence contract as the EVM routes: every
+# normalized fact ships as {value, source, checked_at} — source "helius" for
+# Helius-backed fields. Anything not implemented for Solana is an explicit
+# chain_not_supported error, never a guess on the wrong chain.
+# ---------------------------------------------------------------------------
+def _need_helius() -> JSONResponse | None:
+    if not settings.HELIUS_API_KEY:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "provider_unconfigured",
+                "detail": "Helius API key not configured on gateway (HELIUS_API_KEY)",
+                "chain": "solana",
+            },
+        )
+    return None
+
+
+def _chain_not_supported(endpoint: str, chain: str) -> JSONResponse:
+    return JSONResponse(
+        status_code=400,
+        content={
+            "error": "chain_not_supported",
+            "chain": chain,
+            "endpoint": f"/v1/data/{endpoint}",
+            "detail": f"Solana is not implemented for {endpoint}; it is supported on: "
+                      + ", ".join(f"/v1/data/{e}" for e in HELIUS_ENDPOINTS),
+            "solana_supported_endpoints": [f"/v1/data/{e}" for e in HELIUS_ENDPOINTS],
+        },
+    )
+
+
+def _sol_evidence(value, method: str, checked_at: str) -> dict:
+    """The shared {value, source, checked_at} evidence wrapper (source=helius)."""
+    return {"value": value, "source": "helius", "checked_at": checked_at, "method": method}
+
+
+async def _helius_rpc(method: str, params: list) -> tuple[int, dict]:
+    """Helius JSON-RPC (mainnet). Key is in the URL — never log the URL."""
+    url = HELIUS_RPC_URL.format(key=settings.HELIUS_API_KEY)
+    body = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
+    async with httpx.AsyncClient(timeout=20.0) as c:
+        r = await c.post(url, json=body)
+    try:
+        data = r.json() if r.content else {}
+    except Exception:
+        data = {}
+    if r.status_code == 200 and isinstance(data, dict) and data.get("error"):
+        return 502, data
+    return r.status_code, data
+
+
+async def _helius_transactions(address: str, limit: int) -> tuple[int, list | dict]:
+    """Helius Enhanced Transactions for an address (parsed transfer history)."""
+    params = {"api-key": settings.HELIUS_API_KEY, "limit": max(1, min(int(limit), 100))}
+    async with httpx.AsyncClient(timeout=25.0) as c:
+        r = await c.get(HELIUS_TX_URL.format(address=address), params=params)
+    try:
+        data = r.json() if r.content else []
+    except Exception:
+        data = []
+    return r.status_code, data
+
+
+def _unwrap_subresult(res) -> tuple[dict | None, str | None]:
+    """Normalize a sub-route result into (payload, error) for composed routes.
+
+    Sub-handlers return either a dict (success) or a JSONResponse (error).
+    A composed route must never fail wholesale because one section failed.
+    """
+    if isinstance(res, BaseException):
+        logger.warning(f"market-snapshot subcall raised: {type(res).__name__}: {res}")
+        return None, f"subcall_failed:{type(res).__name__}"
+    if isinstance(res, JSONResponse):
+        try:
+            body = json.loads(bytes(res.body))
+        except Exception:  # noqa: BLE001
+            body = {}
+        code = body.get("error") or f"http_{res.status_code}"
+        return None, str(code)
+    if isinstance(res, dict):
+        return res, None
+    return None, "unexpected_subcall_result"
+
+
+def _strip_pricing(payload: dict) -> dict:
+    """Drop the sub-route's own price/cost stamp from a composed section.
+
+    The snapshot is billed once ($0.07); re-advertising the inner route's
+    price inside the merge would misstate what the caller paid.
+    """
+    return {k: v for k, v in payload.items()
+            if k not in ("price_usd", "provider_cost_usd", "margin_usd", "currency")}
+
+
+async def _solana_token_balances(req: TokenBalancesRequest) -> dict | JSONResponse:
+    """SPL token balances via Helius getTokenAccountsByOwner (jsonParsed)."""
+    if e := _need_helius():
+        return e
+    endpoint = "token-balances"
+    provider_cost = helius_provider_cost_usd(1)
+    mints = ",".join(req.tokens or [])
+    cache_key = _cache_key(endpoint, "solana", req.address, mints or "all", str(req.max_tokens))
+    hit = _cached_get(endpoint, cache_key)
+    if hit is not None:
+        out = dict(hit)
+        out["cache_hit"] = True
+        return _stamp(out, endpoint, provider_cost)
+
+    status, data = await _helius_rpc(
+        "getTokenAccountsByOwner",
+        [req.address, {"programId": SOLANA_TOKEN_PROGRAM}, {"encoding": "jsonParsed"}],
+    )
+    if status != 200:
+        return JSONResponse(status_code=status or 502,
+                            content={"error": "upstream_helius", "detail": json.dumps(data)[:500]})
+    accounts = (data.get("result") or {}).get("value") or []
+    wanted = set(req.tokens or [])
+    balances = []
+    for acc in accounts:
+        info = (((acc.get("account") or {}).get("data") or {}).get("parsed") or {}).get("info") or {}
+        mint = info.get("mint")
+        if wanted and mint not in wanted:
+            continue
+        amount = info.get("tokenAmount") or {}
+        balances.append({
+            "mint": mint,
+            "raw": amount.get("amount"),
+            "decimals": amount.get("decimals"),
+            "ui_amount": amount.get("uiAmount"),
+        })
+    balances = balances[: req.max_tokens]
+    now = datetime.now(timezone.utc).isoformat()
+    out = {
+        "address": req.address,
+        "chain": "solana",
+        "token_count": len(balances),
+        "balances": balances,
+        "evidence": {
+            "token_accounts": _sol_evidence(len(balances), "getTokenAccountsByOwner", now),
+            "balances": _sol_evidence(balances, "getTokenAccountsByOwner", now),
+        },
+        "cache_hit": False,
+    }
+    _cached_set(endpoint, cache_key, out)
+    return _stamp(out, endpoint, provider_cost)
+
+
+async def _solana_tx_history(req: TxHistoryRequest) -> dict | JSONResponse:
+    """Parsed Solana transaction history via Helius Enhanced Transactions."""
+    if e := _need_helius():
+        return e
+    endpoint = "tx-history"
+    provider_cost = helius_provider_cost_usd(1)
+    cache_key = _cache_key(endpoint, "solana", req.address, str(req.limit))
+    hit = _cached_get(endpoint, cache_key)
+    if hit is not None:
+        out = dict(hit)
+        out["cache_hit"] = True
+        return _stamp(out, endpoint, provider_cost)
+
+    status, data = await _helius_transactions(req.address, req.limit)
+    if status != 200 or not isinstance(data, list):
+        return JSONResponse(status_code=status or 502,
+                            content={"error": "upstream_helius", "detail": json.dumps(data)[:500]})
+    txs = []
+    for t in data[: req.limit]:
+        ts = t.get("timestamp")
+        stamp = None
+        if isinstance(ts, (int, float)):
+            try:
+                stamp = datetime.fromtimestamp(ts, timezone.utc).isoformat()
+            except (OverflowError, OSError, ValueError):
+                stamp = None
+        txs.append({
+            "hash": t.get("signature"),
+            "type": t.get("type"),
+            "description": t.get("description"),
+            "timestamp": stamp,
+            "slot": t.get("slot"),
+            "fee": t.get("fee"),
+            "fee_payer": t.get("feePayer"),
+            "native_transfers": (t.get("nativeTransfers") or [])[:5],
+            "token_transfers": (t.get("tokenTransfers") or [])[:5],
+        })
+    now = datetime.now(timezone.utc).isoformat()
+    out = {
+        "address": req.address,
+        "chain": "solana",
+        "count": len(txs),
+        "transactions": txs,
+        "evidence": {
+            "transactions": _sol_evidence(txs, "getEnhancedTransactions", now),
+        },
+        "note": "from_block is EVM-only; Solana history is the most recent N transactions.",
+        "cache_hit": False,
+    }
+    _cached_set(endpoint, cache_key, out)
+    return _stamp(out, endpoint, provider_cost)
+
+
+async def _solana_token_price(req: TokenPriceRequest) -> dict | JSONResponse:
+    """SPL token spot price: Helius DAS getAsset price_info, CoinGecko fallback.
+
+    A CoinGecko coin id (req.id) is chain-agnostic and served from CoinGecko;
+    a mint address (req.contract) is resolved by Helius first so the primary
+    Solana path is single-vendor.
+    """
+    if e := _need_helius():
+        return e
+    endpoint = "token-price"
+    provider_cost = helius_provider_cost_usd(1)
+    mint = (req.contract or "").strip()
+    if mint and not _BASE58.fullmatch(mint):
+        return JSONResponse(status_code=400,
+                            content={"error": "bad_request",
+                                     "detail": "Solana contract must be a base58 mint address"})
+    cache_key = _cache_key(endpoint, "solana", mint, str(req.id or ""))
+    hit = _cached_get(endpoint, cache_key)
+    if hit is not None:
+        out = dict(hit)
+        out["cache_hit"] = True
+        return _stamp(out, endpoint, provider_cost)
+
+    now = datetime.now(timezone.utc).isoformat()
+    if mint:
+        status, data = await _helius_rpc("getAsset", [{"id": mint}])
+        asset = (data.get("result") or {}) if status == 200 else {}
+        info = asset.get("token_info") or {}
+        pinfo = info.get("price_info") or {}
+        price = pinfo.get("price_per_token")
+        if price is not None and str(pinfo.get("currency", "USD")).upper() == "USD":
+            out = {
+                "contract": mint, "chain": "solana", "usd": price,
+                "symbol": info.get("symbol"),
+                "decimals": info.get("decimals"),
+                "provider": "helius",
+                "evidence": {
+                    "price_usd": _sol_evidence(price, "getAsset(token_info.price_info)", now),
+                    "symbol": _sol_evidence(info.get("symbol"), "getAsset(token_info)", now),
+                },
+                "cache_hit": False,
+            }
+            _cached_set(endpoint, cache_key, out)
+            return _stamp(out, endpoint, provider_cost)
+        # Fallback: CoinGecko's Solana asset platform (free tier).
+        url = f"{COINGECKO_BASE}/simple/token_price/solana"
+        params = {"contract_addresses": mint, "vs_currencies": "usd", "include_24hr_change": "true"}
+        if settings.COINGECKO_API_KEY:
+            params["x_cg_demo_api_key"] = settings.COINGECKO_API_KEY
+        async with httpx.AsyncClient(timeout=20.0) as c:
+            r = await c.get(url, params=params)
+        if r.status_code == 200:
+            entry = (r.json().get(mint) or {})
+            if entry.get("usd") is not None:
+                out = {
+                    "contract": mint, "chain": "solana", "usd": entry.get("usd"),
+                    "change_24h_usd": entry.get("usd_24h_change"),
+                    "provider": "coingecko",
+                    "evidence": {
+                        "price_usd": {"value": entry.get("usd"),
+                                      "source": "coingecko /simple/token_price/solana",
+                                      "checked_at": now},
+                    },
+                    "cache_hit": False,
+                }
+                _cached_set(endpoint, cache_key, out)
+                return _stamp(out, endpoint, provider_cost)
+        return JSONResponse(status_code=502,
+                            content={"error": "price_unavailable", "chain": "solana", "contract": mint,
+                                     "detail": "no USD price from Helius price_info or CoinGecko"})
+
+    # CoinGecko id (e.g. "solana") — chain-independent lookup.
+    url = f"{COINGECKO_BASE}/simple/price"
+    params = {"ids": req.id, "vs_currencies": "usd", "include_24hr_change": "true"}
+    if settings.COINGECKO_API_KEY:
+        params["x_cg_demo_api_key"] = settings.COINGECKO_API_KEY
+    async with httpx.AsyncClient(timeout=20.0) as c:
+        r = await c.get(url, params=params)
+    if r.status_code == 200:
+        j = r.json()
+        entry = j.get(req.id) or {}
+        if entry.get("usd") is not None:
+            out = {
+                "id": req.id, "chain": "solana", "usd": entry.get("usd"),
+                "change_24h_usd": entry.get("usd_24h_change"),
+                "provider": "coingecko",
+                "evidence": {
+                    "price_usd": _sol_evidence(entry.get("usd"), "coingecko /simple/price", now),
+                },
+                "cache_hit": False,
+            }
+            _cached_set(endpoint, cache_key, out)
+            return _stamp(out, endpoint, provider_cost)
+    return JSONResponse(status_code=502,
+                        content={"error": "price_unavailable", "chain": "solana", "id": req.id})
+
+
+# ---------------------------------------------------------------------------
 # Routes (each: gate -> cache -> upstream -> normalize -> stamp)
 # ---------------------------------------------------------------------------
 @router.post("/token-balances")
 async def token_balances(req: TokenBalancesRequest, request: Request):
     if d := _disabled():
         return d
+    if is_solana(req.chain):
+        return await _solana_token_balances(req)
     if e := _need_alchemy():
         return e
     try:
@@ -303,6 +627,8 @@ async def token_balances(req: TokenBalancesRequest, request: Request):
 async def token_price(req: TokenPriceRequest, request: Request):
     if d := _disabled():
         return d
+    if is_solana(req.chain):
+        return await _solana_token_price(req)
     endpoint = "token-price"
     provider_cost = data_provider_cost_usd(endpoint)
     cache_key = _cache_key(endpoint, str(req.id or ""), str(req.contract or ""), req.chain)
@@ -375,6 +701,8 @@ async def token_price(req: TokenPriceRequest, request: Request):
 async def nft_ownership(req: NFTOwnershipRequest, request: Request):
     if d := _disabled():
         return d
+    if is_solana(req.chain):
+        return _chain_not_supported("nft-ownership", req.chain)
     if e := _need_alchemy():
         return e
     try:
@@ -414,6 +742,8 @@ async def nft_ownership(req: NFTOwnershipRequest, request: Request):
 async def tx_history(req: TxHistoryRequest, request: Request):
     if d := _disabled():
         return d
+    if is_solana(req.chain):
+        return await _solana_tx_history(req)
     if e := _need_alchemy():
         return e
     try:
@@ -459,6 +789,8 @@ async def tx_history(req: TxHistoryRequest, request: Request):
 async def gas_oracle(chain: str = DEFAULT_CHAIN):
     if d := _disabled():
         return d
+    if is_solana(chain):
+        return _chain_not_supported("gas-oracle", chain)
     if e := _need_alchemy():
         return e
     try:
@@ -493,6 +825,8 @@ async def gas_oracle(chain: str = DEFAULT_CHAIN):
 async def block(chain: str = DEFAULT_CHAIN, block: str = "latest"):
     if d := _disabled():
         return d
+    if is_solana(chain):
+        return _chain_not_supported("block", chain)
     if e := _need_alchemy():
         return e
     try:
@@ -562,6 +896,8 @@ async def token_risk(req: TokenRiskRequest, request: Request):
     carries its source so an agent can re-verify independently."""
     if d := _disabled():
         return d
+    if is_solana(req.chain):
+        return _chain_not_supported("token-risk", req.chain)
     if e := _need_alchemy():
         return e
     try:
@@ -646,6 +982,8 @@ async def wallet_intel(req: WalletIntelRequest, request: Request):
     Indexed data only (Alchemy) — no speculative enrichment."""
     if d := _disabled():
         return d
+    if is_solana(req.chain):
+        return _chain_not_supported("wallet-intel", req.chain)
     if e := _need_alchemy():
         return e
     try:
@@ -712,28 +1050,10 @@ async def wallet_intel(req: WalletIntelRequest, request: Request):
     return _stamp(out, endpoint, provider_cost)
 
 
-@router.post("/whale-alerts")
-async def whale_alerts(req: WhaleAlertRequest, request: Request):
-    """Large-transfer alerts for a wallet (or chain-wide token scan when a
-    contract is given). Every alert carries hash + block + timestamp."""
-    if d := _disabled():
-        return d
-    if e := _need_alchemy():
-        return e
-    try:
-        network = _network(req.chain)
-    except ValueError as e:
-        return JSONResponse(status_code=400, content={"error": "bad_chain", "detail": str(e)})
-    endpoint = "whale-alerts"
-    provider_cost = data_provider_cost_usd(endpoint, calls=3)  # price + from + to scans
+async def whale_alert_payload(req: WhaleAlertRequest, network: str) -> dict:
+    """Scan large transfers for a wallet (EVM). Shared by the paid route and
+    the webhook delivery worker so both see identical alert semantics."""
     a = (req.address or "").lower()
-    cache_key = _cache_key(endpoint, network, a, str(req.min_usd), str(req.limit))
-    hit = _cached_get(endpoint, cache_key)
-    if hit is not None:
-        hit = dict(hit)
-        hit["cache_hit"] = True
-        return _stamp(hit, endpoint, provider_cost)
-
     # USD floor needs a price. We use the native-asset spot as the reference
     # unit; per-token USD conversion requires a price oracle call we do NOT
     # make implicitly — instead we report value + the reference price used.
@@ -767,11 +1087,38 @@ async def whale_alerts(req: WhaleAlertRequest, request: Request):
     alerts = [_to_alert(t, "out") for t in sent] + [_to_alert(t, "in") for t in received]
     large = [al for al in alerts
              if (al["value_usd_est"] or 0) >= req.min_usd or al["value_usd_est"] is None]
-    out = {"watched_address": a or None, "chain": req.chain, "min_usd": req.min_usd,
-           "alerts": large, "alerts_count": len(large),
-           "note": "USD floor applied to native-asset transfers only; erc20 values are raw "
-                   "(call /token-price for USD). ponytail: no price oracle wired.",
-           "cache_hit": False}
+    return {"watched_address": a or None, "chain": req.chain, "min_usd": req.min_usd,
+            "alerts": large, "alerts_count": len(large),
+            "note": "USD floor applied to native-asset transfers only; erc20 values are raw "
+                    "(call /token-price for USD). ponytail: no price oracle wired.",
+            "cache_hit": False}
+
+
+@router.post("/whale-alerts")
+async def whale_alerts(req: WhaleAlertRequest, request: Request):
+    """Large-transfer alerts for a wallet (or chain-wide token scan when a
+    contract is given). Every alert carries hash + block + timestamp."""
+    if d := _disabled():
+        return d
+    if is_solana(req.chain):
+        return _chain_not_supported("whale-alerts", req.chain)
+    if e := _need_alchemy():
+        return e
+    try:
+        network = _network(req.chain)
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": "bad_chain", "detail": str(e)})
+    endpoint = "whale-alerts"
+    provider_cost = data_provider_cost_usd(endpoint, calls=3)  # price + from + to scans
+    a = (req.address or "").lower()
+    cache_key = _cache_key(endpoint, network, a, str(req.min_usd), str(req.limit))
+    hit = _cached_get(endpoint, cache_key)
+    if hit is not None:
+        hit = dict(hit)
+        hit["cache_hit"] = True
+        return _stamp(hit, endpoint, provider_cost)
+
+    out = await whale_alert_payload(req, network)
     _cached_set(endpoint, cache_key, out)
     return _stamp(out, endpoint, provider_cost)
 
@@ -796,6 +1143,9 @@ async def cross_chain_compare(req: CrossChainCompareRequest, request: Request):
         return _stamp(hit, endpoint, provider_cost)
 
     async def _one(chain: str) -> dict:
+        if is_solana(chain):
+            return {"chain": chain, "error": "chain_not_supported",
+                    "detail": "Solana is not implemented for cross-chain-compare"}
         try:
             network = _network(chain)
         except ValueError:
@@ -858,6 +1208,8 @@ class TokenIntelRequest(BaseModel):
 async def token_intel(req: TokenIntelRequest, request: Request):
     if d := _disabled():
         return d
+    if is_solana(req.chain):
+        return _chain_not_supported("token-intel", req.chain)
     if e := _need_alchemy():
         return e
     try:
@@ -974,5 +1326,110 @@ async def token_intel(req: TokenIntelRequest, request: Request):
         "facts": facts,
         "cache_hit": False,
     }
+    _cached_set(endpoint, cache_key, out)
+    return _stamp(out, endpoint, provider_cost)
+
+
+# ---------------------------------------------------------------------------
+# Market snapshot — one paid call, three intelligence sections in parallel.
+#
+# POST /v1/data/market-snapshot ($0.07) fans out to token-intel, whale-alerts
+# and token-risk CONCURRENTLY and merges them as "token", "whale_activity" and
+# "risk". A failing section yields {"error": ...} for that key and the rest of
+# the snapshot still returns (partial: true) — a buyer never pays for a
+# wholesale failure because one upstream blipped.
+#
+# The three sections run through the same handlers as their standalone routes,
+# so caching, evidence stamps and provider accounting stay single-source.
+# ---------------------------------------------------------------------------
+class MarketSnapshotRequest(BaseModel):
+    contract: str = Field(description="ERC-20 contract address to snapshot.")
+    chain: str = Field(default=DEFAULT_CHAIN, description="EVM chain of the contract.")
+    address: str | None = Field(default=None, description="Wallet for whale activity; defaults to the contract.")
+    coin_id: str | None = Field(default=None, description="Optional CoinGecko coin id for market context.")
+    min_usd: float = Field(default=100000.0, ge=0, description="USD floor for whale alerts.")
+    limit: int = Field(default=50, ge=1, le=100, description="Transfers to scan per direction.")
+
+    @field_validator("contract")
+    @classmethod
+    def _contract(cls, v: str) -> str:
+        if not isinstance(v, str) or not _EVM_HEX.fullmatch(v):
+            raise ValueError("contract must be a 0x-prefixed 40-hex EVM address")
+        return v.lower()
+
+    @field_validator("address")
+    @classmethod
+    def _wallet(cls, v):
+        if v is None:
+            return v
+        if not isinstance(v, str) or not _EVM_HEX.fullmatch(v):
+            raise ValueError("address must be a 0x-prefixed 40-hex EVM address")
+        return v.lower()
+
+
+@router.post("/market-snapshot")
+async def market_snapshot(req: MarketSnapshotRequest, request: Request):
+    if d := _disabled():
+        return d
+    if is_solana(req.chain):
+        return _chain_not_supported("market-snapshot", req.chain)
+    if e := _need_alchemy():
+        return e
+    try:
+        _network(req.chain)
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": "bad_chain", "detail": str(e)})
+
+    endpoint = "market-snapshot"
+    # 5 (token-intel) + 3 (whale-alerts) + 4 (token-risk) upstream calls.
+    provider_cost = data_provider_cost_usd(endpoint, calls=12)
+    c = req.contract.lower()
+    a = (req.address or c).lower()
+    cache_key = _cache_key(endpoint, req.chain, c, a, str(req.coin_id or ""),
+                           str(req.min_usd), str(req.limit))
+    hit = _cached_get(endpoint, cache_key)
+    if hit is not None:
+        out = dict(hit)
+        out["cache_hit"] = True
+        return _stamp(out, endpoint, provider_cost)
+
+    snapshot_at = datetime.now(timezone.utc).isoformat()
+    token_req = TokenIntelRequest(contract=c, chain=req.chain, coin_id=req.coin_id)
+    whale_req = WhaleAlertRequest(address=a, chain=req.chain,
+                                  min_usd=req.min_usd, limit=req.limit)
+    risk_req = TokenRiskRequest(contract=c, chain=req.chain, coin_id=req.coin_id)
+
+    token_res, whale_res, risk_res = await asyncio.gather(
+        token_intel(token_req, request),
+        whale_alerts(whale_req, request),
+        token_risk(risk_req, request),
+        return_exceptions=True,
+    )
+
+    sections: dict[str, dict] = {}
+    errors: dict[str, str] = {}
+    for key, res in (("token", token_res), ("whale_activity", whale_res), ("risk", risk_res)):
+        payload, err = _unwrap_subresult(res)
+        if err:
+            # Partial result: this section carries its error, the others stand.
+            sections[key] = {"error": err}
+            errors[key] = err
+        else:
+            sections[key] = _strip_pricing(payload)
+
+    out = {
+        "contract": c,
+        "chain": req.chain,
+        "address": a,
+        "token": sections["token"],
+        "whale_activity": sections["whale_activity"],
+        "risk": sections["risk"],
+        "snapshot_at": snapshot_at,
+        "partial": bool(errors),
+        "sections": {"requested": 3, "ok": 3 - len(errors), "failed": len(errors)},
+        "cache_hit": False,
+    }
+    if errors:
+        out["errors"] = errors
     _cached_set(endpoint, cache_key, out)
     return _stamp(out, endpoint, provider_cost)

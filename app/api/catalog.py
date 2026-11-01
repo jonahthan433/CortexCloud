@@ -9,7 +9,11 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.core.config import settings
-from app.x402.pricing import DATA_CHAINS, FREE_ROUTES
+from app.x402.pricing import (
+    DATA_CHAINS,
+    FREE_ROUTES,
+    HELIUS_ENDPOINTS,
+)
 
 router = APIRouter(tags=["catalog"])
 
@@ -33,8 +37,16 @@ async def capabilities() -> dict:
             "/openapi.json",
             "/mcp",
         ],
-        "providers": ["alchemy", "coingecko"],
+        "providers": ["alchemy", "coingecko", "helius"],
         "supported_chains": sorted(set(DATA_CHAINS.keys()) - {"1", "8453", "42161", "137", "10"}),
+        "solana": {
+            "aliases": ["solana", "sol"],
+            "provider": "helius" if settings.HELIUS_API_KEY else "not_configured",
+            "endpoints": [f"/v1/data/{e}" for e in HELIUS_ENDPOINTS],
+            "note": "Solana is supported on token-balances, tx-history and token-price only; "
+                    "every other route returns chain_not_supported. Set HELIUS_API_KEY to enable.",
+            "settlement": "x402 (USDC on Base) — Solana is the READ chain, not the payment chain.",
+        },
         "categories": {
             "data": {
                 "status": "available" if settings.DATA_ENABLED else "disabled",
@@ -52,8 +64,30 @@ async def capabilities() -> dict:
                     "/v1/data/whale-alerts",
                     "/v1/data/cross-chain-compare",
                 ],
-                "providers": ["alchemy", "coingecko"],
+                "providers": ["alchemy", "coingecko", "helius"],
                 "supported_chains": sorted(set(DATA_CHAINS.keys()) - {"1", "8453", "42161", "137", "10"}),
+        "solana": {
+            "aliases": ["solana", "sol"],
+            "provider": "helius" if settings.HELIUS_API_KEY else "not_configured",
+            "endpoints": [f"/v1/data/{e}" for e in HELIUS_ENDPOINTS],
+            "note": "Solana is supported on token-balances, tx-history and token-price only; "
+                    "every other route returns chain_not_supported. Set HELIUS_API_KEY to enable.",
+            "settlement": "x402 (USDC on Base) — Solana is the READ chain, not the payment chain.",
+        },
+            },
+            "webhooks": {
+                "status": "available" if (settings.DATA_ENABLED and settings.WEBHOOKS_ENABLED) else "disabled",
+                "note": "Whale-alert webhook registrations (HTTPS only). Registration is paid; "
+                        "each delivered alert accrues a metered delivery fee on the registration.",
+                "endpoints": [
+                    "POST /v1/webhooks/whale-alerts",
+                    "GET /v1/webhooks/whale-alerts?owner=0x...",
+                    "DELETE /v1/webhooks/whale-alerts/{id}?token=...",
+                ],
+                "registration_price_usd": 0.10,
+                "delivery_price_usd": settings.WEBHOOK_DELIVERY_PRICE_USD,
+                "signing": "HMAC-SHA256 over the exact body in X-CortexCloud-Signature: sha256=<hex> when a secret is supplied",
+                "constraints": ["https:// only", "public hosts only", "no credentials in the URL"],
             },
             "aggregate": {
                 "status": "available" if settings.DATA_ENABLED else "disabled",

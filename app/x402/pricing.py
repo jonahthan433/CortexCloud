@@ -227,10 +227,17 @@ ROUTE_PRICING = {
     # Tier 2 intelligence — multi-upstream fan-out per call.
     "POST /v1/data/token-risk": "$0.020",
     "POST /v1/data/wallet-intel": "$0.006",
-    "POST /v1/data/whale-alerts": "$0.030",
+    "POST /v1/data/whale-alerts": "$0.050",
     "POST /v1/data/cross-chain-compare": "$0.040",
     # Flagship: token intelligence (evidence-backed profile, one call).
     "POST /v1/data/token-intel": "$0.030",
+    # Composed snapshot: token-intel + whale-alerts + token-risk in one call.
+    # Priced below the $0.10 sum of its parts; one 402, three upstream fan-outs.
+    "POST /v1/data/market-snapshot": "$0.070",
+    # Whale-alert webhook registration ($0.10, first-party storage + polling).
+    # Delivery is billed per alert at $0.02 and accrues on the registration
+    # (see app/api/webhooks.py); listing and unregistering are free.
+    "POST /v1/webhooks/whale-alerts": "$0.100",
     # Aggregate (batch) routes — priced per constituent data call; the
     # middleware re-prices dynamically for multi-address/multi-token bodies.
     "POST /v1/aggregate/balances": "$0.004",
@@ -254,6 +261,10 @@ ROUTE_DESCRIPTIONS = {
     "POST /v1/data/cross-chain-compare": "Compare one contract across chains (price, activity, deployment) in one call (Alchemy + CoinGecko). x402-paid.",
     # Flagship: evidence-backed token profile in one call.
     "POST /v1/data/token-intel": "Flagship token intelligence: deployment, metadata, spot price, 24h change, optional age/liquidity/market-cap, and recent activity. Each fact carries its source, a checked_at timestamp, and explicit missing-data indicators. Alchemy + CoinGecko. x402-paid, USDC on Base.",
+    # Composed snapshot (token + whale + risk) in one paid call.
+    "POST /v1/data/market-snapshot": "One-call market snapshot: token intelligence, whale activity, and risk verdict fanned out in parallel and merged under token/whale_activity/risk with a snapshot_at timestamp. Partial failures return an error key per section instead of failing the whole response. x402-paid, USDC on Base.",
+    # Whale-alert webhooks (registration paid, delivery metered).
+    "POST /v1/webhooks/whale-alerts": "Register an HTTPS webhook for whale-alert deliveries (HMAC-SHA256 signed when a secret is supplied). Registration is $0.10; each delivered alert is $0.02, accrued on the registration. x402-paid, USDC on Base.",
     # Aggregate (batch) — one 402, many upstream lookups; price scales with batch size.
     "POST /v1/aggregate/balances": "Batch ERC-20 balances for many addresses (Alchemy). x402-paid, USDC on Base.",
     "POST /v1/aggregate/nfts": "Batch NFT ownership across addresses (Alchemy). x402-paid, USDC on Base.",
@@ -263,6 +274,7 @@ ROUTE_DESCRIPTIONS = {
 
 FREE_ROUTES = {
     "GET /v1/capabilities": "Service capabilities, limits, payment terms (free).",
+    "GET /v1/webhooks/whale-alerts": "List registered whale-alert webhooks, optionally filtered by owner=0x... (free; HMAC secrets and management tokens are never returned).",
 }
 
 
@@ -348,6 +360,12 @@ def usdc_atomic_to_usd(atomic: int) -> float:
 # returns it as provider_cost_usd. Keeps the same data-only table contract as AI.
 PROVIDER_PRICING["alchemy:call"] = ProviderPricing("Alchemy (avg ~25 CU/call)", per_call=0.00001125)
 PROVIDER_PRICING["coingecko:price"] = ProviderPricing("CoinGecko (free tier)", per_call=0.0)
+# Helius credit basis (ESTIMATE, not an advertised per-call rate): the paid
+# Developer plan is $49 / 10M credits = $0.0000049 per credit; a standard RPC
+# or Enhanced-Tx read is billed as roughly 10 credits => ~$0.000049/call. The
+# exact credit weight is plan-dependent; this keeps Solana cost accounting on
+# the same data-only table contract as Alchemy and far under the $0.004 floor.
+PROVIDER_PRICING["helius:call"] = ProviderPricing("Helius (credit-based, est. 10 credits/call)", per_call=0.000049)
 
 
 class AlchemyData(BaseProvider):
@@ -376,6 +394,26 @@ class CoinGeckoData(BaseProvider):
         return ProviderCost(PROVIDER_PRICING["coingecko:price"].per_call, "coingecko free tier")
 
 
+class HeliusData(BaseProvider):
+    """Helius (Solana RPC + Enhanced Transactions). Credit-based, estimated."""
+    slug = "helius"
+    models = (("helius", "helius:call"),)
+
+    def estimate_cost(self, *a, **_kw) -> ProviderCost:
+        calls = max(1, int(_kw.get("calls", 1)))
+        return ProviderCost(self._cost() * calls,
+                            f"helius {calls} call(s) @ {self._cost():.8f}")
+
+    @staticmethod
+    def _cost() -> float:
+        return PROVIDER_PRICING["helius:call"].per_call
+
+
+def helius_provider_cost_usd(calls: int = 1) -> float:
+    """Estimated Helius provider cost USD for N Solana reads (public)."""
+    return round(HeliusData().estimate_cost(calls=calls).provider_cost_usd, 8)
+
+
 DATA_PROVIDERS = {
     "token-balances": AlchemyData(),
     "nft-ownership": AlchemyData(),
@@ -389,6 +427,8 @@ DATA_PROVIDERS = {
     "whale-alerts": AlchemyData(),
     "cross-chain-compare": AlchemyData(),
     "token-intel": AlchemyData(),
+    # Composed snapshot: token-intel (5) + whale-alerts (3) + token-risk (4).
+    "market-snapshot": AlchemyData(),
 }
 
 
@@ -423,6 +463,9 @@ DATA_TTL_S = {
     "whale-alerts": 20,
     "cross-chain-compare": 60,
     "token-intel": 60,
+    # The snapshot is a composition of three cached routes; its own cache
+    # only saves the merge work, so it is as short as its shortest component.
+    "market-snapshot": 20,
 }
 
 # Tier 2 list prices (USD). Higher than Tier 1 floors because each call fans
@@ -431,9 +474,12 @@ DATA_TTL_S = {
 DATA_TIER2_PRICE_USD = {
     "token-risk": 0.020,          # brief: $0.01-$0.03
     "wallet-intel": 0.006,        # brief: $0.003-$0.01
-    "whale-alerts": 0.030,        # brief: $0.01-$0.05
+    "whale-alerts": 0.050,        # brief: $0.01-$0.05 (top of band: 3-scan fan-out)
     "cross-chain-compare": 0.040, # brief: $0.02-$0.05
     "token-intel": 0.030,         # flagship: 5-upstream fan-out, $0.02-$0.05 band
+    # Composed: token-intel (5) + whale-alerts (3) + token-risk (4) = 12 calls.
+    # $0.07 < sum of parts ($0.10) so the bundle is a real discount.
+    "market-snapshot": 0.070,
 }
 
 # Canonical chain ids we accept (EVM). Maps caller "chain" -> Alchemy network slug.
@@ -451,6 +497,29 @@ DATA_CHAINS = {
     "10": "opt-mainnet",
 }
 DEFAULT_CHAIN = "ethereum"
+
+# ---------------------------------------------------------------------------
+# Solana (Helius) — supported for token-balances, tx-history and token-price.
+# The EVM routes keep their Alchemy mapping; Solana aliases are separate so
+# _network() can never hand "solana" to Alchemy. Routes that are not yet
+# implemented for Solana return a structured chain_not_supported error.
+# ---------------------------------------------------------------------------
+SOLANA_CHAINS: set[str] = {"solana", "sol", "mainnet-beta", "101"}
+# Endpoints wired to Helius/CoinGecko-Solana today. Everything else 400s with
+# chain_not_supported (honest gap, not a silent wrong-chain answer).
+HELIUS_ENDPOINTS: tuple[str, ...] = ("token-balances", "tx-history", "token-price")
+# Caller chain -> CoinGecko asset platform id for Solana token prices.
+COINGECKO_SOLANA_PLATFORM = "solana"
+
+
+def is_solana(chain: str | None) -> bool:
+    """True when the caller asked for Solana (any accepted alias)."""
+    return str(chain or "").strip().lower() in SOLANA_CHAINS
+
+
+# Every accepted chain value (EVM aliases + Solana aliases). Discovery and the
+# money-path validators use this so a valid chain is never rejected pre-payment.
+ALL_DATA_CHAINS: set[str] = set(DATA_CHAINS) | SOLANA_CHAINS
 
 # ---------------------------------------------------------------------------
 # Automation API (Tier 1) — transform, http-request, webhook, workflow, schedule.
@@ -502,6 +571,8 @@ PUBLIC_PRODUCT_ROUTES: set[str] = {
     "POST /v1/data/whale-alerts",
     "POST /v1/data/cross-chain-compare",
     "POST /v1/data/token-intel",
+    "POST /v1/data/market-snapshot",
+    "POST /v1/webhooks/whale-alerts",
     "POST /v1/aggregate/balances",
     "POST /v1/aggregate/nfts",
     "POST /v1/aggregate/prices",
