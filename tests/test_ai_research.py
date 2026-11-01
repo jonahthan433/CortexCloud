@@ -8,7 +8,7 @@ async def test_capabilities_reports_categories(client):
     r = await client.get("/v1/capabilities")
     assert r.status_code == 200
     cats = r.json()["categories"]
-    assert set(cats) == {"data", "aggregate"}
+    assert set(cats) == {"data", "aggregate", "webhooks"}
 
 
 @pytest.mark.asyncio
