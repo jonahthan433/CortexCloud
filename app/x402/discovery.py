@@ -13,6 +13,7 @@ from fastapi.responses import PlainTextResponse
 
 from app.core.config import settings
 from app.x402.pricing import (
+    DATA_TTL_S,
     FREE_ROUTES,
     MODE_PRICE_USD,
     ROUTE_DESCRIPTIONS,
@@ -82,6 +83,8 @@ async def well_known_x402_v1():
             "https://api.cortexcloud.org/v1/data/wallet-intel",
             "https://api.cortexcloud.org/v1/data/whale-alerts",
             "https://api.cortexcloud.org/v1/data/cross-chain-compare",
+            "https://api.cortexcloud.org/v1/data/market-snapshot",
+            "https://api.cortexcloud.org/v1/webhooks/whale-alerts",
             "https://api.cortexcloud.org/v1/capabilities",
         ],
         "instructions": "Pay-per-call on-chain data + intelligence API over x402 (USDC on Base eip155:8453). Full pricing: https://api.cortexcloud.org/v1/capabilities; rich manifest: https://api.cortexcloud.org/.well-known/x402.json; agent docs: https://api.cortexcloud.org/llms.txt.",
@@ -102,12 +105,15 @@ async def agentsearch_txt():
         "- POST /v1/data/token-balances {address, chain?, tokens?} for ERC-20 balances. $0.004.",
         "- POST /v1/data/token-risk {contract, chain?, coin_id?} for a risk verdict with evidence. $0.020.",
         "- POST /v1/data/wallet-intel {address, chain?, limit?} for a wallet profile (balances, holdings, counterparties). $0.006.",
-        "- POST /v1/data/whale-alerts {address?, chain?, min_usd?, limit?} for large-transfer alerts. $0.030.",
+        "- POST /v1/data/whale-alerts {address?, chain?, min_usd?, limit?} for large-transfer alerts. $0.050.",
         "- POST /v1/data/cross-chain-compare {contract, chains?} to compare one contract across up to 5 chains. $0.040.",
+        "- POST /v1/data/market-snapshot {contract, chain?, address?, coin_id?, min_usd?} for token + whale + risk in one call. $0.070.",
+        "- POST /v1/webhooks/whale-alerts {url, address, chain?, min_usd?, secret?} to register an HTTPS whale-alert webhook (HMAC-signed when secret is set). $0.100 registration + $0.020 per delivered alert.",
+        "- GET /v1/webhooks/whale-alerts?owner=0x... to list registrations and the delivery amount due (free). DELETE /v1/webhooks/whale-alerts/{id}?token=... to unregister (free).",
         "- POST /v1/aggregate/{balances|nfts|prices|tx-history} for batch reads across many addresses. $0.004.",
         "Discovery: https://api.cortexcloud.org/llms.txt, https://api.cortexcloud.org/.well-known/x402.json, https://api.cortexcloud.org/.well-known/bazaar, https://api.cortexcloud.org/.well-known/agentsearch.txt, https://api.cortexcloud.org/openapi.json",
         "Pricing: https://api.cortexcloud.org/v1/capabilities",
-        "# Chains: ethereum, base, arbitrum, polygon, optimism (name or chain id). Providers: Alchemy + CoinGecko. Cached per endpoint (5-60s TTL).",
+        "# Chains: ethereum, base, arbitrum, polygon, optimism (name or chain id) for every EVM route; solana for token-balances, tx-history and token-price only. Providers: Alchemy + CoinGecko + Helius. Cached per endpoint (5-60s TTL): identical requests inside the window are served from cache with no additional upstream call (the x402 price is still charged per request).",
     ])
     return PlainTextResponse(text + "\n", media_type="text/plain; charset=utf-8")
 
@@ -119,16 +125,19 @@ async def llms_txt():
         for path, price in sorted(public_routes().items())
         if float(price.lstrip("$")) > 0.0
     ]
-    free = [f"- {path} — {desc}" for path, desc in sorted(FREE_ROUTES.items())
-            if path.startswith(("GET /v1/capabilities",))]
+    free = [f"- {path} — {desc}" for path, desc in sorted(FREE_ROUTES.items())]
+    ttl_rows = "\n".join(
+        f"| /v1/data/{name} | {ttl}s |" for name, ttl in sorted(DATA_TTL_S.items())
+    )
 
     text = f"""# CortexCloud — On-Chain Data & Intelligence API
 
 CortexCloud is an agent-native, pay-per-call on-chain data API. Agents
 discover, pay for, and read blockchain data over x402 (USDC on Base,
 eip155:8453) — no API keys, no subscriptions. Data sources: Alchemy
-(primary) + CoinGecko (prices). Supported chains: ethereum, base,
-arbitrum, polygon, optimism (name or chain id).
+(primary) + CoinGecko (prices) + Helius (Solana). Supported chains:
+ethereum, base, arbitrum, polygon, optimism (name or chain id), plus
+solana on token-balances, tx-history and token-price.
 
 Every paid response is evidence-backed: each fact carries its source, a
 checked_at timestamp, and an explicit missing-data indicator when a value
@@ -140,16 +149,26 @@ could not be resolved. Nothing is fabricated.
    live prices, chains, and providers.
 2. POST the endpoint — receive a 402 x402 challenge (USDC on Base).
 3. Sign the payment (EIP-3009, gasless for the buyer) and resend with the
-   payment-signature header. The response is returned immediately
-   (short-TTL cache makes repeats cheap).
+   payment-signature header. The response is returned immediately.
+4. For recurring whale alerts, register a webhook once (step 2 also applies)
+   and let CortexCloud POST signed alerts to your HTTPS endpoint.
 
-Copy-paste buyer (official x402 SDK):
+Copy-paste buyer (Python, official x402 SDK):
 
     pip install "x402" eth-account httpx
     TEST_BUYER_KEY=0x... python paid_client.py   # 402 -> sign -> 200
 
-Source: https://raw.githubusercontent.com/jonahthan433/CortexCloud/main/examples/paid_client.py
+Source: https://raw.githubusercontent.com/jonahthan433/CortexCloudAPI/main/examples/paid_client.py
 (overrides: CC_PATH, CC_BODY, CC_URL)
+
+Copy-paste buyer (TypeScript, x402-fetch + bun):
+
+    bun add x402-fetch viem
+    CC_PRIVATE_KEY=0x... CC_PATH=/v1/data/token-price CC_BODY='{{"id":"ethereum"}}' \\
+      bun run paid_client.ts
+
+Source: https://raw.githubusercontent.com/jonahthan433/CortexCloudAPI/main/examples/paid_client.ts
+(overrides: CC_PRIVATE_KEY, CC_URL, CC_PATH, CC_BODY)
 
 ## Endpoints (advertised product)
 
@@ -158,6 +177,43 @@ Source: https://raw.githubusercontent.com/jonahthan433/CortexCloud/main/examples
 Free:
 
 {chr(10).join(free)}
+
+## Response cache (TTL)
+
+{ttl_rows}
+
+Identical requests inside the TTL window are served from the in-process cache:
+the upstream provider call is skipped, so there is no additional upstream cost.
+The x402 price is still charged per request — the cache is an upstream-cost and
+latency optimisation, not a discount.
+
+## Whale-alert webhooks
+
+    POST   /v1/webhooks/whale-alerts        $0.100  register (x402, USDC on Base)
+    GET    /v1/webhooks/whale-alerts        free    list by ?owner=0x...
+    DELETE /v1/webhooks/whale-alerts/{{id}}   free    ?token=... or X-Webhook-Token
+
+- HTTPS only, public hosts only, no credentials in the URL.
+- Registration returns a one-time `management_token`; only its SHA-256 is
+  stored. Listing never returns secrets or the token.
+- Deliveries are POSTed as JSON (`type: "whale_alert"`, `alert`, `delivered_at`).
+  When you supply a `secret`, every delivery carries
+  `X-CortexCloud-Signature: sha256=<hex>`, an HMAC-SHA256 over the exact
+  request body. Without a secret the delivery is sent unsigned
+  (`signed: false`).
+- Billing is metered: each successful delivery accrues $0.020 on the
+  registration (`deliveries`, `amount_due_usd` in the list response). Outbound
+  webhooks cannot answer a 402, so nothing is charged silently.
+- A new registration is primed on its first poll: alerts that already exist
+  are recorded but not delivered, so you only receive new activity.
+
+## Solana (Helius)
+
+Supported on /v1/data/token-balances, /v1/data/tx-history and
+/v1/data/token-price with `"chain": "solana"`. Same evidence wrapper as the
+EVM routes, with `source: "helius"`. Every other route returns HTTP 400
+`chain_not_supported` with the list of Solana-capable endpoints. x402
+settlement stays on Base — Solana is the read chain, not the payment chain.
 
 ## Flagship: token intelligence
 
@@ -170,12 +226,21 @@ coin_id is supplied — never guessed), and recent activity evidence
 {{value, source, checked_at[, missing]}}; unresolvable fields are null with
 a reason. A compact risk verdict + flags summarize the evidence.
 
+POST /v1/data/market-snapshot takes the same contract and fans token-intel,
+whale-alerts and token-risk out in parallel, returning them under `token`,
+`whale_activity` and `risk` with a `snapshot_at` timestamp. If one section
+fails, that key carries an `error` while the rest of the snapshot still
+returns (`partial: true`, `errors`, `sections`). One call, $0.070 versus
+$0.100 for the three routes separately.
+
 ## Honesty
 
 - Provider costs are published; CortexCloud margin is computed transparently.
 - Missing data is reported as missing, never estimated silently.
 - whale-alerts applies the USD floor to native-asset transfers only;
   erc20 values are raw units (call /token-price for USD).
+- Solana coverage is exactly the three routes above — everything else says so
+  explicitly instead of answering on the wrong chain.
 - What is advertised is what runs: every route above is live on this
   instance.
 

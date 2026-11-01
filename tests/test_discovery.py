@@ -40,7 +40,8 @@ async def test_bazaar_root(client):
     assert body["payment"]["scheme"] == "x402"
     # MCP registry mirrors the live paid surface (rebuilt 2026-10-18)
     tools = body["mcp"]["tools"]
-    assert len(tools) == 16
+    # 15 data/aggregate + market-snapshot + whale-alert webhook (2026-10-31)
+    assert len(tools) == 18
     tool_names = {t["name"] for t in tools}
     assert "cortex_token_balances" in tool_names
     assert "cortex_token_intel" in tool_names

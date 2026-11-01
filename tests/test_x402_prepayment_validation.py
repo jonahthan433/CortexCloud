@@ -50,11 +50,33 @@ async def test_malformed_address_returns_422_not_402(client):
 
 @pytest.mark.asyncio
 async def test_unsupported_chain_returns_400_not_402(client):
-    r = await client.post("/v1/data/token-balances", json={"address": ADDR, "chain": "solana"})
+    # Solana is a real chain now, so use a chain nobody serves.
+    r = await client.post("/v1/data/token-balances", json={"address": ADDR, "chain": "dogechain"})
     assert r.status_code == 400, r.text
     body = r.json()
     assert body.get("error") == "bad_request"
     assert any("unsupported chain" in str(e.get("msg", "")) for e in body.get("detail", []))
+
+
+@pytest.mark.asyncio
+async def test_solana_on_non_helius_route_returns_structured_400(client):
+    # Solana is supported only on token-balances/tx-history/token-price. Every
+    # other route refuses BEFORE settlement with the structured error shape.
+    r = await client.post("/v1/data/token-risk", json={"contract": USDC, "chain": "solana"})
+    assert r.status_code == 400, r.text
+    body = r.json()
+    assert body.get("error") == "chain_not_supported"
+    assert body.get("chain") == "solana"
+    assert body.get("solana_supported_endpoints") == [
+        "/v1/data/token-balances", "/v1/data/tx-history", "/v1/data/token-price"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_solana_wrong_address_format_returns_422(client):
+    # chain=solana requires a base58 key; a 0x address is a clean 422 (no 402).
+    r = await client.post("/v1/data/token-balances", json={"address": ADDR, "chain": "solana"})
+    assert r.status_code == 422, r.text
 
 
 @pytest.mark.asyncio

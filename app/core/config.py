@@ -88,6 +88,10 @@ class Settings(BaseSettings):
     JINA_API_KEY: Optional[str] = Field(default=None, env="JINA_API_KEY")
     ALCHEMY_API_KEY: Optional[str] = Field(default=None, env="ALCHEMY_API_KEY")
     COINGECKO_API_KEY: Optional[str] = Field(default=None, env="COINGECKO_API_KEY")
+    # Solana reads (token-balances / tx-history / token-price). Unset => those
+    # chain=solana calls return a structured provider_unconfigured error, and
+    # every other Solana request is chain_not_supported regardless.
+    HELIUS_API_KEY: Optional[str] = Field(default=None, env="HELIUS_API_KEY")
     OPENROUTER_API_KEY: Optional[str] = Field(default=None, env="OPENROUTER_API_KEY")
 
     GEMINI_API_KEY: Optional[str] = Field(default=None, env="GEMINI_API_KEY")
@@ -123,6 +127,14 @@ class Settings(BaseSettings):
     # settlement for private deployments (set X402_ENABLED=false alongside).
     PRIVATE_API_KEY: Optional[str] = Field(default=None, env="PRIVATE_API_KEY")
     AUTOMATION_WEBHOOK_SECRET: Optional[str] = Field(default=None, env="AUTOMATION_WEBHOOK_SECRET")
+    # Whale-alert webhook delivery (app/api/webhooks.py). Registrations live in
+    # a JSON store on disk; the worker polls whale-alerts and delivers new
+    # alerts. Delivery is metered at $0.02 per alert on the registration.
+    WEBHOOKS_ENABLED: bool = Field(default=True, env="WEBHOOKS_ENABLED")
+    WEBHOOK_STORE_PATH: str = Field(default="webhooks-store.json", env="WEBHOOK_STORE_PATH")
+    WEBHOOK_DELIVERY_INTERVAL_S: int = Field(default=60, ge=15, le=3600, env="WEBHOOK_DELIVERY_INTERVAL_S")
+    WEBHOOK_DELIVERY_PRICE_USD: float = Field(default=0.02, env="WEBHOOK_DELIVERY_PRICE_USD")
+    WEBHOOK_MAX_SUBSCRIPTIONS: int = Field(default=200, ge=1, le=10_000, env="WEBHOOK_MAX_SUBSCRIPTIONS")
     # Signs execution receipts (HMAC-SHA256) attached to final job payloads.
     # Optional: unset => receipts emit signed:false (hash-verifiable only).
     RECEIPT_SIGNING_KEY: Optional[str] = Field(default=None, env="RECEIPT_SIGNING_KEY")

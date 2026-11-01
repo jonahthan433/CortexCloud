@@ -23,7 +23,8 @@ def test_public_product_routes_are_data_only():
     for r in PUBLIC_PRODUCT_ROUTES:
         assert r in ROUTE_PRICING
     pr = public_routes()
-    assert all(k.startswith(("POST /v1/data/", "GET /v1/data/", "POST /v1/aggregate/")) for k in pr)
+    assert all(k.startswith(("POST /v1/data/", "GET /v1/data/", "POST /v1/aggregate/"))
+               or k == "POST /v1/webhooks/whale-alerts" for k in pr)
 
 
 def test_token_intel_priced():

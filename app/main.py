@@ -28,8 +28,20 @@ SITE_DIR = "/opt/CortexCloudAPI/site"
 async def lifespan(app: FastAPI):
     setup_logging()
     logger.info("Initializing CortexCloud On-Chain Data API...")
+    # Whale-alert webhook delivery worker (polls + POSTs signed alerts).
+    # Self-disables when WEBHOOKS_ENABLED or DATA_ENABLED is false.
+    try:
+        from app.api.webhooks import start_delivery_worker
+        start_delivery_worker()
+    except Exception as _e:  # noqa: BLE001
+        logger.warning(f"webhook delivery worker failed to start: {_e}")
     yield
     logger.info("Shutting down CortexCloud On-Chain Data API...")
+    try:
+        from app.api.webhooks import stop_delivery_worker
+        await stop_delivery_worker()
+    except Exception as _e:  # noqa: BLE001
+        logger.warning(f"webhook worker shutdown failed: {_e}")
     try:
         from app.middleware.x402 import close_mpp
         await close_mpp()
@@ -97,6 +109,10 @@ def create_app(override_openapi: bool = True) -> FastAPI:
     application.include_router(data_router, tags=["Data"])
     from app.api.aggregate import router as aggregate_router
     application.include_router(aggregate_router, tags=["Aggregation"])
+    # Whale-alert webhooks: registration is x402-paid; listing/unregistering
+    # are free. Delivery is a metered background worker (see app/api/webhooks).
+    from app.api.webhooks import router as webhooks_router
+    application.include_router(webhooks_router)
 
     application.include_router(discovery_router, tags=["Discovery"])
     application.include_router(bazaar_router, tags=["Bazaar / MCP"])

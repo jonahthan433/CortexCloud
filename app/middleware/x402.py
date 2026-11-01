@@ -91,6 +91,12 @@ def _validate_data_query(path: str, params) -> JSONResponse | None:
     a clean 400, never "pay then discover it's invalid" (H3). Mirrors the
     route handlers' own checks (app/api/data.py `_network` + block tags)."""
     chain = params.get("chain")
+    # Solana on the two GET routes: same structured error the route returns,
+    # raised before settlement (nothing is charged for an unsupported chain).
+    if chain:
+        _sol_err = _chain_not_supported_response(path, {"chain": chain})
+        if _sol_err is not None:
+            return _sol_err
     if chain and str(chain).lower() not in DATA_CHAINS:
         return JSONResponse(
             status_code=400,
@@ -456,7 +462,7 @@ OUTPUT_EXAMPLES.update({'/v1/data/token-price': {'id': 'ethereum',
                            'note': 'USD floor applied to native-asset transfers only; erc20 values are raw '
                                    '(call /token-price for USD). ponytail: no price oracle wired.',
                            'cache_hit': False,
-                           'price_usd': 0.03,
+                           'price_usd': 0.05,
                            'currency': 'USDC',
                            'alerts': [{'direction': 'out',
                                        'hash': '0xfca2ff3d5910e8a2557e21b52646bf0319f7df1b050a55320b62790efc4797bb',
@@ -588,6 +594,86 @@ OUTPUT_EXAMPLES.update({'/v1/data/token-price': {'id': 'ethereum',
                                                 'metadata': {'blockTimestamp': '2015-10-01T18:34:11.000Z'},
                                                 '_from_address': '0xd8da6bf26964af9d7eed9e03e53415d37aa96045'}]}})
 
+# Composed and side-effect routes (2026-10-31). The snapshot example is the
+# three real captures above merged under one $0.070 stamp — the bundle settles
+# once, so the sub-routes' own price/cost stamps are stripped. The webhook
+# example is the registration response; the management token is shown once and
+# only its hash is persisted. Replace with live captures after the first public
+# paid call on each route.
+OUTPUT_EXAMPLES.update({
+    '/v1/data/market-snapshot': {
+        'contract': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+        'chain': 'ethereum',
+        'address': '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
+        'token': {
+            'contract': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+            'chain': 'ethereum',
+            'verdict': 'low',
+            'risk_flags': [],
+            'facts': {
+                'contract_deployed': {'value': True, 'source': 'alchemy eth_getCode', 'checked_at': '2026-10-31T19:56:00+00:00'},
+                'symbol': {'value': 'USDC', 'source': 'alchemy alchemy_getTokenMetadata', 'checked_at': '2026-10-31T19:56:00+00:00'},
+                'price_usd': {'value': 1.0001, 'source': 'coingecko /simple/token_price/ethereum', 'checked_at': '2026-10-31T19:56:00+00:00'},
+                'age_days': {'value': 2000, 'source': 'coingecko /coins/usd-coin', 'checked_at': '2026-10-31T19:56:00+00:00'},
+                'liquidity_usd_24h': {'value': 5000000000, 'source': 'coingecko /coins/usd-coin', 'checked_at': '2026-10-31T19:56:00+00:00'},
+                'recent_transfer_count': {'value': 25, 'source': 'alchemy alchemy_getAssetTransfers', 'checked_at': '2026-10-31T19:56:00+00:00'},
+                'latest_transfer': {'value': {'hash': '0x...', 'block_num': '0x18eca09', 'value': 100.0, 'from': '0x...', 'to': '0x...', 'timestamp': '2026-10-31T19:55:00Z'}, 'source': 'alchemy alchemy_getAssetTransfers', 'checked_at': '2026-10-31T19:56:00+00:00'},
+            },
+        },
+        'whale_activity': {
+            'watched_address': '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
+            'chain': 'ethereum',
+            'min_usd': 100000.0,
+            'alerts_count': 2,
+            'note': 'USD floor applied to native-asset transfers only; erc20 values are raw (call /token-price for USD).',
+            'cache_hit': False,
+            'alerts': [
+                {'direction': 'out', 'hash': '0x...', 'block_num': '0x18eca09', 'asset': 'ETH',
+                 'category': 'external', 'value': 250.0, 'value_usd_est': 250.0,
+                 'from': '0xd8da6bf26964af9d7eed9e03e53415d37aa96045', 'to': '0x...',
+                 'block_timestamp': '2026-10-31T19:54:00Z', 'usd_estimated': True},
+            ],
+        },
+        'risk': {
+            'contract': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+            'chain': 'ethereum',
+            'verdict': 'low',
+            'risk_flags': [],
+            'cache_hit': False,
+            'evidence': [
+                {'check': 'contract_exists', 'source': 'alchemy eth_getCode', 'result': True},
+                {'check': 'token_metadata', 'source': 'alchemy alchemy_getTokenMetadata', 'symbol': 'USDC', 'name': 'USDC', 'decimals': 6},
+                {'check': 'age_liquidity', 'source': 'coingecko /coins/usd-coin', 'genesis_date': None, 'age_days': None, 'total_volume_usd_24h': 12737136578, 'market_cap_usd': 72074606956},
+            ],
+        },
+        'snapshot_at': '2026-10-31T19:56:00+00:00',
+        'partial': False,
+        'sections': {'requested': 3, 'ok': 3, 'failed': 0},
+        'cache_hit': False,
+        'price_usd': 0.07,
+        'provider_cost_usd': 0.000135,
+        'margin_usd': 0.069865,
+        'currency': 'USDC',
+    },
+    '/v1/webhooks/whale-alerts': {
+        'id': '3f5c2e6a-9a0b-4c8d-9e7f-1a2b3c4d5e6f',
+        'url': 'https://example.com/hooks/whales',
+        'address': '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
+        'chain': 'ethereum',
+        'min_usd': 100000.0,
+        'limit': 50,
+        'active': True,
+        'signed': True,
+        'deliveries': 0,
+        'amount_due_usd': 0.0,
+        'delivery_price_usd': 0.02,
+        'price_usd': 0.1,
+        'currency': 'USDC',
+        'management_token': 'ccwh_... (returned once; only a hash is stored)',
+        'list': '/v1/webhooks/whale-alerts?owner=0x...',
+    },
+})
+
 # Per-route request schemas for the 402 challenge bazaar extension + the
 # money-path validation guard. Each must satisfy its own example (x402scan
 # hard-errors SCHEMA_INPUT_MISSING / example-must-satisfy-schema).
@@ -679,6 +765,8 @@ INPUT_EXAMPLES = {
     "/v1/data/wallet-intel": {"address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", "chain": "ethereum", "limit": 25},
     "/v1/data/whale-alerts": {"address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", "chain": "ethereum", "min_usd": 100000, "limit": 50},
     "/v1/data/cross-chain-compare": {"contract": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "chains": ["ethereum", "base", "arbitrum"]},
+    "/v1/data/market-snapshot": {"contract": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "chain": "ethereum", "coin_id": "usd-coin"},
+    "/v1/webhooks/whale-alerts": {"url": "https://example.com/hooks/whales", "address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", "chain": "ethereum", "min_usd": 100000},
     "/v1/aggregate/balances": {"addresses": ["0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"], "chain": "ethereum"},
     "/v1/aggregate/nfts": {"addresses": ["0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"], "chain": "ethereum"},
     "/v1/aggregate/prices": {"ids": ["ethereum", "usd-coin"]},
@@ -760,6 +848,32 @@ INPUT_SCHEMAS = {
             "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 50},
         },
     },
+    "/v1/data/market-snapshot": {
+        "type": "object",
+        "properties": {
+            "contract": {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$"},
+            "chain": {"type": "string", "default": "ethereum"},
+            "address": {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$",
+                        "description": "Wallet for whale activity; defaults to the contract."},
+            "coin_id": {"type": "string", "description": "Optional CoinGecko coin id for market context."},
+            "min_usd": {"type": "number", "default": 100000},
+            "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 50},
+        },
+        "required": ["contract"],
+    },
+    "/v1/webhooks/whale-alerts": {
+        "type": "object",
+        "properties": {
+            "url": {"type": "string", "description": "HTTPS endpoint that receives alert deliveries (public host, no credentials)."},
+            "secret": {"type": "string", "minLength": 8, "maxLength": 256,
+                       "description": "Optional HMAC-SHA256 signing secret for deliveries."},
+            "address": {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$"},
+            "chain": {"type": "string", "default": "ethereum"},
+            "min_usd": {"type": "number", "default": 100000},
+            "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 50},
+        },
+        "required": ["url", "address"],
+    },
     "/v1/data/cross-chain-compare": {
         "type": "object",
         "properties": {
@@ -815,6 +929,32 @@ INPUT_SCHEMAS = {
 }
 
 
+def _chain_not_supported_response(path: str, data):
+    """Solana is wired to HELIUS_ENDPOINTS only. Reject anything else BEFORE
+    settlement with the same structured error the route body returns, so no
+    buyer ever pays for a 400."""
+    if not isinstance(data, dict):
+        return None
+    from app.x402.pricing import HELIUS_ENDPOINTS, is_solana
+
+    chain = data.get("chain")
+    if chain is None or not is_solana(chain):
+        return None
+    if path in {f"/v1/data/{e}" for e in HELIUS_ENDPOINTS}:
+        return None
+    return JSONResponse(
+        status_code=400,
+        content={
+            "error": "chain_not_supported",
+            "chain": str(chain),
+            "endpoint": path,
+            "detail": "Solana is not implemented for this endpoint; it is supported on: "
+                      + ", ".join(f"/v1/data/{e}" for e in HELIUS_ENDPOINTS),
+            "solana_supported_endpoints": [f"/v1/data/{e}" for e in HELIUS_ENDPOINTS],
+        },
+    )
+
+
 def _validate_data_body(path: str, data) -> list | None:
     """Money-path guard for Data POST routes. Rejects malformed bodies BEFORE
     settlement. Mirrors app.api.data pydantic validators (address format,
@@ -822,7 +962,19 @@ def _validate_data_body(path: str, data) -> list | None:
     import re
 
     _HEX = re.compile(r"^0x[0-9a-fA-F]{40}$")
-    from app.x402.pricing import DATA_CHAINS  # chain enum (mirrors the route validator)
+    _B58 = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
+    from app.x402.pricing import ALL_DATA_CHAINS, is_solana
+
+    sol = isinstance(data, dict) and is_solana(data.get("chain"))
+    # Fix: EVM default chain means an address check is EVM unless the caller
+    # explicitly asked for Solana on a Helius-backed route.
+    _addr_msg = ("address must be a base58 Solana public key when chain=solana"
+                 if sol else "address must be a 0x-prefixed 40-hex EVM address")
+    _contract_msg = ("contract must be a base58 Solana mint address when chain=solana"
+                     if sol else "contract must be a 0x-prefixed 40-hex address")
+
+    def _addr_ok(v) -> bool:
+        return bool(_B58.match(str(v))) if sol else bool(_HEX.match(str(v)))
 
     def err(loc, msg):
         return [{"loc": loc, "msg": msg, "type": "value_error", "input": None}]
@@ -831,14 +983,14 @@ def _validate_data_body(path: str, data) -> list | None:
         return err(["body"], "Request body must be a JSON object")
     if path == "/v1/data/token-balances":
         addr = data.get("address")
-        if not addr or not _HEX.match(str(addr)):
-            return err(["body", "address"], "address must be a 0x-prefixed 40-hex EVM address")
+        if not addr or not _addr_ok(addr):
+            return err(["body", "address"], _addr_msg)
         toks = data.get("tokens")
         if toks is not None:
             if not isinstance(toks, list):
                 return err(["body", "tokens"], "tokens must be a list of contract addresses")
             for t in toks:
-                if not _HEX.match(str(t)):
+                if not _addr_ok(t):
                     return err(["body", "tokens"], f"invalid token contract: {t}")
         mt = data.get("max_tokens")
         if mt is not None and (not isinstance(mt, int) or mt < 1 or mt > 200):
@@ -846,9 +998,9 @@ def _validate_data_body(path: str, data) -> list | None:
     elif path == "/v1/data/token-price":
         if not data.get("id") and not data.get("contract"):
             return err(["body"], "provide 'id' or 'contract'")
-        if data.get("contract") and not _HEX.match(str(data["contract"])):
-            return err(["body", "contract"], "contract must be a 0x-prefixed 40-hex address")
-        if data.get("chain") is not None and str(data["chain"]).lower() not in DATA_CHAINS:
+        if data.get("contract") and not _addr_ok(data["contract"]):
+            return err(["body", "contract"], _contract_msg)
+        if data.get("chain") is not None and str(data["chain"]).lower() not in ALL_DATA_CHAINS:
             return err(["body", "chain"], f"unsupported chain: {data['chain']}")
     elif path == "/v1/data/nft-ownership":
         addr = data.get("address")
@@ -859,8 +1011,8 @@ def _validate_data_body(path: str, data) -> list | None:
             return err(["body", "page_size"], "page_size must be 1..100")
     elif path == "/v1/data/tx-history":
         addr = data.get("address")
-        if not addr or not _HEX.match(str(addr)):
-            return err(["body", "address"], "address must be a 0x-prefixed 40-hex EVM address")
+        if not addr or not _addr_ok(addr):
+            return err(["body", "address"], _addr_msg)
         lim = data.get("limit")
         if lim is not None and (not isinstance(lim, int) or lim < 1 or lim > 100):
             return err(["body", "limit"], "limit must be 1..100")
@@ -889,6 +1041,35 @@ def _validate_data_body(path: str, data) -> list | None:
         lim = data.get("limit")
         if lim is not None and (not isinstance(lim, int) or lim < 1 or lim > 100):
             return err(["body", "limit"], "limit must be 1..100")
+    elif path == "/v1/data/market-snapshot":
+        c = data.get("contract")
+        if not c or not _HEX.match(str(c)):
+            return err(["body", "contract"], "contract must be a 0x-prefixed 40-hex address")
+        addr = data.get("address")
+        if addr and not _HEX.match(str(addr)):
+            return err(["body", "address"], "address must be a 0x-prefixed 40-hex address")
+        mu = data.get("min_usd")
+        if mu is not None and (not isinstance(mu, (int, float)) or mu < 0):
+            return err(["body", "min_usd"], "min_usd must be a non-negative number")
+        lim = data.get("limit")
+        if lim is not None and (not isinstance(lim, int) or lim < 1 or lim > 100):
+            return err(["body", "limit"], "limit must be 1..100")
+    elif path == "/v1/webhooks/whale-alerts":
+        url = data.get("url")
+        if not isinstance(url, str) or not url.lower().startswith("https://"):
+            return err(["body", "url"], "url must be an https:// endpoint")
+        secret = data.get("secret")
+        if secret is not None and (not isinstance(secret, str) or not 8 <= len(secret) <= 256):
+            return err(["body", "secret"], "secret must be a string of 8..256 characters")
+        addr = data.get("address")
+        if not addr or not _HEX.match(str(addr)):
+            return err(["body", "address"], "address must be a 0x-prefixed 40-hex EVM address")
+        mu = data.get("min_usd")
+        if mu is not None and (not isinstance(mu, (int, float)) or mu < 0):
+            return err(["body", "min_usd"], "min_usd must be a non-negative number")
+        lim = data.get("limit")
+        if lim is not None and (not isinstance(lim, int) or lim < 1 or lim > 100):
+            return err(["body", "limit"], "limit must be 1..100")
     elif path == "/v1/data/cross-chain-compare":
         c = data.get("contract")
         if not c or not _HEX.match(str(c)):
@@ -897,12 +1078,14 @@ def _validate_data_body(path: str, data) -> list | None:
         if chains is not None and (not isinstance(chains, list) or len(chains) < 1 or len(chains) > 5):
             return err(["body", "chains"], "chains must be a list of 1..5 chain names")
         if chains is not None:
+            # cross-chain-compare is EVM-only: Solana is never a comparable
+            # chain here, so reject the list before billing.
             bad = [ch for ch in chains if str(ch).lower() not in DATA_CHAINS]
             if bad:
                 return err(["body", "chains"], f"unsupported chains: {bad}")
     # Chain enum check for every data route that accepts a chain (address routes).
     if path != "/v1/data/cross-chain-compare" and data.get("chain") is not None:
-        if str(data["chain"]).lower() not in DATA_CHAINS:
+        if str(data["chain"]).lower() not in ALL_DATA_CHAINS:
             return err(["body", "chain"], f"unsupported chain: {data['chain']}")
     return None
 
@@ -951,8 +1134,20 @@ class X402Middleware(BaseHTTPMiddleware):
         method = request.method
         path = request.url.path
 
+        # Free method on a paid path: the owner-scoped whale-alert webhook
+        # LIST. A parameterless GET still gets the 402 challenge so discovery
+        # (and x402scan probes) see the paid resource it advertises.
+        if method == "GET" and path == "/v1/webhooks/whale-alerts" and request.query_params.get("owner"):
+            return await call_next(request)
+
         # Path-only lookup: any method on a paid path gets the paywall.
         price_str = _PATH_PRICING.get(path)
+        if price_str is None and method == "GET" and path == "/v1/webhooks/whale-alerts":
+            # Discovery probe surface: a parameterless GET advertises the paid
+            # registration resource ($0.10). Paying it is refused pre-settle by
+            # the money-path guard (a GET carries no registration body), so no
+            # client is ever charged for a list it did not buy.
+            price_str = ROUTE_PRICING["POST /v1/webhooks/whale-alerts"]
         if price_str is None or price_str == "$0.00":
             return await call_next(request)
 
@@ -1038,6 +1233,9 @@ class X402Middleware(BaseHTTPMiddleware):
                     _calls = 3
                 elif _ep == "cross-chain-compare" and isinstance(data, dict) and isinstance(data.get("chains"), list):
                     _calls = max(1, len(data["chains"])) * 2
+                elif _ep == "market-snapshot":
+                    # token-intel (5) + whale-alerts (3) + token-risk (4)
+                    _calls = 12
                 price_str = f"${data_price_usd(_ep, _calls):.6f}"
                 request.state.provider_cost_usd = round(data_provider_cost_usd(_ep, _calls), 6)
                 request.state.category = "data"
@@ -1059,7 +1257,9 @@ class X402Middleware(BaseHTTPMiddleware):
         _ai_paths = {"/v1/ai/chat", "/v1/ai/embed", "/v1/ai/transcribe"}
         _data_paths = {"/v1/data/token-balances", "/v1/data/token-price", "/v1/data/nft-ownership", "/v1/data/tx-history",
                        "/v1/data/token-risk", "/v1/data/wallet-intel", "/v1/data/whale-alerts",
-                       "/v1/data/cross-chain-compare", "/v1/data/token-intel"}
+                       "/v1/data/cross-chain-compare", "/v1/data/token-intel",
+                       "/v1/data/market-snapshot",
+                       "/v1/webhooks/whale-alerts"}
         # GET data routes: query params are the body — validate BEFORE any
         # challenge/settlement (H3: no pay-then-400 on an invalid chain/block).
         if path in ("/v1/data/block", "/v1/data/gas-oracle"):
@@ -1078,6 +1278,9 @@ class X402Middleware(BaseHTTPMiddleware):
             # and rejects the payment if it gets 422 instead of 402. A real
             # customer with an invalid body still never pays: the paid branch
             # below re-validates before settlement.
+            _chain_err = _chain_not_supported_response(path, data)
+            if _chain_err is not None:
+                return _chain_err
             if isinstance(data, dict) and data:
                 _derr = _validate_data_body(path, data)
             else:
@@ -1091,6 +1294,9 @@ class X402Middleware(BaseHTTPMiddleware):
         # Re-validate on the paid pass before the settle branch (same guard,
         # no double-charge).
         if path in _data_paths and (payment_signature or (mpp and authorization)):
+            _chain_err = _chain_not_supported_response(path, data)
+            if _chain_err is not None:
+                return _chain_err
             _derr = _validate_data_body(path, data)
             if _derr:
                 return JSONResponse(status_code=422, content={"detail": _derr})
