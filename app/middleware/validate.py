@@ -83,6 +83,11 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
         if ct == "application/x-www-form-urlencoded" or ct.startswith("multipart/form-data"):
             return await call_next(request)
         if ct != "application/json":
+            # Bodyless DELETE (unregister a webhook) has no JSON to validate;
+            # requiring a content-type there would break a free call.
+            cl = request.headers.get("content-length")
+            if request.method == "DELETE" and (not cl or cl == "0"):
+                return await call_next(request)
             audit("rejected", kind="bad_content_type", ip=ip, path=request.url.path)
             return JSONResponse(status_code=415, content={"detail": "Content-Type must be application/json"})
 
