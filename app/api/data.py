@@ -1093,7 +1093,7 @@ async def whale_alert_payload(req: WhaleAlertRequest, network: str) -> dict:
     return {"watched_address": a or None, "chain": req.chain, "min_usd": req.min_usd,
             "alerts": large, "alerts_count": len(large),
             "note": "USD floor applied to native-asset transfers only; erc20 values are raw "
-                    "(call /token-price for USD). ponytail: no price oracle wired.",
+                    "(call /token-price for USD).",
             "cache_hit": False}
 
 
