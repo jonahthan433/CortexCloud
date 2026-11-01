@@ -20,6 +20,9 @@ def _enable(monkeypatch):
     from app.core.config import settings
     monkeypatch.setattr(settings, "DATA_ENABLED", True, raising=False)
     monkeypatch.setattr(settings, "X402_ENABLED", False, raising=False)
+    # The route gates on provider config before it fans out; stubs never call
+    # the providers, so a placeholder key is enough.
+    monkeypatch.setattr(settings, "ALCHEMY_API_KEY", "test-key", raising=False)
     # A snapshot result is cached for 20s; isolate tests from each other.
     from app.api import data as d
     for cache in d._CACHES.values():

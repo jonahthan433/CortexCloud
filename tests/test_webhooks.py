@@ -403,6 +403,8 @@ async def test_paywall_prices_registration_and_keeps_list_free(client, monkeypat
     # The autouse fixture disables x402 for route-level tests; this one is
     # about the paywall decision itself.
     monkeypatch.setattr(settings, "X402_ENABLED", True, raising=False)
+    # A challenge needs a recipient; the test env has no .env, so pin ours.
+    monkeypatch.setattr(settings, "WALLET_ADDRESS", OWNER, raising=False)
 
     # Parameterless GET advertises the paid resource; with ?owner= it is free.
     r = await client.get("/v1/webhooks/whale-alerts")
