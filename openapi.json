@@ -4,7 +4,7 @@
     "title": "CortexCloud On-Chain Data API",
     "description": "Pay-per-call on-chain data and intelligence for AI agents: token, wallet, risk, whale, balance, NFT, transaction and cross-chain reads. Evidence-backed JSON, settled in USDC on Base via x402. No API keys, no signup.",
     "version": "2.0.0",
-    "x-guidance": "CortexCloud \u2014 pay-per-call on-chain data for AI agents. Every paid route is POST/GET under /v1/data or /v1/aggregate and returns HTTP 402 with an x402 PaymentRequirements challenge (USDC on Base, eip155:8453) when no payment is attached. Sign the challenge (EIP-3009, gasless) and resend with the payment-signature header; the data comes back in the same response. GET /v1/capabilities lists every route and price for free. Discovery: /.well-known/x402.json, /.well-known/bazaar, /llms.txt, /openapi.json, and the MCP server at /mcp. No API keys, no subscriptions.",
+    "x-guidance": "CortexCloud — pay-per-call on-chain data for AI agents. Every paid route is POST/GET under /v1/data or /v1/aggregate and returns HTTP 402 with an x402 PaymentRequirements challenge (USDC on Base, eip155:8453) when no payment is attached. Sign the challenge (EIP-3009, gasless) and resend with the payment-signature header; the data comes back in the same response. GET /v1/capabilities lists every route and price for free. Discovery: /.well-known/x402.json, /.well-known/bazaar, /llms.txt, /openapi.json, and the MCP server at /mcp. No API keys, no subscriptions.",
     "x-apisguru-categories": [
       "blockchain"
     ],
@@ -97,7 +97,7 @@
             }
           },
           "402": {
-            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -169,7 +169,7 @@
             }
           },
           "402": {
-            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -241,7 +241,7 @@
             }
           },
           "402": {
-            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -313,7 +313,7 @@
             }
           },
           "402": {
-            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -387,7 +387,7 @@
             }
           },
           "402": {
-            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -471,7 +471,7 @@
             }
           },
           "402": {
-            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -544,7 +544,7 @@
             }
           },
           "402": {
-            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -585,7 +585,7 @@
           "data"
         ],
         "summary": "Wallet Intel",
-        "description": "Wallet profile: balances + holdings + recent activity + counterparties.\nIndexed data only (Alchemy) \u2014 no speculative enrichment.",
+        "description": "Wallet profile: balances + holdings + recent activity + counterparties.\nIndexed data only (Alchemy) — no speculative enrichment.",
         "operationId": "wallet_intel_v1_data_wallet_intel_post",
         "requestBody": {
           "content": {
@@ -617,7 +617,7 @@
             }
           },
           "402": {
-            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -690,7 +690,7 @@
             }
           },
           "402": {
-            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -702,7 +702,7 @@
           "price": {
             "mode": "fixed",
             "currency": "USD",
-            "amount": "0.030000"
+            "amount": "0.050000"
           },
           "protocols": [
             {
@@ -719,7 +719,7 @@
           "scheme": "x402",
           "network": "eip155:8453",
           "asset": "USDC",
-          "price_atomic_usdc": "30000",
+          "price_atomic_usdc": "50000",
           "decimals": 6
         }
       }
@@ -763,7 +763,7 @@
             }
           },
           "402": {
-            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -835,7 +835,7 @@
             }
           },
           "402": {
-            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -865,6 +865,78 @@
           "network": "eip155:8453",
           "asset": "USDC",
           "price_atomic_usdc": "30000",
+          "decimals": 6
+        }
+      }
+    },
+    "/v1/data/market-snapshot": {
+      "post": {
+        "tags": [
+          "Data",
+          "data"
+        ],
+        "summary": "Market Snapshot",
+        "operationId": "market_snapshot_v1_data_market_snapshot_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarketSnapshotRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required — x402 PaymentRequirements challenge"
+          }
+        },
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.070000"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            },
+            {
+              "mpp": {
+                "method": "tempo",
+                "intent": "charge",
+                "currency": "0x20C000000000000000000000b9537d11c60E8b50"
+              }
+            }
+          ],
+          "scheme": "x402",
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "price_atomic_usdc": "70000",
           "decimals": 6
         }
       }
@@ -907,7 +979,7 @@
             }
           },
           "402": {
-            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -979,7 +1051,7 @@
             }
           },
           "402": {
-            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -1051,7 +1123,7 @@
             }
           },
           "402": {
-            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -1123,7 +1195,7 @@
             }
           },
           "402": {
-            "description": "Payment Required \u2014 x402 PaymentRequirements challenge"
+            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -1157,6 +1229,181 @@
         }
       }
     },
+    "/v1/webhooks/whale-alerts": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Register Webhook",
+        "operationId": "register_webhook_v1_webhooks_whale_alerts_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhaleAlertWebhookRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required — x402 PaymentRequirements challenge"
+          }
+        },
+        "security": [
+          {
+            "x402": []
+          }
+        ],
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.100000"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            },
+            {
+              "mpp": {
+                "method": "tempo",
+                "intent": "charge",
+                "currency": "0x20C000000000000000000000b9537d11c60E8b50"
+              }
+            }
+          ],
+          "scheme": "x402",
+          "network": "eip155:8453",
+          "asset": "USDC",
+          "price_atomic_usdc": "100000",
+          "decimals": 6
+        }
+      },
+      "get": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "List Webhooks",
+        "description": "Free list, scoped to an owner (the x402 payer of the registration).\n\nWithout `owner=` the caller's settled payer is used; with neither, the\nrequest is refused rather than exposing every registration.",
+        "operationId": "list_webhooks_v1_webhooks_whale_alerts_get",
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Owner"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/v1/webhooks/whale-alerts/{sub_id}": {
+      "delete": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Unregister Webhook",
+        "operationId": "unregister_webhook_v1_webhooks_whale_alerts__sub_id__delete",
+        "parameters": [
+          {
+            "name": "sub_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sub Id"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
     "/.well-known/x402.json": {
       "get": {
         "tags": [
@@ -1185,7 +1432,7 @@
           "x402 Discovery"
         ],
         "summary": "Well Known X402 V1",
-        "description": "v1 discovery document (resource URL list) \u2014 the shape x402scan-mcp and\nother v1 discovery tools parse. The rich v2 manifest stays at x402.json.",
+        "description": "v1 discovery document (resource URL list) — the shape x402scan-mcp and\nother v1 discovery tools parse. The rich v2 manifest stays at x402.json.",
         "operationId": "well_known_x402_v1__well_known_x402_get",
         "responses": {
           "200": {
@@ -1481,17 +1728,76 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "MarketSnapshotRequest": {
+        "properties": {
+          "contract": {
+            "type": "string",
+            "title": "Contract",
+            "description": "ERC-20 contract address to snapshot."
+          },
+          "chain": {
+            "type": "string",
+            "title": "Chain",
+            "description": "EVM chain of the contract.",
+            "default": "ethereum"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address",
+            "description": "Wallet for whale activity; defaults to the contract."
+          },
+          "coin_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coin Id",
+            "description": "Optional CoinGecko coin id for market context."
+          },
+          "min_usd": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Min Usd",
+            "description": "USD floor for whale alerts.",
+            "default": 100000.0
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Transfers to scan per direction.",
+            "default": 50
+          }
+        },
+        "type": "object",
+        "required": [
+          "contract"
+        ],
+        "title": "MarketSnapshotRequest"
+      },
       "NFTOwnershipRequest": {
         "properties": {
           "address": {
             "type": "string",
             "title": "Address",
-            "description": "EVM address (0x-prefixed, 40 hex)."
+            "description": "EVM address (0x-prefixed, 40 hex) or base58 Solana public key."
           },
           "chain": {
             "type": "string",
             "title": "Chain",
-            "description": "ethereum|base|arbitrum|polygon|optimism or chain id.",
+            "description": "ethereum|base|arbitrum|polygon|optimism|solana or chain id.",
             "default": "ethereum"
           },
           "page_size": {
@@ -1514,12 +1820,12 @@
           "address": {
             "type": "string",
             "title": "Address",
-            "description": "EVM address (0x-prefixed, 40 hex)."
+            "description": "EVM address (0x-prefixed, 40 hex) or base58 Solana public key."
           },
           "chain": {
             "type": "string",
             "title": "Chain",
-            "description": "ethereum|base|arbitrum|polygon|optimism or chain id.",
+            "description": "ethereum|base|arbitrum|polygon|optimism|solana or chain id.",
             "default": "ethereum"
           },
           "tokens": {
@@ -1708,12 +2014,12 @@
           "address": {
             "type": "string",
             "title": "Address",
-            "description": "EVM address (0x-prefixed, 40 hex)."
+            "description": "EVM address (0x-prefixed, 40 hex) or base58 Solana public key."
           },
           "chain": {
             "type": "string",
             "title": "Chain",
-            "description": "ethereum|base|arbitrum|polygon|optimism or chain id.",
+            "description": "ethereum|base|arbitrum|polygon|optimism|solana or chain id.",
             "default": "ethereum"
           },
           "limit": {
@@ -1847,27 +2153,75 @@
         },
         "type": "object",
         "title": "WhaleAlertRequest"
-      }
-    },
-    "securitySchemes": {
-      "x402": {
-        "type": "http",
-        "scheme": "bearer",
-        "description": "x402 payment: obtain a 402 PaymentRequirements challenge, answer with a wallet authorization, pass it back in the X-PAYMENT signature header."
+      },
+      "WhaleAlertWebhookRequest": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "HTTPS endpoint that receives alert deliveries."
+          },
+          "secret": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256,
+                "minLength": 8
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secret",
+            "description": "Optional caller-supplied secret; enables HMAC-SHA256 signing."
+          },
+          "address": {
+            "type": "string",
+            "title": "Address",
+            "description": "EVM wallet to watch (from or to)."
+          },
+          "chain": {
+            "type": "string",
+            "title": "Chain",
+            "description": "EVM chain of the watched wallet.",
+            "default": "ethereum"
+          },
+          "min_usd": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Min Usd",
+            "description": "USD floor for 'large' transfers.",
+            "default": 100000.0
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Transfers to scan per direction.",
+            "default": 50
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "address"
+        ],
+        "title": "WhaleAlertWebhookRequest"
       }
     }
-  },
-  "servers": [
-    {
-      "url": "https://api.cortexcloud.org"
-    }
-  ],
-  "x-logo": {
-    "url": "https://api.cortexcloud.org/cortex-logo.png"
   },
   "x-agentcash-provenance": {
     "ownershipProofs": [
       "0x999f304e610da25711ff3977bcdf348e3d0eaf0e38ba65b39baab727d3e3efc045e54695f0e5b864bfaf28e35ea2201b8c17e6b5a4bfe017fd15266e7428721b1c"
     ]
-  }
+  },
+  "x-logo": {
+    "url": "https://api.cortexcloud.org/cortex-logo.png"
+  },
+  "servers": [
+    {
+      "url": "https://api.cortexcloud.org"
+    }
+  ]
 }
