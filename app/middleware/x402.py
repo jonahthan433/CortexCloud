@@ -1323,35 +1323,12 @@ class X402Middleware(BaseHTTPMiddleware):
                        "/v1/webhooks/whale-alerts"}
         # GET data routes: query params are the body — validate BEFORE any
         # challenge/settlement (H3: no pay-then-400 on an invalid chain/block).
-        if path in ("/v1/data/block", "/v1/data/gas-oracle"):
-            _q_err = _validate_data_query(path, request.query_params)
-            if _q_err:
-                return _q_err
-        # NOTE: on a payment-less probe the route must reach the 402 challenge —
-        # the facilitator replays the endpoint exactly this way (no payment
-        # header) and rejects the payment when it gets 422 first. So the
-        # money-path guard only runs when NO payment header is present; when
-        # one IS present the body was already validated on the challenge pass
-        # and re-validated below in the paid branch before settle.
-        if path in _data_paths and not payment_signature and not (mpp and authorization):
-            # Empty-body probes must reach the 402 challenge: the CDP
-            # facilitator replays the resource with no body during preflight
-            # and rejects the payment if it gets 422 instead of 402. A real
-            # customer with an invalid body still never pays: the paid branch
-            # below re-validates before settlement.
-            _chain_err = _chain_not_supported_response(path, data)
-            if _chain_err is not None:
-                return _chain_err
-            if isinstance(data, dict) and data:
-                _derr = _validate_data_body(path, data)
-            else:
-                _derr = None
-            if _derr:
-                _bad_chain = any(e.get("loc", [None])[-1] == "chain" or "chain" in str(e.get("loc")) for e in _derr)
-                return JSONResponse(
-                    status_code=400 if _bad_chain else 422,
-                    content={"error": "bad_request", "detail": _derr} if _bad_chain else {"detail": _derr},
-                )
+        # NOTE: an unauthenticated probe must ALWAYS reach the 402
+        # challenge, whatever the body/query says - AgentCash and x402scan
+        # replay the resource without a payment header and reject the
+        # payment when a validator answers 400/422 first. Nothing is lost
+        # by deferring: the paid branch below re-validates chain, block and
+        # body BEFORE settle, so an invalid request is still never charged.
         # Re-validate on the paid pass before the settle branch (same guard,
         # no double-charge).
         if path in _data_paths and (payment_signature or (mpp and authorization)):
