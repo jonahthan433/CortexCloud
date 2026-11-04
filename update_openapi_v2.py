@@ -52,7 +52,7 @@ spec["components"]["securitySchemes"]["x402"] = {
 }
 
 spec["info"].setdefault("contact", {})
-spec["info"]["contact"]["email"] = "team@cortexcloud.org"
+spec["info"]["contact"]["email"] = "jonathanbright@cortexcloud.org"
 
 
 def _usd_atomic(price_str: str) -> str:
