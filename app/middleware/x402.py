@@ -1321,14 +1321,19 @@ class X402Middleware(BaseHTTPMiddleware):
                        "/v1/data/cross-chain-compare", "/v1/data/token-intel",
                        "/v1/data/market-snapshot",
                        "/v1/webhooks/whale-alerts"}
-        # GET data routes: query params are the body — validate BEFORE any
-        # challenge/settlement (H3: no pay-then-400 on an invalid chain/block).
         # NOTE: an unauthenticated probe must ALWAYS reach the 402
         # challenge, whatever the body/query says - AgentCash and x402scan
         # replay the resource without a payment header and reject the
         # payment when a validator answers 400/422 first. Nothing is lost
         # by deferring: the paid branch below re-validates chain, block and
         # body BEFORE settle, so an invalid request is still never charged.
+        # GET data routes: query params are the body. Validate them before
+        # settle too (H3: no pay-then-400), but only when payment credentials
+        # are present - an unauthenticated probe must reach the 402 first.
+        if (payment_signature or (mpp and authorization)) and path in ("/v1/data/block", "/v1/data/gas-oracle"):
+            _q_err = _validate_data_query(path, request.query_params)
+            if _q_err:
+                return _q_err
         # Re-validate on the paid pass before the settle branch (same guard,
         # no double-charge).
         if path in _data_paths and (payment_signature or (mpp and authorization)):

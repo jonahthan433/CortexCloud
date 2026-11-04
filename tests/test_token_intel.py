@@ -95,17 +95,18 @@ async def test_token_intel_402_without_payment(client, monkeypatch):
 
 
 async def test_token_intel_money_guard_rejects_before_payment(client, monkeypatch):
-    """A malformed contract must 422 BEFORE any settlement (pay-then-fail is a
-    bug). Empty-body probes fall through to 402 because the CDP facilitator
-    replays the resource body-less during preflight and rejects payments when
-    it gets 422 instead of 402."""
+    """An UNPAID probe must reach the 402 challenge whatever the body says:
+    AgentCash / x402scan replay the resource without a payment header and
+    reject the listing when a validator answers 422 first. The pay-then-fail
+    guard still holds - the same body WITH a payment header is 422'd before
+    settlement (see test_token_intel_junk_sig_invalid_body_never_settles)."""
     monkeypatch.setattr("app.core.config.settings.DATA_ENABLED", True, raising=False)
     monkeypatch.setattr("app.core.config.settings.X402_ENABLED", True, raising=False)
     monkeypatch.setattr("app.core.config.settings.WALLET_ADDRESS", "0x" + "11" * 20, raising=False)
     r = await client.post("/v1/data/token-intel", json={"contract": "not-an-address"})
-    assert r.status_code == 422
+    assert r.status_code == 402, r.text
     r2 = await client.post("/v1/data/token-intel", json={})
-    assert r2.status_code == 402  # empty probe -> paywall answers (facilitator replay)
+    assert r2.status_code == 402
 
 
 async def test_token_intel_junk_sig_invalid_body_never_settles(client, monkeypatch):

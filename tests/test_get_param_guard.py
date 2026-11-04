@@ -1,9 +1,13 @@
-"""H3 regression: GET data routes (block, gas-oracle) must validate query
-params BEFORE any payment challenge or settlement.
+"""GET data routes: an unauthenticated probe must reach the 402 challenge.
 
-Before the fix the route-level 400 (bad chain) ran only after the CDP settle:
-the payer was charged for a request that could never succeed, with no refund
-path. Now an invalid chain/block is a clean 400 and no 402 is asked.
+This supersedes the earlier "bad chain/block is a clean 400 BEFORE the
+challenge" guard. AgentCash and x402scan replay a payable resource without a
+payment header and reject the listing when a validator answers 400/422 first,
+so query validation can no longer run ahead of the paywall.
+
+The H3 guarantee that guard protected (never charge for a request that cannot
+succeed) is unchanged: the paid pass validates chain + block BEFORE the settle
+branch, which the `*_with_credentials_*` tests below cover.
 
 Run: pytest tests/test_get_param_guard.py
 """
@@ -17,6 +21,8 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 from app.main import create_app
+
+JUNK_SIG = {"payment-signature": "junkjunk"}
 
 
 @pytest.fixture(autouse=True)
@@ -34,30 +40,63 @@ async def client():
         yield c
 
 
+# ---- unauthenticated probe: the paywall wins, whatever the query says -------
 @pytest.mark.asyncio
-async def test_block_bad_chain_is_400_not_402(client):
+async def test_block_bad_chain_reaches_paywall(client):
     r = await client.get("/v1/data/block", params={"chain": "bogus"})
-    assert r.status_code == 400, f"invalid chain must be a clean 400, got {r.status_code}: {r.text[:200]}"
-    assert r.json().get("error") == "bad_chain"
-    assert "x-payment-required" not in {k.lower() for k in r.headers}
+    assert r.status_code == 402, r.text
+    assert r.json()["x402Version"] == 2
+    assert "payment-required" in {k.lower() for k in r.headers}
 
 
 @pytest.mark.asyncio
-async def test_gas_oracle_bad_chain_is_400_not_402(client):
+async def test_gas_oracle_bad_chain_reaches_paywall(client):
     r = await client.get("/v1/data/gas-oracle", params={"chain": "bogus"})
-    assert r.status_code == 400, f"invalid chain must be a clean 400, got {r.status_code}"
+    assert r.status_code == 402, r.text
+
+
+@pytest.mark.asyncio
+async def test_block_bad_tag_reaches_paywall(client):
+    r = await client.get("/v1/data/block",
+                         params={"chain": "ethereum", "block": "not-a-block"})
+    assert r.status_code == 402, r.text
+
+
+# ---- credentials present: rejected BEFORE settle (H3, no charge) -----------
+@pytest.mark.asyncio
+async def test_block_bad_chain_with_credentials_is_400_not_charged(client):
+    r = await client.get("/v1/data/block", params={"chain": "bogus"}, headers=JUNK_SIG)
+    assert r.status_code == 400, r.text
     assert r.json().get("error") == "bad_chain"
 
 
 @pytest.mark.asyncio
-async def test_block_bad_tag_is_400_not_402(client):
-    r = await client.get("/v1/data/block", params={"chain": "ethereum", "block": "not-a-block"})
-    assert r.status_code == 400, f"invalid block tag must be a clean 400, got {r.status_code}"
+async def test_gas_oracle_bad_chain_with_credentials_is_400_not_charged(client):
+    r = await client.get("/v1/data/gas-oracle", params={"chain": "bogus"}, headers=JUNK_SIG)
+    assert r.status_code == 400, r.text
+    assert r.json().get("error") == "bad_chain"
+
+
+@pytest.mark.asyncio
+async def test_block_bad_tag_with_credentials_is_400_not_charged(client):
+    r = await client.get("/v1/data/block",
+                         params={"chain": "ethereum", "block": "not-a-block"},
+                         headers=JUNK_SIG)
+    assert r.status_code == 400, r.text
     assert r.json().get("error") == "bad_block"
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("chain", ["ethereum", "base", "8453", "arbitrum", "polygon", "optimism", "eth", "1"])
+async def test_solana_on_block_with_credentials_is_structured_400(client):
+    r = await client.get("/v1/data/block", params={"chain": "solana"}, headers=JUNK_SIG)
+    assert r.status_code == 400, r.text
+    assert r.json().get("error") == "chain_not_supported"
+
+
+# ---- valid requests still reach the paywall --------------------------------
+@pytest.mark.parametrize("chain", ["ethereum", "base", "8453", "arbitrum", "polygon",
+                                   "optimism", "eth", "1"])
+@pytest.mark.asyncio
 async def test_valid_chain_still_reaches_paywall(client, chain):
     r = await client.get("/v1/data/block", params={"chain": chain})
     assert r.status_code == 402, f"valid request must still be paywalled, got {r.status_code}"
@@ -66,12 +105,12 @@ async def test_valid_chain_still_reaches_paywall(client, chain):
 @pytest.mark.asyncio
 async def test_hex_block_tag_passes_guard(client):
     r = await client.get("/v1/data/block", params={"chain": "base", "block": "0x10d4f"})
-    assert r.status_code == 402, "valid hex block must pass the guard and reach the paywall"
+    assert r.status_code == 402
 
 
 @pytest.mark.asyncio
 async def test_latest_tag_passes_guard(client):
     r = await client.get("/v1/data/gas-oracle", params={"chain": "latest-land"})
-    assert r.status_code == 400  # sanity: unknown chain still 400
+    assert r.status_code == 402
     r2 = await client.get("/v1/data/block", params={"chain": "optimism", "block": "latest"})
     assert r2.status_code == 402
