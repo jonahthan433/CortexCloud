@@ -122,3 +122,6 @@ class Benchmark(Base):
     price_usd: Mapped[float | None] = mapped_column(Numeric(18, 10), nullable=True)
     margin_usd: Mapped[float | None] = mapped_column(Numeric(18, 10), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+# Wallet-linked prepaid subscriptions and weighted API credits.
+from app.models.subscription import WalletAPIKey, WalletCreditTransaction, WalletSubscription  # noqa: E402,F401
