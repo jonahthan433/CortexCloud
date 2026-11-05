@@ -1509,6 +1509,18 @@ class X402Middleware(BaseHTTPMiddleware):
                         .where(WalletSubscription.wallet_address == api_key.wallet_address)
                         .with_for_update()
                     )
+                    # Recheck after acquiring the wallet's subscription row lock.
+                    # Two concurrent requests can both pass the optimistic check
+                    # above; the second must see the first committed debit here.
+                    if idempotency_key:
+                        duplicate = await credit_db.execute(
+                            select(WalletCreditTransaction).where(
+                                WalletCreditTransaction.wallet_address == api_key.wallet_address,
+                                WalletCreditTransaction.idempotency_key == idempotency_key,
+                            )
+                        )
+                        if duplicate.scalar_one_or_none():
+                            return JSONResponse(status_code=409, content={"error": "idempotency_key_already_used"})
                     subscription = result.scalar_one_or_none()
                     now = datetime.now(timezone.utc)
                     if (subscription and subscription.status == "active"
