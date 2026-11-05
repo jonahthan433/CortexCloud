@@ -1581,7 +1581,11 @@ async def cross_chain_compare(req: CrossChainCompareRequest, request: Request):
                 "deployed": bool(asset.get("id") or info),
                 "price_usd": price,
                 "change_24h_usd": (price_info.get("24h_change") if price_source and price_source.startswith("helius") else None),
-                "recent_transfers": len(txs) if tx_status == 200 else None,
+                "recent_transfers": (
+                    sum(len(tx.get("tokenTransfers") or []) for tx in txs)
+                    if tx_status == 200 else None
+                ),
+                "recent_transactions": len(txs) if tx_status == 200 else None,
                 "latest_tx": (txs[0].get("signature") if txs else None),
                 "latest_block": (txs[0].get("slot") if txs else None),
                 "evidence": {
