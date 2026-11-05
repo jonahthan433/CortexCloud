@@ -21,7 +21,7 @@ from app.core.logging import setup_logging
 
 logger = logging.getLogger("cortexcloud.main")
 
-SITE_DIR = "/opt/CortexCloudAPI/site"
+SITE_DIR = os.environ.get("SITE_DIR", os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "site")))
 
 
 @asynccontextmanager
