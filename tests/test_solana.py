@@ -63,7 +63,7 @@ async def test_solana_without_key_is_503_provider_unconfigured(client, monkeypat
 # ---------------------------------------------------------------------------
 # token-balances (Helius getTokenAccountsByOwner)
 # ---------------------------------------------------------------------------
-async async def test_solana_token_balances_uses_helius(client, monkeypatch):
+async def test_solana_token_balances_uses_helius(client, monkeypatch):
     from app.core.config import settings
     from app.api.data import SOLANA_TOKEN_PROGRAM, SOLANA_TOKEN_2022_PROGRAM
     monkeypatch.setattr(settings, "HELIUS_API_KEY", "test-key", raising=False)
