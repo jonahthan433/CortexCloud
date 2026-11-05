@@ -71,7 +71,6 @@ async def billing_plans():
     }
 
 
-@router.post("/subscribe/{plan_id}")
 async def subscribe(plan_id: str, request: Request):
     plan = PLANS.get(plan_id)
     if not plan:
@@ -163,6 +162,21 @@ async def subscribe(plan_id: str, request: Request):
             "api_key_notice": "Save this key now. It is shown only once; only its hash is stored.",
             "renewal": "manual; no automatic wallet withdrawals",
         }
+
+
+@router.post("/subscribe/starter")
+async def subscribe_starter(request: Request):
+    return await subscribe("starter", request)
+
+
+@router.post("/subscribe/trading-pro")
+async def subscribe_trading_pro(request: Request):
+    return await subscribe("trading-pro", request)
+
+
+@router.post("/subscribe/agent-fleet")
+async def subscribe_agent_fleet(request: Request):
+    return await subscribe("agent-fleet", request)
 
 
 @router.get("/account")
