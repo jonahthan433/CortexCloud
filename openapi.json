@@ -2374,6 +2374,13 @@
         ],
         "title": "WhaleAlertWebhookRequest"
       }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "CortexCloud API key"
+      }
     }
   },
   "x-agentcash-provenance": {
