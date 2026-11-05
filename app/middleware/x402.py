@@ -1321,6 +1321,20 @@ class X402Middleware(BaseHTTPMiddleware):
                     _calls = 12
                 price_str = f"${data_price_usd(_ep, _calls):.6f}"
                 request.state.provider_cost_usd = round(data_provider_cost_usd(_ep, _calls), 6)
+            elif path.startswith("/v1/aggregate/"):
+                from app.x402.pricing import data_price_usd, data_provider_cost_usd
+                _route = path.rsplit("/", 1)[-1]
+                _mapping = {
+                    "balances": ("token-balances", "addresses"),
+                    "prices": ("token-price", "ids"),
+                    "nfts": ("nft-ownership", "addresses"),
+                    "tx-history": ("tx-history", "addresses"),
+                }
+                _endpoint, _list_key = _mapping.get(_route, ("token-balances", "addresses"))
+                _items = data.get(_list_key) if isinstance(data, dict) else None
+                _calls = max(1, len(_items)) if isinstance(_items, list) else 1
+                price_str = f"${data_price_usd(_endpoint, _calls):.6f}"
+                request.state.provider_cost_usd = round(data_provider_cost_usd(_endpoint, _calls), 6)
 
         required = usd_to_usdc_atomic(price_str)
 
