@@ -22,9 +22,11 @@ class CortexCloudError(RuntimeError):
 
 class CortexCloud:
     def __init__(self, base_url: str = DEFAULT_BASE, timeout: float = 30.0,
-                 private_key: Optional[str] = None):
-        self._c = httpx.Client(base_url=base_url, timeout=timeout)
+                 private_key: Optional[str] = None, api_key: Optional[str] = None):
+        headers = {"Authorization": f"Bearer {api_key}"} if api_key else None
+        self._c = httpx.Client(base_url=base_url, timeout=timeout, headers=headers)
         self.private_key = private_key
+        self.api_key = api_key
 
     # ── free endpoints ────────────────────────────────────────────
     def estimate(self, problem: dict) -> dict:
@@ -68,27 +70,84 @@ class CortexCloud:
         return r.json()
 
     # ── generic paid call (x402 v2) ──────────────────────────────
-    def pay(self, method: str, path: str, json: Optional[dict] = None) -> dict:
-        """Any paid endpoint: 402 challenge -> sign -> settle -> JSON. Needs private_key."""
-        if not self.private_key:
-            raise CortexCloudError(0, "private_key required for paid calls")
-        r = self._c.request(method, path, json=json)
+    def pay(self, method: str, path: str, json: Optional[dict] = None,
+            idempotency_key: Optional[str] = None) -> dict:
+        """Use subscription credits first; if exhausted, sign x402 with private_key."""
+        if not self.private_key and not self.api_key:
+            raise CortexCloudError(0, "api_key or private_key required for paid calls")
+        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else {}
+        r = self._c.request(method, path, json=json, headers=headers)
         if r.status_code == 402:
+            if not self.private_key:
+                raise CortexCloudError(402, "subscription credits exhausted; private_key required for x402 overage")
             sig = sign_payment(r.json(), self.private_key)
             r = self._c.request(method, path, json=json,
-                                headers={"payment-signature": sig})
+                                headers={**headers, "payment-signature": sig})
+        self._raise(r)
+        return r.json()
+
+    # ── prepaid subscription / billing ───────────────────────────
+    def billing_plans(self) -> dict:
+        r = self._c.get("/v1/billing/plans")
+        self._raise(r)
+        return r.json()
+
+    def subscribe(self, plan_id: str) -> dict:
+        """Purchase/renew a prepaid plan with x402; returns an API key once."""
+        if not self.private_key:
+            raise CortexCloudError(0, "private_key required to pay for a subscription")
+        return self.pay("POST", f"/v1/billing/subscribe/{plan_id}")
+
+    def billing_account(self) -> dict:
+        r = self._c.get("/v1/billing/account")
+        self._raise(r)
+        return r.json()
+
+    def billing_usage(self) -> dict:
+        r = self._c.get("/v1/billing/usage")
+        self._raise(r)
+        return r.json()
+
+    def revoke_api_key(self, key_id: str) -> dict:
+        r = self._c.post("/v1/billing/keys/revoke", json={"key_id": key_id})
         self._raise(r)
         return r.json()
 
     # ── Data ($0.004) ─────────────────────────────────────────────
-    def token_price(self, symbol: str, currency: str = "usd") -> dict:
-        return self.pay("POST", "/v1/data/token-price", json={"symbol": symbol, "currency": currency})
+    def token_price(self, symbol: str, currency: str = "usd", chain: str = "ethereum") -> dict:
+        """Spot price; symbol must be a CoinGecko id (for example, 'ethereum')."""
+        return self.pay("POST", "/v1/data/token-price", json={"id": symbol, "currency": currency, "chain": chain})
 
-    def token_balances(self, address: str, chains: list[str] | None = None) -> dict:
-        return self.pay("POST", "/v1/data/token-balances", json={"address": address, "chains": chains or []})
+    def token_balances(self, address: str, chain: str = "ethereum",
+                       tokens: list[str] | None = None, max_tokens: int = 50) -> dict:
+        return self.pay("POST", "/v1/data/token-balances", json={
+            "address": address, "chain": chain, "tokens": tokens, "max_tokens": max_tokens,
+        })
+
+    def wallet_intel(self, address: str, chain: str = "ethereum", limit: int = 25) -> dict:
+        return self.pay("POST", "/v1/data/wallet-intel", json={"address": address, "chain": chain, "limit": limit})
+
+    def token_risk(self, contract: str, chain: str = "ethereum", coin_id: str | None = None) -> dict:
+        return self.pay("POST", "/v1/data/token-risk", json={"contract": contract, "chain": chain, "coin_id": coin_id})
+
+    def token_intel(self, contract: str, chain: str = "ethereum", coin_id: str | None = None) -> dict:
+        return self.pay("POST", "/v1/data/token-intel", json={"contract": contract, "chain": chain, "coin_id": coin_id})
+
+    def whale_alerts(self, address: str, chain: str = "ethereum",
+                     min_usd: float = 100000, limit: int = 50) -> dict:
+        return self.pay("POST", "/v1/data/whale-alerts", json={
+            "address": address, "chain": chain, "min_usd": min_usd, "limit": limit,
+        })
+
+    def cross_chain_compare(self, contract: str, chains: list[str],
+                            solana_mint: str | None = None, coin_id: str | None = None) -> dict:
+        return self.pay("POST", "/v1/data/cross-chain-compare", json={
+            "contract": contract, "chains": chains,
+            "solana_mint": solana_mint, "coin_id": coin_id,
+        })
 
     def block(self, chain: str = "base", number: str = "latest") -> dict:
-        return self.pay("GET", f"/v1/data/block?chain={chain}&number={number}")
+        return self.pay("GET", f"/v1/data/block?chain={chain}&block={number}")
 
     def gas_oracle(self, chain: str = "base") -> dict:
         return self.pay("GET", f"/v1/data/gas-oracle?chain={chain}")
