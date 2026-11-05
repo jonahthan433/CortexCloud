@@ -31,7 +31,7 @@ def test_solana_is_not_an_alchemy_network():
 
 
 def test_helius_wiring_is_priced_on_the_floor_and_cheap():
-    assert p.HELIUS_ENDPOINTS == ("token-balances", "tx-history", "token-price", "wallet-intel", "token-intel")
+    assert p.HELIUS_ENDPOINTS == ("token-balances", "tx-history", "token-price", "wallet-intel", "token-intel", "token-risk")
     assert p.helius_provider_cost_usd(1) == 0.000049
     assert p.helius_provider_cost_usd(3) == 0.000147
     # Solana reads stay at the $0.004 floor (provider cost is ~80x below it).
@@ -217,7 +217,6 @@ async def test_solana_token_price_rejects_evm_contract(client, monkeypatch):
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize("path,body", [
     ("/v1/data/nft-ownership", {"address": SOL, "chain": "solana"}),
-    ("/v1/data/token-risk", {"contract": MINT, "chain": "solana"}),
     ("/v1/data/whale-alerts", {"address": SOL, "chain": "solana"}),
     ("/v1/data/market-snapshot", {"contract": MINT, "chain": "solana"}),
 ])
@@ -246,7 +245,7 @@ async def test_discovery_advertises_solana_subset(client, monkeypatch):
     body = r.json()
     assert "helius" in body["providers"]
     assert body["solana"]["endpoints"] == [
-        "/v1/data/token-balances", "/v1/data/tx-history", "/v1/data/token-price", "/v1/data/wallet-intel", "/v1/data/token-intel"
+        "/v1/data/token-balances", "/v1/data/tx-history", "/v1/data/token-price", "/v1/data/wallet-intel", "/v1/data/token-intel", "/v1/data/token-risk"
     ]
     assert "helius" in body["categories"]["data"]["providers"]
 
@@ -342,3 +341,34 @@ async def test_solana_token_intel_uses_helius_asset_and_activity(client, monkeyp
     assert body["facts"]["price_usd"]["value"] == 0.99
     assert body["facts"]["token_program"]["value"].startswith("Tokenz")
     assert body["facts"]["latest_transfer"]["value"]["signature"] == "mint-tx"
+
+
+async def test_solana_token_risk_uses_authorities_and_supply_concentration(client, monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "HELIUS_API_KEY", "test-key", raising=False)
+
+    async def fake_rpc(method, params):
+        if method == "getAsset":
+            return 200, {"result": {"id": MINT, "token_info": {
+                "mint_authority": "Authority11111111111111111111111111111",
+                "freeze_authority": None,
+            }}}
+        if method == "getTokenSupply":
+            return 200, {"result": {"value": {"amount": "1000000000", "decimals": 6, "uiAmount": 1000.0}}}
+        if method == "getTokenLargestAccounts":
+            return 200, {"result": {"value": [
+                {"address": "LargestAccount111111111111111111111111111", "amount": "250000000", "decimals": 6, "uiAmount": 250.0},
+                {"address": "OtherAccount11111111111111111111111111111", "amount": "100000000", "decimals": 6, "uiAmount": 100.0},
+            ]}}
+        raise AssertionError(method)
+
+    monkeypatch.setattr("app.api.data._helius_rpc", fake_rpc)
+    r = await client.post("/v1/data/token-risk", json={"contract": MINT, "chain": "solana"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["chain"] == "solana"
+    assert body["verdict"] == "medium"
+    assert "mint_authority_enabled" in body["risk_flags"]
+    concentration = next(e for e in body["evidence"] if e["check"] == "largest_token_accounts")
+    assert concentration["largest_account_pct_of_supply"] == 25.0
+    assert "beneficial wallet owner" in concentration["note"]
