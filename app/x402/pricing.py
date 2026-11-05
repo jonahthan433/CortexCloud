@@ -499,7 +499,7 @@ DATA_CHAINS = {
 DEFAULT_CHAIN = "ethereum"
 
 # ---------------------------------------------------------------------------
-# Solana (Helius) — supported for token-balances, tx-history and token-price.
+# Solana (Helius) — endpoints are advertised only after Helius is configured.
 # The EVM routes keep their Alchemy mapping; Solana aliases are separate so
 # _network() can never hand "solana" to Alchemy. Routes that are not yet
 # implemented for Solana return a structured chain_not_supported error.
