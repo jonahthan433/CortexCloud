@@ -115,6 +115,26 @@ async def test_subscription_api_key_spends_weighted_credits(client, monkeypatch)
         }}
 
     monkeypatch.setattr("app.api.data._alchemy_rpc", fake_rpc)
+    from fastapi.responses import JSONResponse
+
+    async def deny_rate_limited(_request):
+        return JSONResponse(status_code=429, content={"error": "rate limit exceeded"})
+
+    monkeypatch.setattr("app.middleware.x402._rate_limit", deny_rate_limited)
+    denied = await client.get(
+        "/v1/data/block?chain=ethereum&block=latest",
+        headers={"Authorization": "Bearer " + raw_key, "Idempotency-Key": "block-call-1"},
+    )
+    assert denied.status_code == 429
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(WalletSubscription).where(WalletSubscription.wallet_address == wallet))
+        assert result.scalar_one().credits_remaining == 20
+
+    async def allow_rate_limited(_request):
+        return None
+
+    monkeypatch.setattr("app.middleware.x402._rate_limit", allow_rate_limited)
     response = await client.get(
         "/v1/data/block?chain=ethereum&block=latest",
         headers={"Authorization": "Bearer " + raw_key, "Idempotency-Key": "block-call-1"},
