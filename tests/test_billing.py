@@ -237,7 +237,7 @@ async def test_subscription_purchase_uses_x402_usdc_challenge(client, monkeypatc
     body = response.json()
     assert body["x402Version"] == 2
     assert body["accepts"][0]["network"] == "eip155:8453"
-    assert body["accepts"][0]["maxAmountRequired"] == "19000000"
+    assert body["accepts"][0]["amount"] == "19000000"
 
 
 @pytest.mark.asyncio
