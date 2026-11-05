@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.database.session import AsyncSessionLocal
 from app.models.subscription import WalletAPIKey, WalletCreditTransaction, WalletSubscription
@@ -90,6 +90,9 @@ async def subscribe(plan_id: str, request: Request):
         return JSONResponse(status_code=409, content={"error": "settled_plan_payment_not_found"})
     now = datetime.now(timezone.utc)
     async with AsyncSessionLocal() as db:
+        # Serialize first-time purchases/renewals for the same wallet so two
+        # concurrent settlements cannot race the unique subscription row.
+        await db.execute(text("SELECT pg_advisory_xact_lock(hashtext(:wallet))"), {"wallet": wallet})
         duplicate = await db.execute(
             select(WalletCreditTransaction).where(WalletCreditTransaction.payment_nonce == nonce)
         )
