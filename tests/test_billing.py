@@ -286,12 +286,12 @@ async def test_upstream_5xx_refunds_credits_and_releases_idempotency_key(client,
 
     monkeypatch.setattr("app.api.data._alchemy_rpc", fake_rpc)
     headers = {"Authorization": "Bearer " + raw_key, "Idempotency-Key": "retry-after-5xx"}
-    first = await client.get("/v1/data/block?chain=ethereum&block=latest", headers=headers)
+    first = await client.get("/v1/data/block?chain=ethereum&block=0x999999", headers=headers)
     assert first.status_code == 502
     assert first.headers["X-CortexCloud-Credits-Used"] == "0"
     assert first.headers["X-CortexCloud-Credits-Remaining"] == "10"
 
-    second = await client.get("/v1/data/block?chain=ethereum&block=latest", headers=headers)
+    second = await client.get("/v1/data/block?chain=ethereum&block=0x999999", headers=headers)
     assert second.status_code == 200, second.text
     assert second.headers["X-CortexCloud-Credits-Used"] == "4"
     assert second.headers["X-CortexCloud-Credits-Remaining"] == "6"
