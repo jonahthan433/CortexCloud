@@ -113,8 +113,8 @@ async def subscribe(plan_id: str, request: Request):
         )
         subscription = result.scalar_one_or_none()
         active = bool(subscription and subscription.status == "active" and subscription.period_end > now)
-        period_start = subscription.period_end if active else now
-        period_end = _add_month(period_start)
+        period_start = now
+        period_end = _add_month(subscription.period_end if active else now)
         remaining = (subscription.credits_remaining if active else 0) + plan["credits"]
         granted = (subscription.credits_granted if active else 0) + plan["credits"]
 
