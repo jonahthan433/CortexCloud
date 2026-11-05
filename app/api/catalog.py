@@ -23,7 +23,7 @@ async def capabilities() -> dict:
     return {
         "service": "CortexCloud On-Chain Data API",
         "version": "v1",
-        "description": FREE_ROUTES,
+        "description": FREE_ROUTES["GET /v1/capabilities"],
         "payments": {
             "scheme": "x402",
             "network": "eip155:8453",

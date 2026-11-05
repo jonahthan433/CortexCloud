@@ -98,6 +98,68 @@ for _n in _tool_names:
     _sch = tool_entry(_n)["input_schema"]
     assert isinstance(_sch, dict) and _sch.get("type") == "object", f"{_n}: input_schema must be an object schema"
 
+# 8. Every served discovery surface must advertise exactly ROUTE_PRICING.
+#    (x402-list.com is an external directory fed by a one-time operator
+#    submission, not a surface served from this repo, so it cannot be pinned.)
+import asyncio
+import json as _json
+
+from app.x402.bazaar_routes import _endpoint_catalog
+from app.x402.discovery import build_manifest, llms_txt, well_known_x402_v1
+
+# 8a. /.well-known/x402.json (v2 manifest)
+_manifest_paths = {e["path"] for e in build_manifest()["endpoints"]}
+assert _manifest_paths == _paid_paths, (
+    f"x402.json manifest drift: {sorted(_manifest_paths)} vs paid {sorted(_paid_paths)}"
+)
+
+# 8b. /.well-known/bazaar endpoint catalog
+_bazaar_catalog = _endpoint_catalog()
+_bazaar_paid = {e["path"] for e in _bazaar_catalog if e["price"] != "free"}
+assert _bazaar_paid == _paid_paths, (
+    f"bazaar endpoint drift: {sorted(_bazaar_paid)} vs paid {sorted(_paid_paths)}"
+)
+_bazaar_free = {e["path"] for e in _bazaar_catalog if e["price"] == "free"}
+assert _bazaar_free <= {p.split(" ", 1)[1] for p in FREE_ROUTES}, (
+    f"bazaar advertises unknown free routes: {sorted(_bazaar_free)}"
+)
+
+# 8c. /llms.txt
+_llms = asyncio.run(llms_txt()).body.decode()
+_llms_routes = set()
+for _ln in _llms.splitlines():
+    if _ln.startswith("- ") and " — " in _ln:
+        _left = _ln[2:].split(" — ", 1)[0].split(" ")
+        if len(_left) >= 2 and _left[0] in ("GET", "POST"):
+            _llms_routes.add(f"{_left[0]} {_left[1]}")
+assert _llms_routes == set(public_routes()) | set(FREE_ROUTES), (
+    f"llms.txt drift: {sorted(_llms_routes)} vs "
+    f"{sorted(set(public_routes()) | set(FREE_ROUTES))}"
+)
+
+# 8d. /.well-known/x402 (v1 resource list)
+_v1_paths = {
+    r.replace("https://api.cortexcloud.org", "")
+    for r in asyncio.run(well_known_x402_v1())["resources"]
+}
+assert _v1_paths == _paid_paths | {"/v1/capabilities"}, (
+    f"v1 x402 resource drift: {sorted(_v1_paths)}"
+)
+
+# 8e. openapi.json lists every paid route (and no phantom paid route)
+with open(os.path.join(os.path.dirname(__file__), "..", "openapi.json")) as _fh:
+    _spec = _json.load(_fh)
+_spec_paid = {
+    f"{m.upper()} {p}"
+    for p, methods in _spec["paths"].items()
+    for m in methods
+    if f"{m.upper()} {p}" in ROUTE_PRICING
+}
+assert _spec_paid == set(ROUTE_PRICING), (
+    f"openapi.json paid-route drift: {sorted(_spec_paid)} vs {sorted(ROUTE_PRICING)}"
+)
+
 print(f"PASS: {len(paid)} paid + {len(free)} free routes all mounted, "
       f"no phantom/overlap, all paid routes gated, money surface fully covered, "
-      f"{len(_tool_names)} MCP tools mirror the paid surface")
+      f"{len(_tool_names)} MCP tools mirror the paid surface, "
+      f"bazaar/x402.json/llms.txt/v1-x402/openapi all match ROUTE_PRICING")

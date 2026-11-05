@@ -72,21 +72,17 @@ async def well_known_x402():
 @router.get("/.well-known/x402", tags=["x402 Discovery"])
 async def well_known_x402_v1():
     """v1 discovery document (resource URL list) — the shape x402scan-mcp and
-    other v1 discovery tools parse. The rich v2 manifest stays at x402.json."""
+    other v1 discovery tools parse. The rich v2 manifest stays at x402.json.
+    Resources are derived from the pricing table so this surface cannot drift
+    from ROUTE_PRICING (it previously hardcoded 10 of the 17 paid routes)."""
+    resources = [
+        f"https://api.cortexcloud.org{path.split(' ', 1)[1]}"
+        for path in public_routes()
+    ]
+    resources.append("https://api.cortexcloud.org/v1/capabilities")
     return {
         "version": 1,
-        "resources": [
-            "https://api.cortexcloud.org/v1/data/token-intel",
-            "https://api.cortexcloud.org/v1/data/token-price",
-            "https://api.cortexcloud.org/v1/data/token-balances",
-            "https://api.cortexcloud.org/v1/data/token-risk",
-            "https://api.cortexcloud.org/v1/data/wallet-intel",
-            "https://api.cortexcloud.org/v1/data/whale-alerts",
-            "https://api.cortexcloud.org/v1/data/cross-chain-compare",
-            "https://api.cortexcloud.org/v1/data/market-snapshot",
-            "https://api.cortexcloud.org/v1/webhooks/whale-alerts",
-            "https://api.cortexcloud.org/v1/capabilities",
-        ],
+        "resources": resources,
         "instructions": "Pay-per-call on-chain data + intelligence API over x402 (USDC on Base eip155:8453). Full pricing: https://api.cortexcloud.org/v1/capabilities; rich manifest: https://api.cortexcloud.org/.well-known/x402.json; agent docs: https://api.cortexcloud.org/llms.txt.",
     }
 

@@ -52,3 +52,16 @@ async def test_head_on_paid_route_still_gets_paywall(client):
     # every method, HEAD included (x402scan method-aware status capture).
     r = await client.head("/v1/data/block")
     assert r.status_code == 402, f"paid HEAD must see the 402 challenge, got {r.status_code}"
+
+
+@pytest.mark.asyncio
+async def test_head_on_paid_route_empty_body_and_matching_content_length(client):
+    # The 402 must not declare a body it never sends: uvicorn drops the body
+    # for HEAD but keeps the JSON Content-Length, so a bodied challenge makes
+    # clients fail with "end of response with N bytes missing".
+    r = await client.head("/v1/data/block")
+    assert r.status_code == 402
+    assert r.content == b"", "HEAD 402 must carry no body"
+    cl = r.headers.get("content-length")
+    assert cl == "0", f"content-length must describe the empty body, got {cl!r}"
+    assert r.headers.get("payment-required"), "HEAD 402 must still advertise the challenge"

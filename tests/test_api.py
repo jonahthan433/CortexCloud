@@ -15,6 +15,8 @@ async def test_capabilities_is_data_only(client):
     assert r.status_code == 200, r.text
     caps = r.json()
     assert caps["service"] == "CortexCloud On-Chain Data API"
+    assert isinstance(caps["description"], str) and caps["description"].strip(), \
+        "capabilities description must be a human-readable string, not a route table"
     assert set(caps["categories"]) == {"data", "aggregate", "webhooks"}
     assert caps["payments"]["scheme"] == "x402"
     assert caps["providers"] == ["alchemy", "coingecko", "helius"]

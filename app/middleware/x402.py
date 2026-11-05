@@ -145,6 +145,22 @@ _PATH_DESCRIPTIONS = {
     (k.split(" ", 1)[1] if " " in k else k): v for k, v in ROUTE_DESCRIPTIONS.items()
 }
 
+# Ledger category per paid route family, derived from the PATH so every paid
+# route is categorized (GET data, aggregate and webhook included) — not just
+# the POST /v1/data/ branch. x402_payments.category is NULL without this.
+_CATEGORY_BY_PREFIX: tuple[tuple[str, str], ...] = (
+    ("/v1/data/", "data"),
+    ("/v1/aggregate/", "aggregate"),
+    ("/v1/webhooks/", "webhook"),
+    ("/v1/ai/", "ai"),
+    ("/v1/research/", "research"),
+)
+
+
+def _category_for_path(path: str) -> str | None:
+    return next((c for prefix, c in _CATEGORY_BY_PREFIX if path.startswith(prefix)), None)
+
+
 # USDC on Base mainnet (canonical contract, 6 decimals).
 USDC_ON_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
 
@@ -1212,6 +1228,10 @@ class X402Middleware(BaseHTTPMiddleware):
         if price_str is None or price_str == "$0.00":
             return await call_next(request)
 
+        # Ledger category for EVERY paid route (GET data, aggregate, webhook),
+        # set once here so no branch can leave x402_payments.category NULL.
+        request.state.category = _category_for_path(path)
+
         # Feature-flag gate: a disabled category is NEVER billable. Return 503
         # before any payment challenge so agents discover-but-don't-pay a
         # service that is offline (honest disable, matches route behavior).
@@ -1251,33 +1271,27 @@ class X402Middleware(BaseHTTPMiddleware):
                 _out = int((data.get("max_tokens") if isinstance(data, dict) else None) or 512)
                 price_str = f"${ai_chat_price_usd(_m, _in, _out):.6f}"
                 request.state.provider_cost_usd = round(AI_PROVIDERS["chat"].estimate_cost(_m, _in, _out).provider_cost_usd, 6)
-                request.state.category = "ai"
             elif path == "/v1/ai/embed":
                 from app.x402.pricing import ai_embed_price_usd, AI_PROVIDERS
                 _in = sum(len(t) // 4 for t in (data.get("input") or []) if isinstance(t, str)) or 1
                 price_str = f"${ai_embed_price_usd(_in):.6f}"
                 request.state.provider_cost_usd = round(AI_PROVIDERS["embed"].estimate_cost(input_tokens=_in).provider_cost_usd, 6)
-                request.state.category = "ai"
             elif path == "/v1/ai/transcribe":
                 from app.x402.pricing import ai_transcribe_price_usd, AI_PROVIDERS
                 price_str = f"${ai_transcribe_price_usd():.6f}"
                 request.state.provider_cost_usd = round(AI_PROVIDERS["transcribe"].estimate_cost().provider_cost_usd, 6)
-                request.state.category = "ai"
             elif path == "/v1/research/search":
                 from app.x402.pricing import research_price_usd, RESEARCH_PROVIDERS
                 price_str = f"${research_price_usd('web'):.6f}"
                 request.state.provider_cost_usd = round(RESEARCH_PROVIDERS["search"].estimate_cost("web").provider_cost_usd, 6)
-                request.state.category = "research"
             elif path == "/v1/research/answer":
                 from app.x402.pricing import research_price_usd, RESEARCH_PROVIDERS
                 price_str = f"${research_price_usd('answer'):.6f}"
                 request.state.provider_cost_usd = round(RESEARCH_PROVIDERS["answer"].estimate_cost("answer").provider_cost_usd, 6)
-                request.state.category = "research"
             elif path == "/v1/research/ask":
                 from app.x402.pricing import ask_price_usd, RESEARCH_PROVIDERS
                 price_str = f"${ask_price_usd():.6f}"
                 request.state.provider_cost_usd = round(RESEARCH_PROVIDERS["ask"].estimate_cost("ask").provider_cost_usd, 6)
-                request.state.category = "research"
             elif path.startswith("/v1/data/"):
                 from app.x402.pricing import data_price_usd, data_provider_cost_usd
                 _ep = path.split("/")[-1]  # token-balances | token-price | nft-ownership | tx-history | token-risk | ...
@@ -1299,7 +1313,6 @@ class X402Middleware(BaseHTTPMiddleware):
                     _calls = 12
                 price_str = f"${data_price_usd(_ep, _calls):.6f}"
                 request.state.provider_cost_usd = round(data_provider_cost_usd(_ep, _calls), 6)
-                request.state.category = "data"
 
         required = usd_to_usdc_atomic(price_str)
 
@@ -1533,6 +1546,17 @@ class X402Middleware(BaseHTTPMiddleware):
                     _headers["WWW-Authenticate"] = ch.to_www_authenticate(mpp.realm)
                 except Exception as e:
                     logger.warning(f"MPP challenge generation failed: {e}")
+            if method == "HEAD":
+                # HEAD carries no body. uvicorn suppresses the body but keeps
+                # the JSON Content-Length, so a bodied 402 makes clients fail
+                # with "end of response with N bytes missing". Advertise the
+                # challenge in the payment-required header only.
+                return Response(
+                    status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                    content=b"",
+                    media_type="application/json",
+                    headers=_headers,
+                )
             return JSONResponse(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
                 content=challenge,
