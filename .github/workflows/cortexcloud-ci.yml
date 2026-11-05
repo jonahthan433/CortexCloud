@@ -42,6 +42,7 @@ jobs:
       WALLET_ADDRESS: "0x1111111111111111111111111111111111111111"
       ALCHEMY_API_KEY: ci-test-key
       HELIUS_API_KEY: ""
+      HELIUS_VERIFIED: "false"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
