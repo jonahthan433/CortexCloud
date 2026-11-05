@@ -1909,6 +1909,8 @@ class X402Middleware(BaseHTTPMiddleware):
 
         # Record the settled payment in PostgreSQL (jobs/payments ledger).
         # Telemetry never blocks a settled payment.
+        request.state.x402_amount_atomic = int(required)
+        request.state.x402_path = path
         _payer = getattr(request.state, "x402_payer", None) or (_sig_payload.get("payload") or {}).get("authorization", {}).get("from", "")
         await _record_payment(
             path, _payer, int(required), request.state.x402_body, _auth0.get("nonce"),
