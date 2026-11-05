@@ -30,6 +30,9 @@ def _enable_data(monkeypatch):
     """The prod systemd unit sets DATA_ENABLED=true; tests run without it."""
     from app.core.config import settings
     monkeypatch.setattr(settings, "DATA_ENABLED", True, raising=False)
+    monkeypatch.setattr(settings, "X402_ENABLED", True, raising=False)
+    monkeypatch.setattr(settings, "WALLET_ADDRESS", "0x" + "11" * 20, raising=False)
+    monkeypatch.setattr(settings, "ALCHEMY_API_KEY", "test-key-not-used", raising=False)
 
 
 @pytest_asyncio.fixture
@@ -52,7 +55,7 @@ _PROBE_CASES = [
     ("/v1/data/token-balances", {"address": ADDR, "chain": "dogechain"}, 422),
     ("/v1/data/token-balances", {"address": ADDR, "chain": "solana"}, 422),
     ("/v1/data/token-price", {"contract": "0xBAD"}, 422),
-    ("/v1/data/token-risk", {"contract": USDC, "chain": "solana"}, 400),
+    ("/v1/data/market-snapshot", {"contract": USDC, "chain": "solana"}, 400),
     ("/v1/data/cross-chain-compare", {"contract": USDC, "chains": ["ethereum", "solana"]}, 422),
     ("/v1/data/tx-history", {"address": ADDR, "chain": "dogechain"}, 422),
 ]
@@ -75,16 +78,17 @@ async def test_invalid_body_with_credentials_rejected_before_settle(client, path
 
 @pytest.mark.asyncio
 async def test_solana_on_non_helius_route_structured_400_before_settle(client):
-    # Solana is supported only on token-balances/tx-history/token-price. Every
-    # other route refuses BEFORE settlement with the structured error shape.
-    r = await client.post("/v1/data/token-risk", json={"contract": USDC, "chain": "solana"},
+    # Solana intelligence is supported on selected routes; market-snapshot
+    # remains EVM-only and refuses BEFORE settlement with a structured error.
+    r = await client.post("/v1/data/market-snapshot", json={"contract": USDC, "chain": "solana"},
                           headers={"payment-signature": "junkjunk"})
     assert r.status_code == 400, r.text
     body = r.json()
     assert body.get("error") == "chain_not_supported"
     assert body.get("chain") == "solana"
+    from app.x402.pricing import HELIUS_ENDPOINTS
     assert body.get("solana_supported_endpoints") == [
-        "/v1/data/token-balances", "/v1/data/tx-history", "/v1/data/token-price"
+        f"/v1/data/{name}" for name in HELIUS_ENDPOINTS
     ]
 
 
