@@ -107,6 +107,13 @@ async def test_solana_token_balances_uses_helius(client, monkeypatch):
     assert body["price_usd"] == 0.004
     assert body["provider_cost_usd"] == 0.000098
 
+    cached = await client.post("/v1/data/token-balances",
+                               json={"address": SOL, "chain": "solana"})
+    assert cached.status_code == 200, cached.text
+    assert cached.json()["cache_hit"] is True
+    assert cached.json()["provider_cost_usd"] == 0.0
+    assert len(seen_programs) == 2  # cache hit must not call either token program again
+
 
 async def test_solana_token_balances_filters_by_mint_and_includes_token_2022(client, monkeypatch):
     from app.core.config import settings
