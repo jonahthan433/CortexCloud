@@ -22,3 +22,21 @@ python3 solve.py          # estimate -> 402 challenge -> sign -> solve -> poll
 ```
 Requires `python3`, `requests`, a Base wallet private key (env `WALLET_KEY`),
 and USDC on Base. See the x402 docs: https://x402.org
+
+
+## Monthly prepaid subscription
+```bash
+pip install cortexcloud
+CC_PRIVATE_KEY=0x... CC_PLAN=trading-pro python3 subscription_client.py
+```
+The subscription is paid manually in USDC on Base. The script prints the API
+key once; store it securely. Renewals are manual and never trigger automatic
+wallet withdrawals.
+
+## Trading-bot data access with credits
+```bash
+CORTEXCLOUD_API_KEY=cx_live_... TRADING_WALLET=0x... CHAIN=base \
+  python3 trading_bot_data.py
+```
+Add CC_PRIVATE_KEY to allow x402 per-call overages when prepaid credits are
+exhausted. Without it, exhausted credits return the normal 402 challenge.
