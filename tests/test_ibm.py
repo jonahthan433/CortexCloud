@@ -1,6 +1,8 @@
 """IBM Quantum adapter tests (mocked service — never touches the real account)."""
 import pytest
 
+pytest.importorskip("qiskit_ibm_runtime")
+
 from app.solvers.quantum import ibm
 from app.solvers.quantum.ibm import IBMBackend
 
