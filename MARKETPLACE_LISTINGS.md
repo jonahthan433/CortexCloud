@@ -1,123 +1,136 @@
 # MARKETPLACE_LISTINGS.md — Submission Kit & Status Tracker
 
-Audit: 2026-08-08. Distribution phase active. Source of truth for all listing
-metadata. Nothing requiring Jonathan's credentials/approval has been submitted;
-every item is either LIVE, PREPARED (needs him), or BLOCKED. Statuses updated
-as submissions land.
+Copy corrected 2026-11-05 for the on-chain data API. Listings marked LIVE below
+were submitted with optimization-era descriptions; re-submit them using the
+blurbs in this file. Statuses reflect the 2026-08-08 audit and need
+re-verification.
 
 ## Canonical listing facts
 
-- Base / paid: `POST https://api.cortexcloud.org/v1/optimize` (x402) · Free: `/v1/estimate`, `/v1/jobs/{id}`, `/v1/backends`, `/v1/capabilities`, `/v1/examples`
-- Prices (USDC on Base, eip155:8453, 6-dec): classical $0.05 (50000) · hybrid $0.10 (100000) · quantum $1.503 (1503000) · payee `0x5a0353bc9c75b893a9b5735d3e79f1bd988ea143`
-- MCP: `https://api.cortexcloud.org/mcp` (Streamable HTTP; 4 tools; v0.4.0) — verified reachable publicly (HTTP 200), `/openapi.json` and `/.well-known/agentsearch.txt` also 200. No production API changes required for listings.
-- Discovery: `/llms.txt` · `/.well-known/x402.json` · `/.well-known/bazaar` · `/.well-known/agentsearch.txt` · `/openapi.json`
+- Service: CortexCloud On-Chain Data API - api.cortexcloud.org
+- Base URL: `https://api.cortexcloud.org`
+- Paid routes (x402, USDC on Base, eip155:8453, 6-dec): 12 `/v1/data/*` routes,
+  4 `/v1/aggregate/*` routes, `POST /v1/webhooks/whale-alerts`
+- Prices: $0.004 (block, gas-oracle, token-price, token-balances,
+  nft-ownership, tx-history, all four aggregate routes) · $0.006 wallet-intel ·
+  $0.020 token-risk · $0.030 token-intel · $0.040 cross-chain-compare ·
+  $0.050 whale-alerts · $0.070 market-snapshot · $0.100 webhook registration
+  + $0.020 per delivered alert
+- Free: `GET /v1/capabilities`, `GET /v1/webhooks/whale-alerts`
+- Payee wallet: `0x5a0353bc9c75b893a9b5735d3e79f1bd988ea143`
+- MCP: `https://api.cortexcloud.org/mcp` (Streamable HTTP; 18 tools catalogued
+  at `/.well-known/bazaar`; server version 0.5.0)
+- Discovery: `/llms.txt` · `/.well-known/x402.json` · `/.well-known/bazaar` ·
+  `/.well-known/agentsearch.txt` · `/openapi.json`
 
 ### Descriptions (reuse everywhere)
-- Short: `Agent-native x402 API platform (USDC on Base, no API keys). Automation, Data, Research, AI, Optimization/Quantum — pay per call. Start with Automation/Data ($0.004) or Research ($0.006); Optimization/Quantum (QUBO/Ising) is the differentiator.`
-- Long: `CortexCloud — an agent-native, pay-per-use API platform settled by x402 (USDC on Base). Agents call Automation (safe outbound HTTP), Data (on-chain prices/balances/gas), Research (web search + answers), AI, and Optimization/Quantum (QUBO/Ising solvers: scheduling, routing, portfolio) — no API keys, no signup, pay only when it runs. Estimate free, solve per call. Optimization/Quantum spans classical, hybrid, and quantum backends (quantum QPU opt-in, benchmark-gated). MCP server at /mcp.`
+- Short: `CortexCloud On-Chain Data API - api.cortexcloud.org: pay-per-call on-chain data over x402 (USDC on Base). Token prices, ERC-20 balances, NFT ownership, transaction history, blocks, gas, wallet profiles, token risk, whale alerts, cross-chain comparison, and market snapshots. $0.004-$0.070 per call; no API keys. Evidence-backed JSON with source attribution and checked_at timestamps.`
+- Long: `CortexCloud On-Chain Data API serves blockchain data to agents and developers at api.cortexcloud.org. Paid routes cover token prices, ERC-20 balances, NFT ownership, transaction history, blocks, gas oracle, wallet profiles, token risk, whale alerts, cross-chain comparison, and a combined market snapshot; batch reads cover balances, NFTs, prices, and transaction history. Whale-alert webhooks register for $0.100 and accrue $0.020 per delivered alert. Every paid call settles over x402 in USDC on Base (eip155:8453) with no API keys or subscriptions. Responses are evidence-backed: each fact carries its source, a checked_at timestamp, and an explicit missing-data indicator when a value could not be resolved. Data sources are Alchemy and CoinGecko; supported chains are ethereum, base, arbitrum, polygon, and optimism (name or chain id).`
 
 ## Submission tracker
 
 | # | Platform | Status | Listing URL | Date | Needs |
 |---|---|---|---|---|---|
-| 0a | x402scan | ✅ LIVE | x402scan.com → resources?origin=api.cortexcloud.org (HTTP 200) | 2026-07 | price refresh: register page is JS-only; needs x402scan-MCP or browser (see below) |
+| 0a | x402scan | ✅ LIVE | x402scan.com → resources?origin=api.cortexcloud.org | 2026-07 | price refresh via x402scan-MCP or browser |
 | 0b | mppscan | ✅ LIVE | mppscan.com → search `api.cortexcloud.org` | 2026-07 | none |
-| 0c | Poncho AI | ✅ LIVE | https://tryponcho.com/m/api.cortexcloud.org | 2026-07 | none (HTTP 200 verified 08-08) |
+| 0c | Poncho AI | ✅ LIVE | https://tryponcho.com/m/api.cortexcloud.org | 2026-07 | none |
 | 0d | AgentCash dir | ⚠️ AUTO | agentcash.dev/apis (fed by x402scan/mppscan) | — | verify presence |
-| 1 | Smithery | ✅ LIVE | https://smithery.ai/servers/ampwerajonathan50/cortexcloud-mcp | 2026-08-08 | none (hosted proxy responding; v0.4.0) |
+| 0e | x402-list | ✅ LIVE | x402-list submission 5bc566a8-622f-43b2-9509-3e0cf0281117 | 2026-08 | re-submit with data-API copy |
+| 0f | x402-index | 🚀 SUBMITTED | github.com/x402-index/x402-discovery-index/issues/36 | 2026-08 | awaiting merge; refresh copy on merge |
+| 1 | Smithery | ✅ LIVE | https://smithery.ai/servers/ampwerajonathan50/cortexcloud-mcp | 2026-08-08 | update description |
 | 2 | Glama | 🧰 PREPARED | glama.ai/mcp/servers/… (est.) | — | Jonathan: account + submit URL |
 | 3 | mcp.so | 🧰 PREPARED | mcp.so/servers/cortexcloud (est.) | — | Jonathan: submit form |
 | 4 | PulseMCP | 🧰 PREPARED | pulsemcp.com (est.) | — | Jonathan: submit form |
-| 5 | awesome-mcp-servers | 🚀 SUBMITTED | PR https://github.com/punkpeye/awesome-mcp-servers/pull/11752 | 2026-08-08 | awaiting merge |
-| 6 | apis.guru | 🚀 SUBMITTED | issue https://github.com/APIs-guru/openapi-directory/issues/2992 | 2026-08-08 | awaiting maintainer review/PR |
-| 7 | Official MCP Registry | ✅ LIVE | registry.modelcontextprotocol.io → io.github.jonahthan433/cortexcloud v0.4.0 (verified via /v0.1/servers?search=cortexcloud) | 2026-08-08 | none |
+| 5 | awesome-mcp-servers | 🚀 SUBMITTED | PR https://github.com/punkpeye/awesome-mcp-servers/pull/11752 | 2026-08-08 | update line if merged |
+| 6 | apis.guru | 🚀 SUBMITTED | issue https://github.com/APIs-guru/openapi-directory/issues/2992 | 2026-08-08 | awaiting maintainer review |
+| 7 | Official MCP Registry | ✅ LIVE | registry.modelcontextprotocol.io → io.github.jonahthan433/cortexcloud | 2026-08-08 | refresh description |
 
 ## Kit 1 — Smithery
 ```bash
 npm i -g @smithery/cli
 smithery login          # GitHub OAuth (Jonathan)
 smithery mcp publish https://api.cortexcloud.org/mcp -n cortexcloud/cortexcloud
-# metadata prompts: description = short desc above; categories: automation, data, research, api, optimization; tags: x402, usdc, agent, automation, data, research, optimization, quantum
+# metadata prompts: description = short desc above; categories: data, web3, crypto, api; tags: x402, usdc, agent, blockchain, on-chain-data, web3
 ```
 Verify after publish: `https://smithery.ai/server/cortexcloud/cortexcloud`.
 
 ## Kit 2 — Glama (glama.ai/mcp)
 1. Create account (GitHub OAuth) → glama.ai/mcp/servers → "Submit server".
 2. Server URL: `https://api.cortexcloud.org/mcp` (remote HTTP — Glama probes it).
-3. Name `CortexCloud` · description = short · category `agent, automation, api`.
-Verify: `https://glama.ai/mcp/servers/cortexcloud-cortexcloud` (or search "cortexcloud").
-Note: Glama also indexes from the official registry once live (metaregistry).
+3. Name `CortexCloud On-Chain Data API` · description = short · category
+   `AI / Developer Tools / Data / Web3`.
+Verify: `https://glama.ai/mcp/servers/cortexcloud-cortexcloud` (or search
+"cortexcloud").
 
 ## Kit 3 — mcp.so
-Form at `https://mcp.so/submit`: name `cortexcloud`, server URL `https://api.cortexcloud.org/mcp`,
-description = short, category `AI / Agent / Automation`. Verify: `https://mcp.so/servers/cortexcloud` (search "cortexcloud").
+Form at `https://mcp.so/submit`: name `CortexCloud On-Chain Data API`, server
+URL `https://api.cortexcloud.org/mcp`, description = short, category
+`AI / Agent / Data / Web3`. Verify: `https://mcp.so/servers/cortexcloud`.
 
 ## Kit 4 — PulseMCP
-Form at `https://pulsemcp.com` → Submit a server: URL `https://api.cortexcloud.org/mcp`, name `CortexCloud`,
-description = short. Verify: pulsemcp.com search "cortexcloud". (Site is Cloudflare-fronted; 403 to bots — form only.)
+Form at `https://pulsemcp.com` → Submit a server: URL
+`https://api.cortexcloud.org/mcp`, name `CortexCloud On-Chain Data API`,
+description = short. Verify: pulsemcp.com search "cortexcloud". (Site is
+Cloudflare-fronted; 403 to bots — form only.)
 
 ## Kit 5 — awesome-mcp-servers (punkpeye/awesome-mcp-servers)
 PR body / README addition:
 ```
-- [CortexCloud](https://api.cortexcloud.org/mcp) - Agent-native x402 API platform: Automation, Data, Research, AI, Optimization/Quantum. Pay per call in USDC on Base, no API keys. Free estimate, then solve.
+- [CortexCloud On-Chain Data API](https://api.cortexcloud.org/mcp) - Pay-per-call on-chain data over x402 (USDC on Base): token prices, balances, NFTs, transactions, wallet intel, whale alerts, market snapshots. $0.004-$0.070 per call, no API keys.
 ```
 `gh` is authenticated as jonahthan433 — PR command ready:
 ```bash
 gh repo clone punkpeye/awesome-mcp-servers /tmp/awesome-mcp && cd /tmp/awesome-mcp
 # add line to README.md under relevant section, then:
 git checkout -b add-cortexcloud && git add README.md && git commit -m "add CortexCloud MCP server"
-gh pr create --title "Add CortexCloud MCP server" --body "Remote Streamable-HTTP MCP server: pay-per-call QUBO/Ising optimization via x402 (USDC on Base)."
+gh pr create --title "Add CortexCloud MCP server" --body "Remote Streamable-HTTP MCP server: pay-per-call on-chain data via x402 (USDC on Base)."
 ```
 (Requires Jonathan's approval before opening.)
 
 ## Kit 6 — apis.guru (APIs-guru/openapi-directory)
-Submit via `https://apis.guru/add-api` — OpenAPI URL: `https://api.cortexcloud.org/openapi.json`
-(the API is machine-readable; apis.guru fetches + validates it). This creates a PR in
-APIs-guru/openapi-directory — approve as jonahthan433. Prepared issue/PR text:
+Submit via `https://apis.guru/add-api` — OpenAPI URL:
+`https://api.cortexcloud.org/openapi.json` (the API is machine-readable;
+apis.guru fetches + validates it). Prepared issue/PR text:
 ```
-Add CortexCloud — agent-native x402 API platform (Automation, Data, Research, AI, Optimization/Quantum). Pay per call in USDC on Base.
-OpenAPI: https://api.cortexcloud.org/openapi.json (self-maintained, multi-category endpoints).
+Add CortexCloud On-Chain Data API — pay-per-call on-chain data over x402 (USDC on Base). Token prices, balances, NFTs, transactions, wallet intel, whale alerts, market snapshots. $0.004-$0.070 per call.
+OpenAPI: https://api.cortexcloud.org/openapi.json
 ```
 Verify: apis.guru → search "cortexcloud".
 
 ## Kit 7 — Official MCP Registry (registry.modelcontextprotocol.io)
-Server metadata (server.json) — verify exact schema in the registry UI at submission time:
+Server metadata (server.json) — verify exact schema in the registry UI at
+submission time:
 ```json
 {
   "name": "github.jonahthan433/cortexcloud",
-  "description": "Agent-native x402 API platform: Automation, Data, Research, AI, Optimization/Quantum. Pay per call in USDC on Base, no API keys. Estimate free, solve per run.",
-  "version": "0.4.0",
+  "description": "CortexCloud On-Chain Data API - api.cortexcloud.org: pay-per-call on-chain data over x402 (USDC on Base). Token prices, ERC-20 balances, NFT ownership, transaction history, wallet profiles, token risk, whale alerts, cross-chain comparison, and market snapshots. $0.004-$0.070 per call; no API keys. Evidence-backed JSON with source attribution and checked_at timestamps.",
+  "version": "0.5.0",
   "remotes": {
     "https://api.cortexcloud.org/mcp": {}
   }
 }
 ```
-Publish path (both need Jonathan): (a) npm `@cortexcloud/mcp-server` — publish blocked headless
-(passkey-only 2FA; run from Lenovo/iPhone), then register via registry website (GitHub auth);
-or (b) attach server.json to a GitHub release of jonahthan433/CortexCloudAPI and register via
-the registry website. Verify: registry.modelcontextprotocol.io → search "cortexcloud".
+Publish path (both need Jonathan): (a) npm `@cortexcloud/mcp-server` — publish
+blocked headless (passkey-only 2FA; run from Lenovo/iPhone), then register via
+registry website (GitHub auth); or (b) attach server.json to a GitHub release
+of jonahthan433/CortexCloudAPI and register via the registry website. Verify:
+registry.modelcontextprotocol.io → search "cortexcloud".
 
-## Already-live verification (08-08)
-- tryponcho.com/m/api.cortexcloud.org → HTTP 200, title "CortexCloud API • Poncho" ✅
-- api.cortexcloud.org/mcp, /openapi.json, /.well-known/agentsearch.txt → HTTP 200 ✅
-- x402scan.com/resources?origin=api.cortexcloud.org → HTTP 200 (client-rendered explorer; per-resource
-  price display not extractable headlessly). Registration flow: public page
-  x402scan.com/resources/register accepts a URL and auto-validates; the page is JS-only, so
-  refreshing the scanned prices needs either a browser or the x402scan-MCP server
-  (`npx -y x402scan-mcp@latest`). The served manifest (/.well-known/x402.json) is dynamic and
-  already carries $0.85 — agents pay the correct amount regardless of the scan's cached display.
-- mppscan: registered 2026-07 (entry via mppscan.com search).
-- agentcash.dev/apis: fed automatically from the scans; verify "CortexCloud" appears.
+## Kit 8 — x402 discovery directories
+Paste-ready blurbs for x402-list, x402-index, 402index, awesome-x402, and
+claw402 live in `listing-*.md` alongside this file.
 
 ## Paid-call watchdog (live 08-08)
-- `cc-paid-call-watch` cron (every 30m, silent unless a new settled payment lands) reads
-  `scripts/paid_metrics.py` (read-only settled-payment counters) on CT105 → alerts with
-  total/10 + revenue + per-mode breakdown. Target: first 10 real external paid calls (any category).
-- Note: `INTERNAL_TOKEN` is unset in prod → `/internal/metrics` returns 503. The watchdog uses
-  the DB read path instead; enable INTERNAL_TOKEN later if the revenue endpoint is wanted.
+- `cc-paid-call-watch` cron (every 30m, silent unless a new settled payment
+  lands) reads `scripts/paid_metrics.py` (read-only settled-payment counters)
+  on CT105 → alerts with total/10 + revenue + per-endpoint breakdown. Target:
+  first 10 real external paid calls.
+- Note: `INTERNAL_TOKEN` is unset in prod → `/internal/metrics` returns 503.
+  The watchdog uses the DB read path instead.
 
 ## Next actions (Jonathan only)
-1. Smithery publish (2 min) → highest-value MCP listing
-2. Glama + mcp.so + PulseMCP forms (~5 min each)
-3. Approve 2 PRs (awesome-mcp-servers, apis.guru) — commands above, gh ready
-4. Official registry: npm publish from Lenovo/iPhone (passkey) or GitHub-release path
+1. Smithery description update (2 min) → highest-value MCP listing
+2. Glama + mcp.so + PulseMCP forms (~5 min each) with the short description
+3. Re-submit x402-list / x402-index with the data-API blurbs
+4. Official registry: refresh description (npm publish from Lenovo/iPhone, or
+   GitHub-release path)

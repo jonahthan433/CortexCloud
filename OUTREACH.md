@@ -1,44 +1,68 @@
 # Outreach Drafts — PREPARED, NOT SENT
+
+Positioning: CortexCloud On-Chain Data API - api.cortexcloud.org
+
 Posting requires Jonathan's accounts/approval. Each draft is written to be
 legitimate (no spam, no fabricated metrics). Measure clicks via
 utm_source links (tracked by /v1/track).
 
 ## E3 — Show HN (Hacker News)
-Title: Show HN: CortexCloud — agent-native x402 API platform (Automation, Data, Research, Optimization/Quantum)
+Title: Show HN: CortexCloud — pay-per-call on-chain data API for agents (x402, USDC on Base)
 
-> I built CortexCloud — an agent-native, pay-per-use API platform settled by x402 (USDC on Base, no API keys). Agents call Automation (safe outbound HTTP), Data (on-chain prices/balances/gas), Research (web search + answers), AI, and Optimization/Quantum (QUBO/Ising solvers for scheduling/routing/portfolio).
+> I built CortexCloud On-Chain Data API — a pay-per-call blockchain data API at
+> api.cortexcloud.org, settled by x402 (USDC on Base, no API keys).
 >
-> Easiest to start: Automation and Data at $0.004/call, Research at $0.006. Optimization/Quantum is the technical differentiator — classical, hybrid, and real Rigetti QPU backends, benchmark-gated.
+> Agents read token prices, ERC-20 balances, NFT ownership, transaction
+> history, blocks, gas, wallet profiles, whale alerts, and a token-intel
+> endpoint that returns deployment, metadata, price, and risk evidence in one
+> call. Prices run $0.004–$0.070 per call; whale-alert webhook registration is
+> $0.100 plus $0.020 per delivered alert.
 >
-> Agent flow: POST /v1/estimate (free) -> recommends mode + price -> paid endpoint returns an x402 challenge -> agent pays USDC on Base per call. No signup, no API keys — the wallet is the account. MCP server so Claude/Cursor/Codex call it directly: claude mcp add cortexcloud --transport http https://api.cortexcloud.org/mcp
+> Every paid response is evidence-backed: each fact carries its source, a
+> checked_at timestamp, and an explicit missing-data indicator when a value
+> could not be resolved. Data comes from Alchemy and CoinGecko across
+> ethereum, base, arbitrum, polygon, and optimism.
 >
-> Free to try: https://api.cortexcloud.org/?utm_source=hn — estimate never charges. Examples: https://github.com/jonahthan433/CortexCloudAPI/tree/main/docs
+> Agent flow: GET /v1/capabilities (free) lists routes and prices; a paid call
+> returns an x402 challenge; the agent signs with a Base wallet and retries.
+> No signup, no API keys — the wallet is the account. MCP server for
+> Claude/Cursor/Codex:
+> `claude mcp add cortexcloud --transport http https://api.cortexcloud.org/mcp`
 >
-> Why x402: agents need micropayments without accounts. Happy to discuss the QUBO formulation, the benchmark-gated quantum routing, or the MCP tooling.
+> Free to probe: https://api.cortexcloud.org/?utm_source=hn
+>
+> Why x402: agents need micropayments without accounts. Happy to discuss the
+> evidence model, the batch aggregate routes, or the MCP tooling.
 
-## E4a — r/quantumcomputing
-Title: [P] Pay-per-call QUBO solving with a real Rigetti QPU over x402 — no accounts, USDC on Base
+## E4a — r/ethereum or r/ethfinance
+Title: [P] Pay-per-call on-chain data API for agents — token intel, whale alerts, balances over x402
 
-> CortexCloud routes QUBO/Ising problems to classical, hybrid (QAOA) or
-> quantum (Rigetti Cepheus via AWS Braket) backends. Agents pay per call with
-> x402 micropayments. Quantum is only recommended when benchmarks support it
-> — the estimate endpoint shows the evidence. Free to probe:
-> https://api.cortexcloud.org/?utm_source=reddit_qc
-> MCP: https://api.cortexcloud.org/mcp (4 tools). Not an ad for a company —
-> open to feedback on the routing/benchmark design.
+> CortexCloud On-Chain Data API serves token prices, ERC-20 balances, NFT
+> ownership, transaction history, blocks, gas, wallet profiles, and whale
+> alerts for ethereum, base, arbitrum, polygon, and optimism. Agents pay per
+> call with x402 micropayments (USDC on Base) — $0.004 to $0.070.
+>
+> Every response carries source attribution, a checked_at timestamp, and
+> explicit missing-data indicators; nothing is fabricated. Free to probe:
+> https://api.cortexcloud.org/?utm_source=reddit_eth
+> MCP: https://api.cortexcloud.org/mcp
 
-## E4b — r/algorithms / r/optimization
-Title: [P] A pay-per-call API for QUBO/Ising optimization — agents can solve scheduling/routing/allocation problems
+## E4b — r/algotrading / r/cryptodevs
+Title: [P] An on-chain data API agents can pay per call — whale alerts, token risk, cross-chain comparison
 
-> Some of us build agents that hit OR problems (scheduling, routing,
-> allocation). I made a tiny API that takes QUBO/Ising, estimates the best
-> solver (exact/annealing/QAOA/quantum), and charges per run via x402 (USDC).
-> Zero signup. Estimates are free: https://api.cortexcloud.org/?utm_source=reddit_opt
-> Would love solver feedback — especially on when QAOA/quantum is worth it.
+> CortexCloud On-Chain Data API exposes large-transfer whale alerts, token
+> risk verdicts with per-claim evidence, and cross-chain contract comparison
+> as per-call endpoints. Settlement is x402 (USDC on Base), so an agent wallet
+> is the only account needed. Prices are $0.004–$0.070 per call.
+>
+> Data is sourced from Alchemy and CoinGecko; responses are evidence-backed
+> with source and checked_at on every fact. Free route list:
+> https://api.cortexcloud.org/?utm_source=reddit_algo
+> MCP: https://api.cortexcloud.org/mcp
 
-## E8 — X post (#x402 #aiagents #quantum)
-> Optimization infrastructure for AI agents is live.
-> Estimate free → solve from $0.05 → pay per run with x402 (USDC on Base).
-> Classical, hybrid, and a real Rigetti QPU — benchmark-gated, never hype.
+## E8 — X post (#x402 #aiagents #web3)
+> On-chain data infrastructure for AI agents is live.
+> Token intel, whale alerts, balances, tx history — $0.004 to $0.070 per call, paid over x402 (USDC on Base).
+> Evidence-backed responses: source + checked_at on every fact.
 > MCP-ready: claude mcp add cortexcloud --transport http https://api.cortexcloud.org/mcp
 > https://api.cortexcloud.org/?utm_source=x

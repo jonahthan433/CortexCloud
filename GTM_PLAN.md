@@ -1,66 +1,67 @@
-# CortexCloud GTM Plan — First 10 Paid Calls, then 100
+# CortexCloud On-Chain Data API - api.cortexcloud.org — GTM Plan
 
-Status: 2026-08-08. Customer-acquisition mode. No fabricated metrics; every
+Status: 2026-11-05. Customer-acquisition mode. No fabricated metrics; every
 experiment measured against real API traffic and settled payments.
 
 ## Value Proposition (canonical, use everywhere)
-> **Optimization infrastructure for AI agents — automatically solve suitable
-> problems using classical or quantum backends and pay per optimization with x402.**
+> **On-chain data infrastructure for AI agents — token, wallet, transaction,
+> whale-activity, and market data delivered per call over x402.**
 
-One-liner: "Pay-per-call QUBO/Ising optimization for AI agents. Estimate free,
-solve from $0.05. No API keys — x402 USDC on Base."
+One-liner: "Pay-per-call on-chain data for AI agents. Token prices, balances,
+wallets, whale alerts, and market snapshots from $0.004. No API keys — x402
+USDC on Base."
 
 ## Funnel (no signups exist — x402 IS the onboarding)
-visit → free /v1/estimate → paid /v1/optimize → repeat (same wallet)
+visit → free `/v1/capabilities` → paid data call (402 → sign → 200) → repeat
+(same wallet)
 
 ## Channels, prioritized by (buyer density × conversion ease)
-### Tier 1 — agents discover us programmatically (highest leverage, near-zero effort)
-1. **Official MCP Registry** — LIVE (io.github.jonahthan433/cortexcloud). Every
-   MCP client (Claude, Cursor, Codex) can browse it. Keep descriptions current.
-2. **x402 scan ecosystem** (x402scan, mppscan, Poncho, AgentCash) — LIVE. This is
-   where x402-native agents shop. Keep prices/manifest fresh.
-3. **Glama / mcp.so / PulseMCP** — forms pending (Jonathan, 15 min).
-4. **smithery.ai** — LIVE.
+### Tier 1 — agents discover us programmatically (highest leverage)
+1. **Official MCP Registry** — LIVE (io.github.jonahthan433/cortexcloud). Keep
+   the description on the data-API copy.
+2. **x402 scan ecosystem** (x402scan, mppscan, Poncho, AgentCash, x402-list,
+   x402-index, 402index, claw402) — LIVE/pending. Keep prices and the manifest
+   fresh; re-submit stale optimization-era descriptions.
+3. **Glama / mcp.so / PulseMCP** — resubmit with data-API copy.
+4. **smithery.ai** — LIVE; update the description.
 
-### Tier 2 — developers building optimization tooling
-5. **GitHub**: rewrite README (CortexCloudAPI repo) + add examples/ pack with
-   copy-paste QUBO/scheduling/routing demos. Repo is public — README is the ad.
-6. **awesome-mcp-servers PR** — submitted (#11752); awesomes + glama feed.
-7. **apis.guru** — submitted (#2992) → OpenAPI directory (agents + devtools read it).
+### Tier 2 — developers building on-chain tooling
+5. **GitHub**: README + examples pack with copy-paste token-intel / whale-alert
+   demos. The repo is public — the README is the ad.
+6. **awesome-mcp-servers** — update the listing line to the data-API copy.
+7. **apis.guru** — OpenAPI directory (agents + devtools read it).
 
-### Tier 3 — communities where optimization buyers post (OUTREACH, prepared-only)
-8. HN ("Show HN: pay-per-call optimization API for agents"), r/quantumcomputing,
-   r/algorithms, r/optimization, Qiskit/PennyLane/D-Wave forums, X #x402 / agent
-   dev circles, LangChain/Composio tool markets (x402 tools), quantum-agentics GH.
-9. **Reference integrations**: post example MCP config + a "solve a delivery
-   routing problem" tutorial to dev blogs / GH discussions of QUBO projects
-   (pasqal-io/qubo-solver, agenticsorg/quantum-agentics) — as issues/PRs only if
-   genuinely useful, no spam.
+### Tier 3 — communities where on-chain data buyers post
+8. r/ethereum, r/ethfinance, r/cryptodevs, r/web3, r/defi, r/algotrading;
+   X #x402 / agent dev circles; Ethers.js/viem and crypto-agent GitHub
+   discussions.
+9. **Reference integrations**: agent tool markets (LangChain/Composio),
+   crypto-agent GitHub discussions — as issues/PRs only if genuinely useful,
+   no spam.
 
 ### Tier 4 — paid/partner (only with Jonathan's approval, no budget committed)
-10. Cloudflare AI/agent marketplaces, D-Wave Leap-style partner programs, x402
-    incubator/ecosystem grants. Requires money or commitments → ask first.
+10. Cloudflare AI/agent marketplaces, x402 ecosystem grants. Requires money or
+    commitments → ask first.
 
 ## Experiments (each tracked; double down on paid calls)
 | # | Experiment | Channel | Success metric | Status |
 |---|---|---|---|---|
-| E1 | README + examples pack | GitHub | repo views → estimate calls | IN PROGRESS |
-| E2 | Landing rewrite (value prop + 3 copy-paste demos) | web | visitors → estimate calls | IN PROGRESS |
-| E3 | Show HN post (draft ready) | HN | clicks → estimates | PREPARED |
-| E4 | Reddit/forum posts (drafts) | r/quantumcomputing etc. | clicks → estimates | PREPARED |
+| E1 | README + examples pack | GitHub | repo views → paid calls | IN PROGRESS |
+| E2 | Landing rewrite (data value prop + token-intel demo) | web | visitors → paid calls | IN PROGRESS |
+| E3 | Show HN post (draft ready) | HN | clicks → paid calls | PREPARED |
+| E4 | Reddit posts (drafts) | r/ethereum etc. | clicks → paid calls | PREPARED |
 | E5 | MCP registry description refresh | registry | tool calls | when listings change |
 | E6 | Weekly funnel report to Telegram | internal | visibility | BUILT |
-| E7 | Reference-integration PRs to QUBO projects | GitHub | stars/PR traffic → estimates | needs review |
+| E7 | Directory re-submissions with corrected copy | x402-list, Glama, … | listing live | IN PROGRESS |
 | E8 | x402 ecosystem showcase posts | X #x402 | referrals | needs Jonathan's account |
 
 ## Tracking (honest, no fabrication)
-- Visitors: landing page hit counter + HTTP Referer (utm capture) → new table `referrals`
-- Estimates: usage_logs (free calls) — already logged
-- Paid calls/revenue: x402_payments settled — already tracked
-- Repeat customers: same wallet >1 settled payment (new metric in paid_metrics)
-- Conversion source: landing referer/utm + channel-specific links (each listing
-  points at https://api.cortexcloud.org/?utm_source=<channel>)
-- Weekly GTM report cron: visitors / estimates / paid / revenue / repeat / top referers
+- Visitors: landing page hit counter + HTTP Referer (utm capture)
+- Paid calls/revenue: `x402_payments` settled — already tracked
+- Repeat customers: same wallet >1 settled payment
+- Conversion source: landing referer/utm + channel-specific links (each
+  listing points at `https://api.cortexcloud.org/?utm_source=<channel>`)
+- Weekly GTM report cron: visitors / paid / revenue / repeat / top referers
 
 ## Milestones
 - M1: 10 external paid calls (watchdog alerts each one) — target 2–4 weeks
