@@ -138,3 +138,11 @@ rewritten for the data surface before its output is trusted.
 - Production migration, Helius configuration, provider verification, and explicit production deployment approval remain launch gates. The security checklist also records Cloudflare HTTPS redirect/HSTS and an outbound alert destination as infrastructure follow-ups.
 - External directory listings remain unverified and must be checked/re-submitted by the account owner; repository updates alone do not establish listing status.
 - No production deployment has been performed, and `main` has not been modified.
+
+
+## EVM-first release preparation (2026-11-05)
+- Target first release: EVM on-chain data/intelligence with x402 USDC on Base. Solana remains disabled and is not part of the first release.
+- Operator reports completing a funded-buyer x402 staging transaction with an operator-controlled wallet. The transaction hash/reference, paid response, and matching ledger entry have not yet been attached to this repository, so this is recorded as operator-reported rather than independently verified here.
+- Latest CI on head c86e55d passed: PostgreSQL-backed job, Alembic upgrade, 208 passed, 5 skipped, 0 failed.
+- Added `EVM_FIRST_RELEASE_CHECKLIST.md` with the EVM-only scope, required evidence, infrastructure preflight, and approval-gated release sequence.
+- This is preparation only. No merge, production migration, production deployment, secret changes, or Solana enablement has been performed or authorized.
