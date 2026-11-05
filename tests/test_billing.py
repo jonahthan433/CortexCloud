@@ -247,3 +247,59 @@ async def test_billing_account_rejects_invalid_api_key(client):
         headers={"Authorization": "Bearer cx_live_not-a-real-key"},
     )
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_upstream_5xx_refunds_credits_and_releases_idempotency_key(client, monkeypatch):
+    await _db_ready()
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "DATA_ENABLED", True, raising=False)
+    monkeypatch.setattr(settings, "X402_ENABLED", True, raising=False)
+    monkeypatch.setattr(settings, "ALCHEMY_API_KEY", "test-key", raising=False)
+    monkeypatch.setattr(settings, "WALLET_ADDRESS", "0x" + "11" * 20, raising=False)
+
+    wallet = "0x" + "16" * 20
+    raw_key = "cx_live_" + uuid.uuid4().hex
+    async with AsyncSessionLocal() as db:
+        db.add(WalletSubscription(
+            wallet_address=wallet, plan_id="starter", status="active",
+            period_start=datetime.now(timezone.utc),
+            period_end=datetime.now(timezone.utc) + timedelta(days=30),
+            credits_granted=10, credits_remaining=10,
+        ))
+        db.add(WalletAPIKey(
+            wallet_address=wallet, name="test", prefix=raw_key[:16],
+            hashed_key=hashlib.sha256(raw_key.encode()).hexdigest(), is_active=True,
+        ))
+        await db.commit()
+
+    calls = 0
+    async def fake_rpc(network, method, params):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return 502, {"error": "upstream unavailable"}
+        return 200, {"result": {
+            "number": "0x2", "hash": "0xabc", "timestamp": "0x64",
+            "transactions": [], "parentHash": "0xdef",
+        }}
+
+    monkeypatch.setattr("app.api.data._alchemy_rpc", fake_rpc)
+    headers = {"Authorization": "Bearer " + raw_key, "Idempotency-Key": "retry-after-5xx"}
+    first = await client.get("/v1/data/block?chain=ethereum&block=latest", headers=headers)
+    assert first.status_code == 502
+    assert first.headers["X-CortexCloud-Credits-Used"] == "0"
+    assert first.headers["X-CortexCloud-Credits-Remaining"] == "10"
+
+    second = await client.get("/v1/data/block?chain=ethereum&block=latest", headers=headers)
+    assert second.status_code == 200, second.text
+    assert second.headers["X-CortexCloud-Credits-Used"] == "4"
+    assert second.headers["X-CortexCloud-Credits-Remaining"] == "6"
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(WalletSubscription).where(WalletSubscription.wallet_address == wallet))
+        assert result.scalar_one().credits_remaining == 6
+        ledger = await db.execute(select(WalletCreditTransaction.type).where(
+            WalletCreditTransaction.wallet_address == wallet
+        ))
+        assert {"usage_refunded", "usage_refund", "usage_charge"} <= set(ledger.scalars().all())
