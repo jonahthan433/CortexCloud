@@ -85,14 +85,14 @@ indicators).
 
 ## Deploy & test (CT105 /opt/CortexCloudAPI)
 ```bash
-/opt/cortexcloud-venv/bin/python -m pytest tests/ -q          # must be green
-/opt/cortexcloud-venv/bin/python update_openapi_v2.py          # regen OpenAPI
-systemctl restart cortexcloud.service                          # deploy API
-systemctl restart cortexcloud-mcp.service                      # deploy MCP
-curl -s localhost:8000/v1/capabilities                         # verify pricing + routes
+/opt/cortexcloud-venv/bin/python -m pytest tests/ -q
+/opt/cortexcloud-venv/bin/python update_openapi_v2.py
+systemctl restart cortexcloud.service
+systemctl restart cortexcloud-mcp.service
+curl -s localhost:8000/v1/capabilities
 curl -s -X POST localhost:8000/v1/data/token-price \
-  -H 'Content-Type: application/json' -d '{"id":"ethereum"}'   # expect 402 + amount
-curl -s localhost:8000/.well-known/agentsearch.txt             # verify discovery
+  -H 'Content-Type: application/json' -d '{"id":"ethereum"}'
+curl -s localhost:8000/.well-known/agentsearch.txt
 ```
 MCP rebuild (from the source repo on the Hermes host):
 `npx tsc --noEmit && npx --no-install esbuild src/http.ts --bundle --format=cjs --platform=node --outfile=dist/mcp-bundle.cjs` then push the bundle to CT105 `/opt/cortexcloud-mcp/mcp-bundle.cjs`.
@@ -108,8 +108,8 @@ MCP rebuild (from the source repo on the Hermes host):
 
 ## Live snapshot
 Regenerate after deploy. Note: `scripts/update_state.py` still emits the
-legacy optimization price table (`MODE_PRICE_USD`/Benchmark rows) and must be
-rewritten for the data surface before its output is trusted.
+legacy optimization price table (`MODE_PRICE_USD`/Benchmark rows) and must
+be rewritten for the data surface before its output is trusted.
 
 ## Phase completion status (feature branch, 2026-11-05)
 
@@ -117,7 +117,7 @@ rewritten for the data surface before its output is trusted.
 - Added PostgreSQL-backed GitHub Actions CI and deterministic test configuration.
 - Solana discovery is gated by both `HELIUS_API_KEY` and `HELIUS_VERIFIED=true`. An authenticated internal `POST /internal/providers/helius/verify` runs Helius `getHealth` but deliberately does not enable Solana; the operator must set the flag after a successful check.
 - Aggregate pricing now scales by batch size; cache hits report zero upstream provider cost.
-- GitHub Actions run #244 (commit `1a64b59`) passed: 208 tests passed, 5 skipped, 0 failed; Alembic migration upgrade also passed. This includes subscription rate-limit enforcement, concurrent credit-idempotency, and Solana cache-cost regression coverage. The run emitted 57 warnings, including Pydantic v2 `Field(env=...)` deprecations and upstream Node/websockets deprecations. The staging x402 smoke module only checks payment challenges; it does not settle USDC or verify paid responses/ledger entries. A funded-buyer end-to-end staging test remains required. Treat skipped tests and warnings as follow-up review items; this is CI validation, not production-provider verification.
+- GitHub Actions run #254 on head `5f13d1b` passed: PostgreSQL-backed CI and migration workflow completed successfully. Earlier detailed run #244 recorded 208 passed, 5 skipped, 0 failed, including PostgreSQL-backed tests and Alembic upgrade. Treat skipped tests and warnings as follow-up review items; CI is not production-provider verification.
 
 ### Phase 2 — multi-chain intelligence
 - Implemented Token-2022-aware Solana balances, wallet intelligence, token intelligence, token risk, wallet-scoped priced whale alerts, and EVM/Solana cross-chain comparison.
@@ -126,7 +126,7 @@ rewritten for the data surface before its output is trusted.
 - Helius is still unconfigured in the deployment environment. Solana must remain hidden until the provider key is configured, the internal health check passes, and `HELIUS_VERIFIED=true` is explicitly set.
 
 ### Phase 3 — monetization
-- Added manual monthly prepaid USDC plans on Base: Starter $19/19,000 credits; Trading Pro $49/49,000; Agent Fleet $99/99,000.
+- Added manual monthly prepaid USDC plans on Base: Starter $19/19,000 credits; Trading Pro $49/49,000; Agent Fleet $99/99,000 credits.
 - One credit equals $0.001 of advertised API price. Subscription purchases are x402-settled, issue a wallet-linked API key once, and create a credit ledger.
 - API-key requests debit credits; exhausted balances fall back to ordinary x402 per-call overages. Failed upstream 5xx responses refund credits. Idempotency keys prevent duplicate debits.
 - Added authenticated billing account/usage endpoints, API-key revocation, a browser billing dashboard, Python SDK support, and purchase/trading-bot examples.
@@ -139,10 +139,12 @@ rewritten for the data surface before its output is trusted.
 - External directory listings remain unverified and must be checked/re-submitted by the account owner; repository updates alone do not establish listing status.
 - No production deployment has been performed, and `main` has not been modified.
 
-
 ## EVM-first release preparation (2026-11-05)
 - Target first release: EVM on-chain data/intelligence with x402 USDC on Base. Solana remains disabled and is not part of the first release.
-- Operator reports completing a funded-buyer x402 staging transaction with an operator-controlled wallet. The transaction hash/reference, paid response, and matching ledger entry have not yet been attached to this repository, so this is recorded as operator-reported rather than independently verified here.
-- Latest CI on head c86e55d passed: PostgreSQL-backed job, Alembic upgrade, 208 passed, 5 skipped, 0 failed.
-- Added `EVM_FIRST_RELEASE_CHECKLIST.md` with the EVM-only scope, required evidence, infrastructure preflight, and approval-gated release sequence.
+- Funded-buyer staging proof is now operator-reported with complete three-way evidence: Base USDC settlement transaction `0xe0cf8be4826bfe70fb4eee9ffad527d1224b40332b7627ba65fa7de1525a412b` (success, block 53553894, 2026-11-05 16:45:35 UTC; 4,000 atomic USDC = $0.004); HTTP 200 from `POST /v1/data/token-price` with successful `X-PAYMENT-RESPONSE`; and settled `x402_payments` row id 294 for $0.004 at 16:45:38 UTC.
+- Strong reconciliation: the ledger nonce matches the EIP-3009 `AuthorizationUsed` log topic in the settlement receipt, tying the exact on-chain transfer to the paid API response and ledger row. Buyer balance decreased exactly from 0.103977 to 0.099977 USDC.
+- Test ran on CT105 staging, branch `feat/solana-intelligence-stage-1-2`. No private keys, API keys, facilitator secrets, or credential material are recorded here. The operator reports the evidence/script were moved to `/tmp` and the staging repo tree is clean; evidence artifacts themselves have not been committed to this repository.
+- Important isolation caveat: there is no dedicated staging subdomain; `api.cortexcloud.org` is the only ingress and fronts CT105. This verifies the staging payment path but does not prove separation from a production origin/environment.
+- Latest CI run #254 on head `5f13d1b` completed successfully. The next commit will trigger fresh CI.
+- Added `EVM_FIRST_RELEASE_CHECKLIST.md` with the EVM-only scope, evidence, infrastructure preflight, and approval-gated release sequence.
 - This is preparation only. No merge, production migration, production deployment, secret changes, or Solana enablement has been performed or authorized.
