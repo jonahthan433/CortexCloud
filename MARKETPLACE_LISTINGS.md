@@ -1,22 +1,24 @@
 # MARKETPLACE_LISTINGS.md — Submission Kit & Status Tracker
 
-Copy corrected 2026-11-05 for the on-chain data API. Listings marked LIVE below
-were submitted with optimization-era descriptions; re-submit them using the
-blurbs in this file. Statuses reflect the 2026-08-08 audit and need
-re-verification.
+Copy corrected 2026-11-05 for the on-chain data API. Listings marked LIVE below were previously submitted, but external status
+has not been re-verified during this implementation. Treat each as historical
+until checked directly. Re-submit or refresh descriptions using this file.
 
 ## Canonical listing facts
 
 - Service: CortexCloud On-Chain Data API - api.cortexcloud.org
 - Base URL: `https://api.cortexcloud.org`
 - Paid routes (x402, USDC on Base, eip155:8453, 6-dec): 12 `/v1/data/*` routes,
-  4 `/v1/aggregate/*` routes, `POST /v1/webhooks/whale-alerts`
+  4 `/v1/aggregate/*` routes, `POST /v1/webhooks/whale-alerts`, and 3 manual
+  prepaid subscription purchase routes.
 - Prices: $0.004 (block, gas-oracle, token-price, token-balances,
   nft-ownership, tx-history, all four aggregate routes) · $0.006 wallet-intel ·
   $0.020 token-risk · $0.030 token-intel · $0.040 cross-chain-compare ·
   $0.050 whale-alerts · $0.070 market-snapshot · $0.100 webhook registration
   + $0.020 per delivered alert
-- Free: `GET /v1/capabilities`, `GET /v1/webhooks/whale-alerts`
+- Free: `GET /v1/capabilities`, `GET /v1/webhooks/whale-alerts`,
+  `GET /v1/billing/plans`, and API-key-authenticated billing account/usage/key
+  management endpoints.
 - Payee wallet: `0x5a0353bc9c75b893a9b5735d3e79f1bd988ea143`
 - MCP: `https://api.cortexcloud.org/mcp` (Streamable HTTP; 18 tools catalogued
   at `/.well-known/bazaar`; server version 0.5.0)
@@ -24,12 +26,12 @@ re-verification.
   `/.well-known/agentsearch.txt` · `/openapi.json`
 
 ### Descriptions (reuse everywhere)
-- Short: `CortexCloud On-Chain Data API - api.cortexcloud.org: pay-per-call on-chain data over x402 (USDC on Base). Token prices, ERC-20 balances, NFT ownership, transaction history, blocks, gas, wallet profiles, token risk, whale alerts, cross-chain comparison, and market snapshots. $0.004-$0.070 per call; no API keys. Evidence-backed JSON with source attribution and checked_at timestamps.`
-- Long: `CortexCloud On-Chain Data API serves blockchain data to agents and developers at api.cortexcloud.org. Paid routes cover token prices, ERC-20 balances, NFT ownership, transaction history, blocks, gas oracle, wallet profiles, token risk, whale alerts, cross-chain comparison, and a combined market snapshot; batch reads cover balances, NFTs, prices, and transaction history. Whale-alert webhooks register for $0.100 and accrue $0.020 per delivered alert. Every paid call settles over x402 in USDC on Base (eip155:8453) with no API keys or subscriptions. Responses are evidence-backed: each fact carries its source, a checked_at timestamp, and an explicit missing-data indicator when a value could not be resolved. Data sources are Alchemy and CoinGecko; supported chains are ethereum, base, arbitrum, polygon, and optimism (name or chain id).`
+- Short: `CortexCloud On-Chain Data API - api.cortexcloud.org: evidence-backed on-chain data and intelligence for AI agents and trading systems. Pay per call over x402 in USDC on Base without an API key, or use manual prepaid monthly plans ($19/$49/$99) with wallet-linked API keys and weighted credits. Token prices, ERC-20 balances, NFT ownership, transaction history, blocks, gas, wallet profiles, token risk, whale alerts, cross-chain comparison, and market snapshots. $0.004-$0.070 per data call.`
+- Long: `CortexCloud On-Chain Data API serves evidence-backed blockchain data to AI agents and trading systems at api.cortexcloud.org. Paid routes cover token prices, ERC-20 balances, NFT ownership, transaction history, blocks, gas oracle, wallet profiles, token risk, whale alerts, cross-chain comparison, and a combined market snapshot; batch reads cover balances, NFTs, prices, and transaction history. Whale-alert webhooks register for $0.100 and accrue $0.020 per delivered alert. One-off requests settle over x402 in USDC on Base (eip155:8453) without an API key. Optional manual monthly prepaid plans cost $19, $49, or $99 and issue wallet-linked API keys with weighted credits; after credits run out, x402 per-call overages remain available. Renewals are manual with no automatic wallet withdrawals. Responses are evidence-backed: each fact carries its source, a checked_at timestamp, and an explicit missing-data indicator when a value could not be resolved. Data sources are Alchemy and CoinGecko; supported public chains are ethereum, base, arbitrum, polygon, and optimism (name or chain id). Solana is intentionally not advertised until Helius is configured and verified.`
 
 ## Submission tracker
 
-| # | Platform | Status | Listing URL | Date | Needs |
+| # | Platform | Historical status | Listing URL | Date | Needs |
 |---|---|---|---|---|---|
 | 0a | x402scan | ✅ LIVE | x402scan.com → resources?origin=api.cortexcloud.org | 2026-07 | price refresh via x402scan-MCP or browser |
 | 0b | mppscan | ✅ LIVE | mppscan.com → search `api.cortexcloud.org` | 2026-07 | none |
