@@ -31,7 +31,7 @@ def test_solana_is_not_an_alchemy_network():
 
 
 def test_helius_wiring_is_priced_on_the_floor_and_cheap():
-    assert p.HELIUS_ENDPOINTS == ("token-balances", "tx-history", "token-price", "wallet-intel", "token-intel", "token-risk", "whale-alerts")
+    assert p.HELIUS_ENDPOINTS == ("token-balances", "tx-history", "token-price", "wallet-intel", "token-intel", "token-risk", "whale-alerts", "cross-chain-compare")
     assert p.helius_provider_cost_usd(1) == 0.000049
     assert p.helius_provider_cost_usd(3) == 0.000147
     # Solana reads stay at the $0.004 floor (provider cost is ~80x below it).
@@ -244,7 +244,7 @@ async def test_discovery_advertises_solana_subset(client, monkeypatch):
     body = r.json()
     assert "helius" in body["providers"]
     assert body["solana"]["endpoints"] == [
-        "/v1/data/token-balances", "/v1/data/tx-history", "/v1/data/token-price", "/v1/data/wallet-intel", "/v1/data/token-intel", "/v1/data/token-risk", "/v1/data/whale-alerts"
+        "/v1/data/token-balances", "/v1/data/tx-history", "/v1/data/token-price", "/v1/data/wallet-intel", "/v1/data/token-intel", "/v1/data/token-risk", "/v1/data/whale-alerts", "/v1/data/cross-chain-compare"
     ]
     assert "helius" in body["categories"]["data"]["providers"]
 
@@ -419,3 +419,41 @@ async def test_solana_whale_alerts_reject_chain_wide_scan(client, monkeypatch):
     r = await client.post("/v1/data/whale-alerts", json={"chain": "solana"})
     assert r.status_code == 422
     assert r.json()["error"] == "address_required"
+
+
+async def test_solana_cross_chain_compare_requires_explicit_mint_and_compares_both_networks(client, monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "HELIUS_API_KEY", "test-key", raising=False)
+    monkeypatch.setattr(settings, "ALCHEMY_API_KEY", "test-key", raising=False)
+
+    async def fake_alchemy(network, method, params):
+        if method == "eth_getCode":
+            return 200, {"result": "0x6000"}
+        if method == "alchemy_getAssetTransfers":
+            return 200, {"result": {"transfers": [{"hash": "evm-tx", "blockNum": "0x10"}]}}
+        raise AssertionError(method)
+
+    async def fake_helius(method, params):
+        assert method == "getAsset" and params[0]["id"] == MINT
+        return 200, {"result": {"id": MINT, "token_info": {
+            "price_info": {"price_per_token": 1.0, "currency": "USD", "24h_change": 0.5},
+        }}}
+
+    async def fake_transactions(address, limit):
+        return 200, [{"signature": "sol-tx", "slot": 20}]
+
+    monkeypatch.setattr("app.api.data._alchemy_rpc", fake_alchemy)
+    monkeypatch.setattr("app.api.data._helius_rpc", fake_helius)
+    monkeypatch.setattr("app.api.data._helius_transactions", fake_transactions)
+    r = await client.post("/v1/data/cross-chain-compare", json={
+        "contract": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        "chains": ["ethereum", "solana"],
+        "solana_mint": MINT,
+    })
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["summary"]["chains_checked"] == 2
+    sol = next(item for item in body["chains"] if item["chain"] == "solana")
+    assert sol["deployed"] is True
+    assert sol["price_usd"] == 1.0
+    assert sol["latest_tx"] == "sol-tx"
