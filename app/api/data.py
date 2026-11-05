@@ -460,7 +460,7 @@ async def _solana_tx_history(req: TxHistoryRequest) -> dict | JSONResponse:
     if hit is not None:
         out = dict(hit)
         out["cache_hit"] = True
-        return _stamp(out, endpoint, provider_cost)
+        return _stamp(out, endpoint, 0.0)
 
     status, data = await _helius_transactions(req.address, req.limit)
     if status != 200 or not isinstance(data, list):
@@ -526,7 +526,7 @@ async def _solana_token_price(req: TokenPriceRequest) -> dict | JSONResponse:
     if hit is not None:
         out = dict(hit)
         out["cache_hit"] = True
-        return _stamp(out, endpoint, provider_cost)
+        return _stamp(out, endpoint, 0.0)
 
     now = datetime.now(timezone.utc).isoformat()
     if mint:
