@@ -152,6 +152,7 @@ _CATEGORY_BY_PREFIX: tuple[tuple[str, str], ...] = (
     ("/v1/data/", "data"),
     ("/v1/aggregate/", "aggregate"),
     ("/v1/webhooks/", "webhook"),
+    ("/v1/billing/subscribe/", "billing"),
     ("/v1/ai/", "ai"),
     ("/v1/research/", "research"),
 )
@@ -1007,29 +1008,45 @@ INPUT_SCHEMAS = {
 
 
 def _chain_not_supported_response(path: str, data):
-    """Solana is wired to HELIUS_ENDPOINTS only. Reject anything else BEFORE
-    settlement with the same structured error the route body returns, so no
-    buyer ever pays for a 400."""
+    """Reject unsupported or unconfigured Solana reads before settlement."""
     if not isinstance(data, dict):
         return None
     from app.x402.pricing import HELIUS_ENDPOINTS, is_solana
 
     chain = data.get("chain")
-    if chain is None or not is_solana(chain):
-        return None
-    if path in {f"/v1/data/{e}" for e in HELIUS_ENDPOINTS}:
-        return None
-    return JSONResponse(
-        status_code=400,
-        content={
-            "error": "chain_not_supported",
-            "chain": str(chain),
-            "endpoint": path,
-            "detail": "Solana is not implemented for this endpoint; it is supported on: "
-                      + ", ".join(f"/v1/data/{e}" for e in HELIUS_ENDPOINTS),
-            "solana_supported_endpoints": [f"/v1/data/{e}" for e in HELIUS_ENDPOINTS],
-        },
+    chains = data.get("chains") or []
+    solana_requested = is_solana(chain) or (
+        path == "/v1/data/cross-chain-compare"
+        and isinstance(chains, list)
+        and any(is_solana(item) for item in chains)
     )
+    if not solana_requested:
+        return None
+
+    supported = path in {f"/v1/data/{e}" for e in HELIUS_ENDPOINTS}
+    if not supported:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": "chain_not_supported",
+                "chain": str(chain or "solana"),
+                "endpoint": path,
+                "detail": "Solana is not implemented for this endpoint; it is supported on: "
+                          + ", ".join(f"/v1/data/{e}" for e in HELIUS_ENDPOINTS),
+                "solana_supported_endpoints": [f"/v1/data/{e}" for e in HELIUS_ENDPOINTS],
+            },
+        )
+    if not settings.HELIUS_API_KEY:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "provider_unconfigured",
+                "provider": "helius",
+                "chain": "solana",
+                "detail": "Solana reads are disabled until HELIUS_API_KEY is configured and verified.",
+            },
+        )
+    return None
 
 
 def _validate_data_body(path: str, data) -> list | None:
@@ -1095,23 +1112,25 @@ def _validate_data_body(path: str, data) -> list | None:
             return err(["body", "limit"], "limit must be 1..100")
     elif path == "/v1/data/token-risk":
         c = data.get("contract")
-        if not c or not _HEX.match(str(c)):
-            return err(["body", "contract"], "contract must be a 0x-prefixed 40-hex address")
+        if not c or not _addr_ok(c):
+            return err(["body", "contract"], _contract_msg)
     elif path == "/v1/data/token-intel":
         c = data.get("contract")
-        if not c or not _HEX.match(str(c)):
-            return err(["body", "contract"], "contract must be a 0x-prefixed 40-hex address")
+        if not c or not _addr_ok(c):
+            return err(["body", "contract"], _contract_msg)
     elif path == "/v1/data/wallet-intel":
         addr = data.get("address")
-        if not addr or not _HEX.match(str(addr)):
-            return err(["body", "address"], "address must be a 0x-prefixed 40-hex EVM address")
+        if not addr or not _addr_ok(addr):
+            return err(["body", "address"], _addr_msg)
         lim = data.get("limit")
         if lim is not None and (not isinstance(lim, int) or lim < 1 or lim > 100):
             return err(["body", "limit"], "limit must be 1..100")
     elif path == "/v1/data/whale-alerts":
-        addr = data.get("address")  # optional: chain-wide scan when absent
-        if addr and not _HEX.match(str(addr)):
-            return err(["body", "address"], "address must be a 0x-prefixed 40-hex EVM address")
+        addr = data.get("address")  # optional chain-wide scan on EVM only
+        if sol and not addr:
+            return err(["body", "address"], "Solana whale alerts require a wallet address")
+        if addr and not _addr_ok(addr):
+            return err(["body", "address"], _addr_msg)
         mu = data.get("min_usd")
         if mu is not None and (not isinstance(mu, (int, float)) or mu < 0):
             return err(["body", "min_usd"], "min_usd must be a non-negative number")
@@ -1155,15 +1174,50 @@ def _validate_data_body(path: str, data) -> list | None:
         if chains is not None and (not isinstance(chains, list) or len(chains) < 1 or len(chains) > 5):
             return err(["body", "chains"], "chains must be a list of 1..5 chain names")
         if chains is not None:
-            # cross-chain-compare is EVM-only: Solana is never a comparable
-            # chain here, so reject the list before billing.
-            bad = [ch for ch in chains if str(ch).lower() not in DATA_CHAINS]
+            solana_requested = any(is_solana(ch) for ch in chains)
+            bad = [ch for ch in chains if str(ch).lower() not in ALL_DATA_CHAINS]
             if bad:
                 return err(["body", "chains"], f"unsupported chains: {bad}")
+            if not any(not is_solana(ch) for ch in chains):
+                return err(["body", "chains"], "at least one EVM chain is required")
+            solana_mint = data.get("solana_mint")
+            if solana_requested and not _B58.match(str(solana_mint or "")):
+                return err(["body", "solana_mint"], "a valid base58 solana_mint is required when Solana is included")
+            if solana_mint is not None and not _B58.match(str(solana_mint)):
+                return err(["body", "solana_mint"], "solana_mint must be a base58 Solana mint address")
     # Chain enum check for every data route that accepts a chain (address routes).
     if path != "/v1/data/cross-chain-compare" and data.get("chain") is not None:
         if str(data["chain"]).lower() not in ALL_DATA_CHAINS:
             return err(["body", "chain"], f"unsupported chain: {data['chain']}")
+    return None
+
+
+def _validate_aggregate_body(path: str, data) -> JSONResponse | None:
+    """Validate batch inputs before x402 settlement or subscription credit debit."""
+    import re
+    from app.x402.pricing import DATA_CHAINS
+
+    if not isinstance(data, dict):
+        return JSONResponse(status_code=422, content={"error": "invalid_body"})
+    if path.endswith(("/balances", "/nfts", "/tx-history")):
+        addresses = data.get("addresses")
+        if not isinstance(addresses, list) or not 1 <= len(addresses) <= 20:
+            return JSONResponse(status_code=422, content={"error": "addresses_must_contain_1_to_20_items"})
+        if any(not re.fullmatch(r"0x[0-9a-fA-F]{40}", str(addr)) for addr in addresses):
+            return JSONResponse(status_code=422, content={"error": "invalid_evm_address_in_addresses"})
+        chain = str(data.get("chain") or "ethereum").lower()
+        if chain not in DATA_CHAINS:
+            return JSONResponse(status_code=400, content={"error": "bad_chain", "detail": f"unsupported chain: {chain}"})
+        if path.endswith("/tx-history"):
+            limit = data.get("limit", 25)
+            if not isinstance(limit, int) or not 1 <= limit <= 100:
+                return JSONResponse(status_code=422, content={"error": "limit_must_be_1_to_100"})
+    elif path.endswith("/prices"):
+        ids = data.get("ids")
+        if not isinstance(ids, list) or not 1 <= len(ids) <= 50:
+            return JSONResponse(status_code=422, content={"error": "ids_must_contain_1_to_50_items"})
+        if any(not isinstance(item, str) or not item.strip() for item in ids):
+            return JSONResponse(status_code=422, content={"error": "ids_must_be_non_empty_strings"})
     return None
 
 
@@ -1313,6 +1367,20 @@ class X402Middleware(BaseHTTPMiddleware):
                     _calls = 12
                 price_str = f"${data_price_usd(_ep, _calls):.6f}"
                 request.state.provider_cost_usd = round(data_provider_cost_usd(_ep, _calls), 6)
+            elif path.startswith("/v1/aggregate/"):
+                from app.x402.pricing import data_price_usd, data_provider_cost_usd
+                _route = path.rsplit("/", 1)[-1]
+                _mapping = {
+                    "balances": ("token-balances", "addresses"),
+                    "prices": ("token-price", "ids"),
+                    "nfts": ("nft-ownership", "addresses"),
+                    "tx-history": ("tx-history", "addresses"),
+                }
+                _endpoint, _list_key = _mapping.get(_route, ("token-balances", "addresses"))
+                _items = data.get(_list_key) if isinstance(data, dict) else None
+                _calls = max(1, len(_items)) if isinstance(_items, list) else 1
+                price_str = f"${data_price_usd(_endpoint, _calls):.6f}"
+                request.state.provider_cost_usd = round(data_provider_cost_usd(_endpoint, _calls), 6)
 
         required = usd_to_usdc_atomic(price_str)
 
@@ -1322,6 +1390,7 @@ class X402Middleware(BaseHTTPMiddleware):
         x_correlation_id = request.headers.get("x-correlation-id")
         mpp = await _get_mpp()
         authorization = request.headers.get("authorization")
+        has_subscription_key = bool(authorization and authorization.startswith("Bearer cx_live_"))
 
         # Money-path guard: reject a body the endpoint would reject BEFORE any
         # 402 challenge or settlement — so a malformed request is a clean
@@ -1343,19 +1412,27 @@ class X402Middleware(BaseHTTPMiddleware):
         # GET data routes: query params are the body. Validate them before
         # settle too (H3: no pay-then-400), but only when payment credentials
         # are present - an unauthenticated probe must reach the 402 first.
-        if (payment_signature or (mpp and authorization)) and path in ("/v1/data/block", "/v1/data/gas-oracle"):
+        if (payment_signature or (mpp and authorization) or has_subscription_key) and path in ("/v1/data/block", "/v1/data/gas-oracle"):
             _q_err = _validate_data_query(path, request.query_params)
             if _q_err:
                 return _q_err
         # Re-validate on the paid pass before the settle branch (same guard,
         # no double-charge).
-        if path in _data_paths and (payment_signature or (mpp and authorization)):
-            _chain_err = _chain_not_supported_response(path, data)
-            if _chain_err is not None:
-                return _chain_err
+        if path in _data_paths and (payment_signature or (mpp and authorization) or has_subscription_key):
             _derr = _validate_data_body(path, data)
             if _derr:
                 return JSONResponse(status_code=422, content={"detail": _derr})
+            _chain_err = _chain_not_supported_response(path, data)
+            if _chain_err is not None:
+                return _chain_err
+        _aggregate_paths = {
+            "/v1/aggregate/balances", "/v1/aggregate/prices",
+            "/v1/aggregate/nfts", "/v1/aggregate/tx-history",
+        }
+        if path in _aggregate_paths and (payment_signature or (mpp and authorization) or has_subscription_key):
+            _aggregate_error = _validate_aggregate_body(path, data)
+            if _aggregate_error is not None:
+                return _aggregate_error
         if ((path == "/v1/optimize" or path in _ai_paths)
                 and (payment_signature or (mpp and authorization))):
             if path == "/v1/optimize":
@@ -1389,6 +1466,133 @@ class X402Middleware(BaseHTTPMiddleware):
                 _derr = _validate_data_body(path, data)
                 if _derr:
                     return JSONResponse(status_code=422, content={"detail": _derr})
+
+        # Wallet-linked subscription credits are a prepaid alternative to
+        # per-call x402 settlement. When credits are exhausted, the request
+        # falls through to the ordinary x402 challenge (paid overage).
+        if (not payment_signature and has_subscription_key
+                and (path.startswith("/v1/data/") or path.startswith("/v1/aggregate/"))):
+            from app.api.billing import lookup_wallet_api_key
+            api_key = await lookup_wallet_api_key(request)
+            if api_key is None:
+                return JSONResponse(status_code=401, content={"error": "invalid_subscription_api_key"})
+            request.state.x402_payer = api_key.wallet_address
+            request.state.subscription_api_key_id = str(api_key.id)
+            request.state.x402_start = time.perf_counter()
+            limited = await _rate_limit(request)
+            if limited:
+                return limited
+            credits_needed = max(1, (int(required) + 999) // 1000)  # 1 credit = $0.001
+            idempotency_key = (request.headers.get("idempotency-key")
+                               or request.headers.get("x-idempotency-key") or "").strip() or None
+            if idempotency_key and len(idempotency_key) > 128:
+                return JSONResponse(status_code=422, content={"error": "idempotency_key_too_long"})
+
+            from datetime import datetime, timezone
+            from sqlalchemy import select
+            from app.database.session import AsyncSessionLocal
+            from app.models.subscription import WalletSubscription, WalletCreditTransaction
+            remaining = None
+            try:
+                async with AsyncSessionLocal() as credit_db:
+                    if idempotency_key:
+                        duplicate = await credit_db.execute(
+                            select(WalletCreditTransaction).where(
+                                WalletCreditTransaction.wallet_address == api_key.wallet_address,
+                                WalletCreditTransaction.idempotency_key == idempotency_key,
+                            )
+                        )
+                        if duplicate.scalar_one_or_none():
+                            return JSONResponse(status_code=409, content={"error": "idempotency_key_already_used"})
+                    result = await credit_db.execute(
+                        select(WalletSubscription)
+                        .where(WalletSubscription.wallet_address == api_key.wallet_address)
+                        .with_for_update()
+                    )
+                    # Recheck after acquiring the wallet's subscription row lock.
+                    # Two concurrent requests can both pass the optimistic check
+                    # above; the second must see the first committed debit here.
+                    if idempotency_key:
+                        duplicate = await credit_db.execute(
+                            select(WalletCreditTransaction).where(
+                                WalletCreditTransaction.wallet_address == api_key.wallet_address,
+                                WalletCreditTransaction.idempotency_key == idempotency_key,
+                            )
+                        )
+                        if duplicate.scalar_one_or_none():
+                            return JSONResponse(status_code=409, content={"error": "idempotency_key_already_used"})
+                    subscription = result.scalar_one_or_none()
+                    now = datetime.now(timezone.utc)
+                    if (subscription and subscription.status == "active"
+                            and subscription.period_end > now
+                            and subscription.credits_remaining >= credits_needed):
+                        subscription.credits_remaining -= credits_needed
+                        remaining = subscription.credits_remaining
+                        credit_db.add(WalletCreditTransaction(
+                            wallet_address=api_key.wallet_address,
+                            amount_credits=-credits_needed,
+                            type="usage_charge",
+                            endpoint=path,
+                            idempotency_key=idempotency_key,
+                        ))
+                        await credit_db.commit()
+            except Exception as exc:
+                logger.warning("subscription credit debit failed; falling back to x402: %s", exc)
+                remaining = None
+
+            if remaining is not None:
+                async def _refund_credits() -> int:
+                    async with AsyncSessionLocal() as refund_db:
+                        sub_result = await refund_db.execute(
+                            select(WalletSubscription)
+                            .where(WalletSubscription.wallet_address == api_key.wallet_address)
+                            .with_for_update()
+                        )
+                        current = sub_result.scalar_one_or_none()
+                        if current:
+                            current.credits_remaining += credits_needed
+                            if idempotency_key:
+                                charge_result = await refund_db.execute(
+                                    select(WalletCreditTransaction).where(
+                                        WalletCreditTransaction.wallet_address == api_key.wallet_address,
+                                        WalletCreditTransaction.idempotency_key == idempotency_key,
+                                    ).with_for_update()
+                                )
+                                charge = charge_result.scalar_one_or_none()
+                                if charge:
+                                    charge.idempotency_key = None
+                                    charge.type = "usage_refunded"
+                            refund_db.add(WalletCreditTransaction(
+                                wallet_address=api_key.wallet_address,
+                                amount_credits=credits_needed,
+                                type="usage_refund",
+                                endpoint=path,
+                            ))
+                            await refund_db.commit()
+                            return current.credits_remaining
+                    return remaining + credits_needed
+
+                try:
+                    response = await call_next(request)
+                except Exception:
+                    await _refund_credits()
+                    raise
+                credits_used = credits_needed
+                if response.status_code >= 500:
+                    remaining = await _refund_credits()
+                    credits_used = 0
+                response.headers["X-CortexCloud-Billing"] = "subscription_credits"
+                response.headers["X-CortexCloud-Credits-Used"] = str(credits_used)
+                response.headers["X-CortexCloud-Credits-Remaining"] = str(remaining)
+                _log_request(request, response, request.state.x402_start)
+                return response
+            # Do not let an API key be interpreted as an MPP authorization.
+            authorization = None
+
+        if path.startswith("/v1/billing/subscribe/"):
+            # Subscription activation is tied to the x402 settlement nonce
+            # recorded in the payment ledger; do not accept MPP here.
+            authorization = None
 
         if not payment_signature:
             if mpp and authorization:
@@ -1610,6 +1814,7 @@ class X402Middleware(BaseHTTPMiddleware):
             _sig_payload = {}
         _auth0 = (_sig_payload.get("payload") or {}).get("authorization") or {}
         request.state.x402_payer = _auth0.get("from")
+        request.state.x402_nonce = _auth0.get("nonce")
         request.state.x402_cache = False
 
         # S1: payment-proof cache — the same proof verified+settled within the
@@ -1736,6 +1941,8 @@ class X402Middleware(BaseHTTPMiddleware):
 
         # Record the settled payment in PostgreSQL (jobs/payments ledger).
         # Telemetry never blocks a settled payment.
+        request.state.x402_amount_atomic = int(required)
+        request.state.x402_path = path
         _payer = getattr(request.state, "x402_payer", None) or (_sig_payload.get("payload") or {}).get("authorization", {}).get("from", "")
         await _record_payment(
             path, _payer, int(required), request.state.x402_body, _auth0.get("nonce"),

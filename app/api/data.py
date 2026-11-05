@@ -65,6 +65,7 @@ COINGECKO_BASE = "https://api.coingecko.com/api/v3"
 HELIUS_RPC_URL = "https://mainnet.helius-rpc.com/?api-key={key}"
 HELIUS_TX_URL = "https://api.helius.xyz/v0/addresses/{address}/transactions"
 SOLANA_TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+SOLANA_TOKEN_2022_PROGRAM = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 # ponytail: in-process cache (single worker). Swap to Redis by pointing TTLCache
 # at a redis-backed store — same .get/.set API. No provider/route changes needed.
 _CACHES: dict[str, TTLCache] = {ep: TTLCache(ttl_s) for ep, ttl_s in DATA_TTL_S.items()}
@@ -182,9 +183,11 @@ class WhaleAlertRequest(BaseModel):
 
 
 class CrossChainCompareRequest(BaseModel):
-    contract: str = Field(description="ERC-20 contract address.")
+    contract: str = Field(description="EVM token contract address.")
     chains: list[str] = Field(default=["ethereum", "base", "arbitrum", "polygon", "optimism"],
-                              description="Chains to compare (max 5).")
+                              description="EVM chains and optionally Solana (max 5).")
+    solana_mint: str | None = Field(default=None, description="Solana mint address when comparing Solana.")
+    coin_id: str | None = Field(default=None, description="Optional CoinGecko asset id for shared market context.")
 
 
 def _disabled() -> JSONResponse | None:
@@ -289,6 +292,15 @@ def _need_helius() -> JSONResponse | None:
                 "chain": "solana",
             },
         )
+    if not settings.HELIUS_VERIFIED:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "provider_unverified",
+                "detail": "Helius key has not passed the internal provider verification check.",
+                "chain": "solana",
+            },
+        )
     return None
 
 
@@ -370,41 +382,65 @@ def _strip_pricing(payload: dict) -> dict:
 
 
 async def _solana_token_balances(req: TokenBalancesRequest) -> dict | JSONResponse:
-    """SPL token balances via Helius getTokenAccountsByOwner (jsonParsed)."""
+    """SPL + Token-2022 balances via Helius getTokenAccountsByOwner."""
     if e := _need_helius():
         return e
     endpoint = "token-balances"
-    provider_cost = helius_provider_cost_usd(1)
     mints = ",".join(req.tokens or [])
     cache_key = _cache_key(endpoint, "solana", req.address, mints or "all", str(req.max_tokens))
     hit = _cached_get(endpoint, cache_key)
     if hit is not None:
         out = dict(hit)
         out["cache_hit"] = True
-        return _stamp(out, endpoint, provider_cost)
+        # A cache hit performs no Helius RPC calls; do not overstate provider
+        # cost or understate gross margin in the payment ledger.
+        return _stamp(out, endpoint, 0.0)
 
-    status, data = await _helius_rpc(
-        "getTokenAccountsByOwner",
-        [req.address, {"programId": SOLANA_TOKEN_PROGRAM}, {"encoding": "jsonParsed"}],
-    )
-    if status != 200:
-        return JSONResponse(status_code=status or 502,
-                            content={"error": "upstream_helius", "detail": json.dumps(data)[:500]})
-    accounts = (data.get("result") or {}).get("value") or []
+    # Each token program requires a separate RPC read.
+    provider_cost = helius_provider_cost_usd(2)
+
+    # Solana indexes the legacy SPL Token Program and Token-2022 separately.
+    # Fail closed if either read fails; a partial result would misrepresent
+    # the wallet's holdings.
+    results = await asyncio.gather(*[
+        _helius_rpc(
+            "getTokenAccountsByOwner",
+            [req.address, {"programId": program_id}, {"encoding": "jsonParsed"}],
+        )
+        for program_id in (SOLANA_TOKEN_PROGRAM, SOLANA_TOKEN_2022_PROGRAM)
+    ])
+    for status, data in results:
+        if status != 200:
+            return JSONResponse(
+                status_code=status or 502,
+                content={"error": "upstream_helius", "detail": json.dumps(data)[:500]},
+            )
+
     wanted = set(req.tokens or [])
     balances = []
-    for acc in accounts:
-        info = (((acc.get("account") or {}).get("data") or {}).get("parsed") or {}).get("info") or {}
-        mint = info.get("mint")
-        if wanted and mint not in wanted:
-            continue
-        amount = info.get("tokenAmount") or {}
-        balances.append({
-            "mint": mint,
-            "raw": amount.get("amount"),
-            "decimals": amount.get("decimals"),
-            "ui_amount": amount.get("uiAmount"),
-        })
+    seen_accounts = set()
+    for _status, data in results:
+        accounts = (data.get("result") or {}).get("value") or []
+        for acc in accounts:
+            # pubkey is the token-account identity; do not dedupe by mint,
+            # because one wallet can legitimately hold multiple accounts
+            # for the same mint.
+            account_key = acc.get("pubkey")
+            if account_key and account_key in seen_accounts:
+                continue
+            if account_key:
+                seen_accounts.add(account_key)
+            info = (((acc.get("account") or {}).get("data") or {}).get("parsed") or {}).get("info") or {}
+            mint = info.get("mint")
+            if wanted and mint not in wanted:
+                continue
+            amount = info.get("tokenAmount") or {}
+            balances.append({
+                "mint": mint,
+                "raw": amount.get("amount"),
+                "decimals": amount.get("decimals"),
+                "ui_amount": amount.get("uiAmount"),
+            })
     balances = balances[: req.max_tokens]
     now = datetime.now(timezone.utc).isoformat()
     out = {
@@ -433,7 +469,7 @@ async def _solana_tx_history(req: TxHistoryRequest) -> dict | JSONResponse:
     if hit is not None:
         out = dict(hit)
         out["cache_hit"] = True
-        return _stamp(out, endpoint, provider_cost)
+        return _stamp(out, endpoint, 0.0)
 
     status, data = await _helius_transactions(req.address, req.limit)
     if status != 200 or not isinstance(data, list):
@@ -499,7 +535,7 @@ async def _solana_token_price(req: TokenPriceRequest) -> dict | JSONResponse:
     if hit is not None:
         out = dict(hit)
         out["cache_hit"] = True
-        return _stamp(out, endpoint, provider_cost)
+        return _stamp(out, endpoint, 0.0)
 
     now = datetime.now(timezone.utc).isoformat()
     if mint:
@@ -892,6 +928,105 @@ def _top_holders_from_balances(balances: list[dict], top_n: int) -> tuple[list[d
             round(sum(r for r, _ in rows[:top_n]) / total, 6))
 
 
+async def _solana_token_risk(req: TokenRiskRequest) -> dict | JSONResponse:
+    """Solana mint risk checks: authorities and token-account concentration."""
+    if e := _need_helius():
+        return e
+    mint = req.contract.strip()
+    if not _BASE58.fullmatch(mint):
+        return JSONResponse(status_code=422, content={"error": "invalid_contract",
+                            "detail": "Solana contract must be a base58 mint address"})
+    endpoint = "token-risk"
+    cache_key = _cache_key(endpoint, "solana", mint, str(req.coin_id or ""))
+    hit = _cached_get(endpoint, cache_key)
+    if hit is not None:
+        out = dict(hit)
+        out["cache_hit"] = True
+        return _stamp(out, endpoint, 0.0)
+
+    asset_result, supply_result, holders_result = await asyncio.gather(
+        _helius_rpc("getAsset", [{"id": mint}]),
+        _helius_rpc("getTokenSupply", [mint, {"commitment": "confirmed"}]),
+        _helius_rpc("getTokenLargestAccounts", [mint, {"commitment": "confirmed"}]),
+    )
+    for status, data in (asset_result, supply_result, holders_result):
+        if status != 200:
+            return JSONResponse(status_code=status or 502,
+                                content={"error": "upstream_helius", "detail": json.dumps(data)[:500]})
+
+    asset = asset_result[1].get("result") or {}
+    info = asset.get("token_info") or {}
+    supply_value = ((supply_result[1].get("result") or {}).get("value") or {})
+    total_supply = supply_value.get("uiAmount")
+    if total_supply is None:
+        raw_supply = supply_value.get("amount")
+        decimals = supply_value.get("decimals")
+        try:
+            total_supply = int(raw_supply) / (10 ** int(decimals))
+        except (TypeError, ValueError, ZeroDivisionError):
+            total_supply = None
+    accounts = ((holders_result[1].get("result") or {}).get("value") or [])
+    account_values = []
+    for item in accounts:
+        amount = item.get("uiAmount")
+        if amount is None:
+            try:
+                amount = int(item.get("amount")) / (10 ** int(item.get("decimals")))
+            except (TypeError, ValueError, ZeroDivisionError):
+                amount = None
+        if amount is not None:
+            account_values.append(amount)
+    largest = max(account_values, default=None)
+    largest_pct = (largest / total_supply * 100) if largest is not None and total_supply else None
+    mint_authority = info.get("mint_authority") or info.get("mintAuthority")
+    freeze_authority = info.get("freeze_authority") or info.get("freezeAuthority")
+    flags = []
+    if mint_authority:
+        flags.append("mint_authority_enabled")
+    if freeze_authority:
+        flags.append("freeze_authority_enabled")
+    if largest_pct is not None and largest_pct >= 20:
+        flags.append("single_token_account_over_20pct_supply")
+
+    evidence = [
+        {"check": "mint_authority", "source": "helius getAsset(token_info)",
+         "enabled": bool(mint_authority), "authority": mint_authority},
+        {"check": "freeze_authority", "source": "helius getAsset(token_info)",
+         "enabled": bool(freeze_authority), "authority": freeze_authority},
+        {"check": "supply", "source": "helius getTokenSupply",
+         "total_supply_ui": total_supply, "decimals": supply_value.get("decimals")},
+        {"check": "largest_token_accounts", "source": "helius getTokenLargestAccounts",
+         "accounts_scanned": len(accounts), "largest_account_ui": largest,
+         "largest_account_pct_of_supply": largest_pct,
+         "note": "Account-level concentration only; accounts are not deduplicated by beneficial wallet owner."},
+    ]
+    age_days = volume = None
+    if req.coin_id:
+        cg = await _coingecko_coin(req.coin_id)
+        market = cg.get("market_data") or {}
+        volume = (market.get("total_volume") or {}).get("usd")
+        genesis = cg.get("genesis_date")
+        if genesis:
+            try:
+                age_days = (datetime.now(timezone.utc).date()
+                            - datetime.fromisoformat(genesis).date()).days
+            except ValueError:
+                age_days = None
+        evidence.append({"check": "age_liquidity", "source": f"coingecko /coins/{req.coin_id}",
+                         "genesis_date": genesis, "age_days": age_days,
+                         "total_volume_usd_24h": volume})
+        if volume is not None and volume < 50000:
+            flags.append("thin_liquidity_under_50k")
+        if age_days is not None and age_days < 30:
+            flags.append("new_token_under_30d")
+
+    verdict = "high" if len(flags) >= 3 else "medium" if flags else "low"
+    out = {"contract": mint, "chain": "solana", "verdict": verdict,
+           "risk_flags": flags, "evidence": evidence, "cache_hit": False}
+    _cached_set(endpoint, cache_key, out)
+    return _stamp(out, endpoint, helius_provider_cost_usd(3))
+
+
 @router.post("/token-risk")
 async def token_risk(req: TokenRiskRequest, request: Request):
     """Token risk verdict with evidence. Price/liquidity/age from CoinGecko,
@@ -900,7 +1035,7 @@ async def token_risk(req: TokenRiskRequest, request: Request):
     if d := _disabled():
         return d
     if is_solana(req.chain):
-        return _chain_not_supported("token-risk", req.chain)
+        return await _solana_token_risk(req)
     if e := _need_alchemy():
         return e
     try:
@@ -979,6 +1114,133 @@ async def token_risk(req: TokenRiskRequest, request: Request):
     return _stamp(out, endpoint, provider_cost)
 
 
+async def _solana_wallet_intel(req: WalletIntelRequest) -> dict | JSONResponse:
+    """Solana wallet profile using Helius RPC + Enhanced Transactions."""
+    if e := _need_helius():
+        return e
+    endpoint = "wallet-intel"
+    cache_key = _cache_key(endpoint, "solana", req.address, str(req.limit))
+    hit = _cached_get(endpoint, cache_key)
+    if hit is not None:
+        out = dict(hit)
+        out["cache_hit"] = True
+        return _stamp(out, endpoint, 0.0)
+
+    calls = [
+        _helius_rpc("getBalance", [req.address, {"commitment": "confirmed"}]),
+        *[
+            _helius_rpc(
+                "getTokenAccountsByOwner",
+                [req.address, {"programId": program_id}, {"encoding": "jsonParsed"}],
+            )
+            for program_id in (SOLANA_TOKEN_PROGRAM, SOLANA_TOKEN_2022_PROGRAM)
+        ],
+    ]
+    results, tx_result = await asyncio.gather(
+        asyncio.gather(*calls),
+        _helius_transactions(req.address, req.limit),
+    )
+    for status, data in results:
+        if status != 200:
+            return JSONResponse(status_code=status or 502,
+                                content={"error": "upstream_helius", "detail": json.dumps(data)[:500]})
+    tx_status, tx_data = tx_result
+    if tx_status != 200 or not isinstance(tx_data, list):
+        return JSONResponse(status_code=tx_status or 502,
+                            content={"error": "upstream_helius", "detail": json.dumps(tx_data)[:500]})
+
+    balance_data = results[0][1]
+    lamports = (balance_data.get("result") or {}).get("value")
+    native_balance = (lamports / 1_000_000_000) if isinstance(lamports, int) else None
+    holdings = []
+    seen_accounts = set()
+    for _status, data in results[1:]:
+        for account in ((data.get("result") or {}).get("value") or []):
+            pubkey = account.get("pubkey")
+            if pubkey and pubkey in seen_accounts:
+                continue
+            if pubkey:
+                seen_accounts.add(pubkey)
+            info = (((account.get("account") or {}).get("data") or {}).get("parsed") or {}).get("info") or {}
+            amount = info.get("tokenAmount") or {}
+            holdings.append({
+                "mint": info.get("mint"),
+                "raw": amount.get("amount"),
+                "decimals": amount.get("decimals"),
+                "ui_amount": amount.get("uiAmount"),
+            })
+
+    counterparties = {}
+    recent_out, recent_in = [], []
+    for tx in tx_data[:req.limit]:
+        signature = tx.get("signature")
+        timestamp = tx.get("timestamp")
+        try:
+            timestamp = datetime.fromtimestamp(timestamp, timezone.utc).isoformat() if isinstance(timestamp, (int, float)) else None
+        except (OverflowError, OSError, ValueError):
+            timestamp = None
+        transfers = []
+        for transfer in tx.get("nativeTransfers") or []:
+            transfers.append({
+                "from": transfer.get("fromUserAccount"),
+                "to": transfer.get("toUserAccount"),
+                "asset": "SOL",
+                "value": (transfer.get("amount") / 1_000_000_000) if isinstance(transfer.get("amount"), int) else None,
+            })
+        for transfer in tx.get("tokenTransfers") or []:
+            transfers.append({
+                "from": transfer.get("fromUserAccount"),
+                "to": transfer.get("toUserAccount"),
+                "asset": transfer.get("mint"),
+                "value": transfer.get("tokenAmount"),
+            })
+        tx_out, tx_in = [], []
+        for transfer in transfers:
+            sender = transfer.get("from") or ""
+            receiver = transfer.get("to") or ""
+            if sender == req.address:
+                direction, counterparty = "out", receiver
+            elif receiver == req.address:
+                direction, counterparty = "in", sender
+            else:
+                continue
+            item = {"hash": signature, "counterparty": counterparty or None,
+                    "asset": transfer.get("asset"), "value": transfer.get("value"),
+                    "timestamp": timestamp}
+            (tx_out if direction == "out" else tx_in).append(item)
+            if counterparty:
+                entry = counterparties.setdefault(counterparty, {
+                    "address": counterparty, "sent_count": 0, "received_count": 0,
+                })
+                entry["sent_count" if direction == "out" else "received_count"] += 1
+        recent_out.extend(tx_out)
+        recent_in.extend(tx_in)
+
+    top_counterparties = sorted(
+        counterparties.values(),
+        key=lambda item: -(item["sent_count"] + item["received_count"]),
+    )[:10]
+    now = datetime.now(timezone.utc).isoformat()
+    out = {
+        "address": req.address,
+        "chain": "solana",
+        "native_balance": native_balance,
+        "holdings": holdings[:50],
+        "holdings_count": len(holdings),
+        "recent_out": recent_out[:10],
+        "recent_in": recent_in[:10],
+        "counterparties": top_counterparties,
+        "activity_window": {"transactions_scanned": min(len(tx_data), req.limit), "limit": req.limit},
+        "evidence": {
+            "native_balance": _sol_evidence(native_balance, "getBalance", now),
+            "holdings": _sol_evidence(holdings, "getTokenAccountsByOwner", now),
+            "transactions": _sol_evidence(len(tx_data[:req.limit]), "getEnhancedTransactions", now),
+        },
+        "cache_hit": False,
+    }
+    _cached_set(endpoint, cache_key, out)
+    return _stamp(out, endpoint, helius_provider_cost_usd(4))
+    
 @router.post("/wallet-intel")
 async def wallet_intel(req: WalletIntelRequest, request: Request):
     """Wallet profile: balances + holdings + recent activity + counterparties.
@@ -986,7 +1248,7 @@ async def wallet_intel(req: WalletIntelRequest, request: Request):
     if d := _disabled():
         return d
     if is_solana(req.chain):
-        return _chain_not_supported("wallet-intel", req.chain)
+        return await _solana_wallet_intel(req)
     if e := _need_alchemy():
         return e
     try:
@@ -1097,6 +1359,122 @@ async def whale_alert_payload(req: WhaleAlertRequest, network: str) -> dict:
             "cache_hit": False}
 
 
+async def _solana_native_usd_price() -> tuple[float | None, str]:
+    """Return SOL/USD from CoinGecko; never infer a price from transfer units."""
+    url = f"{COINGECKO_BASE}/simple/price"
+    params = {"ids": "solana", "vs_currencies": "usd"}
+    if settings.COINGECKO_API_KEY:
+        params["x_cg_demo_api_key"] = settings.COINGECKO_API_KEY
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        response = await client.get(url, params=params)
+    if response.status_code != 200:
+        return None, "coingecko_unavailable"
+    value = (response.json().get("solana") or {}).get("usd")
+    try:
+        return (float(value), "coingecko /simple/price") if value is not None else (None, "sol_price_missing")
+    except (TypeError, ValueError):
+        return None, "sol_price_invalid"
+
+
+async def _solana_whale_alerts(req: WhaleAlertRequest) -> dict | JSONResponse:
+    """Wallet-scoped SOL and priced SPL transfer alerts; unknown prices are excluded."""
+    if e := _need_helius():
+        return e
+    if not req.address:
+        return JSONResponse(status_code=422, content={
+            "error": "address_required",
+            "detail": "Solana whale alerts require a wallet address; chain-wide scans are not supported.",
+        })
+    endpoint = "whale-alerts"
+    cache_key = _cache_key(endpoint, "solana", req.address, str(req.min_usd), str(req.limit))
+    hit = _cached_get(endpoint, cache_key)
+    if hit is not None:
+        out = dict(hit)
+        out["cache_hit"] = True
+        return _stamp(out, endpoint, 0.0)
+
+    tx_result, sol_price_result = await asyncio.gather(
+        _helius_transactions(req.address, req.limit),
+        _solana_native_usd_price(),
+    )
+    tx_status, tx_data = tx_result
+    if tx_status != 200 or not isinstance(tx_data, list):
+        return JSONResponse(status_code=tx_status or 502,
+                            content={"error": "upstream_helius", "detail": json.dumps(tx_data)[:500]})
+    sol_price, sol_price_source = sol_price_result
+    token_mints = []
+    for tx in tx_data[:req.limit]:
+        for transfer in tx.get("tokenTransfers") or []:
+            mint = transfer.get("mint")
+            if mint and mint not in token_mints and len(token_mints) < 5:
+                token_mints.append(mint)
+    asset_results = await asyncio.gather(*[
+        _helius_rpc("getAsset", [{"id": mint}]) for mint in token_mints
+    ])
+    token_prices = {}
+    for mint, (status, data) in zip(token_mints, asset_results):
+        info = ((data.get("result") or {}).get("token_info") or {}) if status == 200 else {}
+        price_info = info.get("price_info") or {}
+        value = price_info.get("price_per_token")
+        if value is not None and str(price_info.get("currency", "USD")).upper() == "USD":
+            try:
+                token_prices[mint] = (float(value), "helius getAsset(token_info.price_info)")
+            except (TypeError, ValueError):
+                pass
+
+    alerts, unpriced = [], 0
+    for tx in tx_data[:req.limit]:
+        signature = tx.get("signature")
+        timestamp = tx.get("timestamp")
+        try:
+            timestamp = datetime.fromtimestamp(timestamp, timezone.utc).isoformat() if isinstance(timestamp, (int, float)) else None
+        except (OverflowError, OSError, ValueError):
+            timestamp = None
+        for transfer in tx.get("nativeTransfers") or []:
+            amount = transfer.get("amount")
+            if not isinstance(amount, (int, float)) or sol_price is None:
+                unpriced += 1
+                continue
+            sol_amount = float(amount) / 1_000_000_000
+            usd_value = sol_amount * sol_price
+            if usd_value >= req.min_usd:
+                alerts.append({
+                    "asset": "SOL", "direction": "out" if transfer.get("fromUserAccount") == req.address else "in",
+                    "value": sol_amount, "value_usd": round(usd_value, 2),
+                    "price_source": sol_price_source, "hash": signature,
+                    "from": transfer.get("fromUserAccount"), "to": transfer.get("toUserAccount"),
+                    "timestamp": timestamp, "source": "helius enhanced transactions",
+                })
+        for transfer in tx.get("tokenTransfers") or []:
+            mint = transfer.get("mint")
+            price = token_prices.get(mint)
+            try:
+                amount = float(transfer.get("tokenAmount"))
+            except (TypeError, ValueError):
+                amount = None
+            if not price or amount is None:
+                unpriced += 1
+                continue
+            usd_value = amount * price[0]
+            if usd_value >= req.min_usd:
+                alerts.append({
+                    "asset": mint, "direction": "out" if transfer.get("fromUserAccount") == req.address else "in",
+                    "value": amount, "value_usd": round(usd_value, 2),
+                    "price_source": price[1], "hash": signature,
+                    "from": transfer.get("fromUserAccount"), "to": transfer.get("toUserAccount"),
+                    "timestamp": timestamp, "source": "helius enhanced transactions",
+                })
+    alerts.sort(key=lambda item: item["value_usd"], reverse=True)
+    out = {
+        "watched_address": req.address, "chain": "solana", "min_usd": req.min_usd,
+        "alerts": alerts, "alerts_count": len(alerts), "unpriced_transfers": unpriced,
+        "note": "Wallet-scoped scan only. USD thresholds are applied only when a SOL or token USD price is available; unpriced transfers are excluded, not estimated.",
+        "cache_hit": False,
+    }
+    _cached_set(endpoint, cache_key, out)
+    return _stamp(out, endpoint, helius_provider_cost_usd(1 + len(token_mints)))
+
+
 @router.post("/whale-alerts")
 async def whale_alerts(req: WhaleAlertRequest, request: Request):
     """Large-transfer alerts for a wallet (or chain-wide token scan when a
@@ -1104,7 +1482,7 @@ async def whale_alerts(req: WhaleAlertRequest, request: Request):
     if d := _disabled():
         return d
     if is_solana(req.chain):
-        return _chain_not_supported("whale-alerts", req.chain)
+        return await _solana_whale_alerts(req)
     if e := _need_alchemy():
         return e
     try:
@@ -1128,32 +1506,108 @@ async def whale_alerts(req: WhaleAlertRequest, request: Request):
 
 @router.post("/cross-chain-compare")
 async def cross_chain_compare(req: CrossChainCompareRequest, request: Request):
-    """Same contract across chains in ONE paid call: price, activity, holders
-    proxy, per-chain verdict. Saves the buyer N-1 calls."""
+    """Compare an EVM token contract across EVM networks and an optional Solana mint."""
     if d := _disabled():
         return d
-    if e := _need_alchemy():
+    chains = req.chains[:5]
+    solana_chains = [chain for chain in chains if is_solana(chain)]
+    evm_chains = [chain for chain in chains if not is_solana(chain)]
+    if evm_chains and (e := _need_alchemy()):
         return e
+    if solana_chains and (e := _need_helius()):
+        return e
+    if solana_chains and not req.solana_mint:
+        return JSONResponse(status_code=422, content={
+            "error": "solana_mint_required",
+            "detail": "Provide solana_mint when Solana is included in chains.",
+        })
+    if solana_chains and not _BASE58.fullmatch(req.solana_mint or ""):
+        return JSONResponse(status_code=422, content={
+            "error": "invalid_solana_mint",
+            "detail": "solana_mint must be a base58 Solana mint address.",
+        })
+    if not evm_chains:
+        return JSONResponse(status_code=422, content={
+            "error": "evm_contract_required",
+            "detail": "At least one EVM chain is required alongside the EVM contract address.",
+        })
     endpoint = "cross-chain-compare"
     c = req.contract.lower()
-    chains = req.chains[:5]
-    provider_cost = data_provider_cost_usd(endpoint, calls=len(chains) * 2)  # meta+price per chain
-    cache_key = _cache_key(endpoint, c, ",".join(sorted(chains)))
+    provider_cost = (
+        data_provider_cost_usd(endpoint, calls=len(evm_chains) * 2)
+        + (helius_provider_cost_usd(2) if solana_chains else 0.0)
+    )
+    cache_key = _cache_key(endpoint, c, req.solana_mint or "", str(req.coin_id or ""), ",".join(sorted(chains)))
     hit = _cached_get(endpoint, cache_key)
     if hit is not None:
-        hit = dict(hit)
-        hit["cache_hit"] = True
-        return _stamp(hit, endpoint, provider_cost)
+        out = dict(hit)
+        out["cache_hit"] = True
+        return _stamp(out, endpoint, 0.0)
 
     async def _one(chain: str) -> dict:
         if is_solana(chain):
-            return {"chain": chain, "error": "chain_not_supported",
-                    "detail": "Solana is not implemented for cross-chain-compare"}
+            mint = req.solana_mint
+            asset_result, tx_result = await asyncio.gather(
+                _helius_rpc("getAsset", [{"id": mint}]),
+                _helius_transactions(mint, 25),
+            )
+            asset_status, asset_data = asset_result
+            tx_status, tx_data = tx_result
+            if asset_status != 200:
+                return {"chain": chain, "error": "helius_unavailable"}
+            asset = asset_data.get("result") or {}
+            info = asset.get("token_info") or {}
+            price_info = info.get("price_info") or {}
+            price = price_info.get("price_per_token") if str(price_info.get("currency", "USD")).upper() == "USD" else None
+            price_source = "helius getAsset(token_info.price_info)" if price is not None else None
+            if price is None:
+                url = f"{COINGECKO_BASE}/simple/token_price/solana"
+                params = {"contract_addresses": mint, "vs_currencies": "usd", "include_24hr_change": "true"}
+                if settings.COINGECKO_API_KEY:
+                    params["x_cg_demo_api_key"] = settings.COINGECKO_API_KEY
+                async with httpx.AsyncClient(timeout=20.0) as client:
+                    response = await client.get(url, params=params)
+                if response.status_code == 200:
+                    entry = response.json().get(mint) or {}
+                    price = entry.get("usd")
+                    if price is not None:
+                        price_source = "coingecko /simple/token_price/solana"
+            if price is None and req.coin_id:
+                url = f"{COINGECKO_BASE}/simple/price"
+                params = {"ids": req.coin_id, "vs_currencies": "usd", "include_24hr_change": "true"}
+                if settings.COINGECKO_API_KEY:
+                    params["x_cg_demo_api_key"] = settings.COINGECKO_API_KEY
+                async with httpx.AsyncClient(timeout=20.0) as client:
+                    response = await client.get(url, params=params)
+                if response.status_code == 200:
+                    entry = response.json().get(req.coin_id) or {}
+                    price = entry.get("usd")
+                    if price is not None:
+                        price_source = f"coingecko /simple/price ({req.coin_id})"
+            txs = tx_data[:25] if tx_status == 200 and isinstance(tx_data, list) else []
+            return {
+                "chain": chain,
+                "deployed": bool(asset.get("id") or info),
+                "price_usd": price,
+                "change_24h_usd": (price_info.get("24h_change") if price_source and price_source.startswith("helius") else None),
+                "recent_transfers": (
+                    sum(len(tx.get("tokenTransfers") or []) for tx in txs)
+                    if tx_status == 200 else None
+                ),
+                "recent_transactions": len(txs) if tx_status == 200 else None,
+                "latest_tx": (txs[0].get("signature") if txs else None),
+                "latest_block": (txs[0].get("slot") if txs else None),
+                "evidence": {
+                    "asset_check": "helius getAsset",
+                    "price_check": price_source or "price_unavailable",
+                    "activity_check": "helius enhanced transactions",
+                    "mint": mint,
+                },
+            }
         try:
             network = _network(chain)
         except ValueError:
             return {"chain": chain, "error": "unsupported_chain"}
-        # CoinGecko price-by-contract on this platform.
         platform = COINGECKO_PLATFORMS.get(str(chain).lower())
         price = change = None
         if platform:
@@ -1166,7 +1620,16 @@ async def cross_chain_compare(req: CrossChainCompareRequest, request: Request):
             if r.status_code == 200:
                 entry = (r.json().get(c) or {})
                 price, change = entry.get("usd"), entry.get("usd_24h_change")
-        # Contract presence + recent activity on this chain.
+        if price is None and req.coin_id:
+            url = f"{COINGECKO_BASE}/simple/price"
+            params = {"ids": req.coin_id, "vs_currencies": "usd", "include_24hr_change": "true"}
+            if settings.COINGECKO_API_KEY:
+                params["x_cg_demo_api_key"] = settings.COINGECKO_API_KEY
+            async with httpx.AsyncClient(timeout=20.0) as cc:
+                r = await cc.get(url, params=params)
+            if r.status_code == 200:
+                entry = r.json().get(req.coin_id) or {}
+                price, change = entry.get("usd"), entry.get("usd_24h_change")
         st_code, d_code = await _alchemy_rpc(network, "eth_getCode", [c, "latest"])
         deployed = bool(st_code == 200 and d_code.get("result") not in (None, "0x"))
         st_x, d_x = await _alchemy_rpc(network, "alchemy_getAssetTransfers", [
@@ -1180,13 +1643,14 @@ async def cross_chain_compare(req: CrossChainCompareRequest, request: Request):
                              "price_check": f"coingecko /simple/token_price/{platform}",
                              "activity_check": "alchemy alchemy_getAssetTransfers"}}
 
-    results = await asyncio.gather(*[_one(ch) for ch in chains])
+    results = await asyncio.gather(*[_one(chain) for chain in chains])
     live = [r for r in results if r.get("deployed") and r.get("price_usd") is not None]
-    out = {"contract": c, "chains": results,
+    out = {"contract": c, "solana_mint": req.solana_mint, "chains": results,
+           "comparison_basis": "Caller-supplied EVM contract and Solana mint; CortexCloud does not assert they represent the same underlying asset.",
            "summary": {"chains_checked": len(results), "chains_live": len(live),
                        "best_liquidity_chain": max(
                            (r["chain"] for r in live),
-                           key=lambda ch: next((r.get("recent_transfers", 0)
+                           key=lambda ch: next((r.get("recent_transfers", 0) or 0
                                                 for r in live if r["chain"] == ch), 0),
                            default=None)},
            "cache_hit": False}
@@ -1207,12 +1671,135 @@ class TokenIntelRequest(BaseModel):
     coin_id: str | None = Field(default=None, description="Optional CoinGecko coin id for market context.")
 
 
+async def _solana_token_intel(req: TokenIntelRequest) -> dict | JSONResponse:
+    """Evidence-backed Solana mint profile from Helius DAS and transaction history."""
+    if e := _need_helius():
+        return e
+    mint = req.contract.strip()
+    if not _BASE58.fullmatch(mint):
+        return JSONResponse(status_code=422, content={"error": "invalid_contract",
+                            "detail": "Solana contract must be a base58 mint address"})
+    endpoint = "token-intel"
+    cache_key = _cache_key(endpoint, "solana", mint, str(req.coin_id or ""))
+    hit = _cached_get(endpoint, cache_key)
+    if hit is not None:
+        out = dict(hit)
+        out["cache_hit"] = True
+        return _stamp(out, endpoint, 0.0)
+
+    asset_result, tx_result = await asyncio.gather(
+        _helius_rpc("getAsset", [{"id": mint}]),
+        _helius_transactions(mint, 10),
+    )
+    asset_status, asset_data = asset_result
+    if asset_status != 200:
+        return JSONResponse(status_code=asset_status or 502,
+                            content={"error": "upstream_helius", "detail": json.dumps(asset_data)[:500]})
+    asset = asset_data.get("result") or {}
+    info = asset.get("token_info") or {}
+    metadata = (asset.get("content") or {}).get("metadata") or {}
+    now = datetime.now(timezone.utc).isoformat()
+    facts = {}
+    flags = []
+
+    def fact(key, value, source, missing_reason=None):
+        item = {"source": source, "checked_at": now, "value": value}
+        if value is None and missing_reason:
+            item["missing"] = missing_reason
+        facts[key] = item
+
+    deployed = bool(asset.get("id") or asset.get("interface") or info)
+    fact("contract_deployed", deployed, "helius getAsset",
+         None if deployed else "asset_not_found")
+    fact("name", metadata.get("name"), "helius getAsset(content.metadata)")
+    fact("symbol", info.get("symbol") or metadata.get("symbol"), "helius getAsset(token_info)")
+    fact("decimals", info.get("decimals"), "helius getAsset(token_info)")
+    fact("supply", info.get("supply"), "helius getAsset(token_info)")
+    fact("token_program", info.get("token_program"), "helius getAsset(token_info)")
+    mint_authority = info.get("mint_authority") or info.get("mintAuthority")
+    freeze_authority = info.get("freeze_authority") or info.get("freezeAuthority")
+    fact("mint_authority", mint_authority, "helius getAsset(token_info)")
+    fact("freeze_authority", freeze_authority, "helius getAsset(token_info)")
+    if mint_authority:
+        flags.append("mint_authority_enabled")
+    if freeze_authority:
+        flags.append("freeze_authority_enabled")
+
+    price_info = info.get("price_info") or {}
+    price = price_info.get("price_per_token") if str(price_info.get("currency", "USD")).upper() == "USD" else None
+    price_source = "helius getAsset(token_info.price_info)" if price is not None else None
+    change = None
+    if price is None:
+        url = f"{COINGECKO_BASE}/simple/token_price/solana"
+        params = {"contract_addresses": mint, "vs_currencies": "usd", "include_24hr_change": "true"}
+        if settings.COINGECKO_API_KEY:
+            params["x_cg_demo_api_key"] = settings.COINGECKO_API_KEY
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.get(url, params=params)
+        if response.status_code == 200:
+            entry = response.json().get(mint) or {}
+            price, change = entry.get("usd"), entry.get("usd_24h_change")
+            if price is not None:
+                price_source = "coingecko /simple/token_price/solana"
+    else:
+        change = price_info.get("24h_change")
+    fact("price_usd", price, price_source or "price_lookup",
+         None if price is not None else "price_unavailable")
+    fact("change_24h_usd", change, price_source or "price_lookup",
+         None if change is not None else "change_unavailable")
+    if price is None:
+        flags.append("price_unavailable")
+
+    if req.coin_id:
+        cg = await _coingecko_coin(req.coin_id)
+        market = cg.get("market_data") or {}
+        genesis = cg.get("genesis_date")
+        age_days = None
+        if genesis:
+            try:
+                age_days = (datetime.now(timezone.utc).date()
+                            - datetime.fromisoformat(genesis).date()).days
+            except ValueError:
+                age_days = None
+        volume = (market.get("total_volume") or {}).get("usd")
+        fact("age_days", age_days, f"coingecko /coins/{req.coin_id}",
+             None if age_days is not None else "no_genesis_date")
+        fact("liquidity_usd_24h", volume, f"coingecko /coins/{req.coin_id}")
+        fact("market_cap_usd", (market.get("market_cap") or {}).get("usd"),
+             f"coingecko /coins/{req.coin_id}")
+        if volume is not None and volume < 50000:
+            flags.append("thin_liquidity_under_50k")
+        if age_days is not None and age_days < 30:
+            flags.append("new_token_under_30d")
+
+    tx_status, tx_data = tx_result
+    transactions = tx_data[:10] if tx_status == 200 and isinstance(tx_data, list) else []
+    fact("recent_transfer_count", len(transactions), "helius enhanced transactions",
+         None if tx_status == 200 else "transaction_history_unavailable")
+    if transactions:
+        latest = transactions[0]
+        fact("latest_transfer", {
+            "signature": latest.get("signature"),
+            "type": latest.get("type"),
+            "timestamp": latest.get("timestamp"),
+            "slot": latest.get("slot"),
+            "description": latest.get("description"),
+        }, "helius enhanced transactions")
+    if not deployed:
+        flags.append("asset_not_found")
+    verdict = "high" if len(flags) >= 3 else "medium" if flags else "low"
+    out = {"contract": mint, "chain": "solana", "verdict": verdict,
+           "risk_flags": flags, "facts": facts, "cache_hit": False}
+    _cached_set(endpoint, cache_key, out)
+    return _stamp(out, endpoint, helius_provider_cost_usd(2))
+
+
 @router.post("/token-intel")
 async def token_intel(req: TokenIntelRequest, request: Request):
     if d := _disabled():
         return d
     if is_solana(req.chain):
-        return _chain_not_supported("token-intel", req.chain)
+        return await _solana_token_intel(req)
     if e := _need_alchemy():
         return e
     try:

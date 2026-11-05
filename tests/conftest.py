@@ -8,11 +8,16 @@ _DB_NAME = "cortexcloud_test"
 if "DATABASE_URL" not in os.environ:
     _pw = os.environ.get("POSTGRES_PASSWORD", "")
     if not _pw:
-        # pytest doesn't export .env — read the real password from the app env file.
-        for _l in open("/opt/CortexCloudAPI/.env"):
-            if _l.startswith("POSTGRES_PASSWORD="):
-                _pw = _l.split("=", 1)[1].strip()
-                break
+        # pytest doesn't export .env — read the real password from the app env
+        # file when it exists (it is absent on hardened hosts, where the
+        # password lives in the systemd EnvironmentFile instead).
+        try:
+            for _l in open("/opt/CortexCloudAPI/.env"):
+                if _l.startswith("POSTGRES_PASSWORD="):
+                    _pw = _l.split("=", 1)[1].strip()
+                    break
+        except OSError:
+            pass
     os.environ["DATABASE_URL"] = (
         "postgresql+asyncpg://"
         f"{os.environ.get('POSTGRES_USER', 'postgres')}:{_pw}@127.0.0.1:5432/{_DB_NAME}"
@@ -41,17 +46,20 @@ async def _create_test_tables():
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
     except Exception:  # noqa: BLE001
+        if os.environ.get("CI"):
+            raise
         pass  # no PG here; DB-backed tests skip individually
     yield
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
-async def _clean_tables():
+async def _clean_tables(_create_test_tables):
     from sqlalchemy import text
 
     try:
         async with AsyncSessionLocal() as db:
-            for t in ("x402_nonces", "benchmarks", "x402_payments", "opt_executions", "opt_jobs"):
+            for t in ("wallet_credit_transactions", "wallet_api_keys", "wallet_subscriptions",
+                      "x402_nonces", "benchmarks", "x402_payments", "opt_executions", "opt_jobs"):
                 await db.execute(text(f"TRUNCATE {t} RESTART IDENTITY CASCADE"))
             await db.commit()
     except Exception:  # noqa: BLE001

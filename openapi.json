@@ -86,6 +86,9 @@
               }
             }
           },
+          "402": {
+            "description": "Payment Required — x402 PaymentRequirements challenge"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -95,9 +98,6 @@
                 }
               }
             }
-          },
-          "402": {
-            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -158,6 +158,9 @@
               }
             }
           },
+          "402": {
+            "description": "Payment Required — x402 PaymentRequirements challenge"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -167,9 +170,6 @@
                 }
               }
             }
-          },
-          "402": {
-            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -230,6 +230,9 @@
               }
             }
           },
+          "402": {
+            "description": "Payment Required — x402 PaymentRequirements challenge"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -239,9 +242,6 @@
                 }
               }
             }
-          },
-          "402": {
-            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -302,6 +302,9 @@
               }
             }
           },
+          "402": {
+            "description": "Payment Required — x402 PaymentRequirements challenge"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -311,9 +314,6 @@
                 }
               }
             }
-          },
-          "402": {
-            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -376,6 +376,9 @@
               }
             }
           },
+          "402": {
+            "description": "Payment Required — x402 PaymentRequirements challenge"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -385,9 +388,6 @@
                 }
               }
             }
-          },
-          "402": {
-            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -460,6 +460,9 @@
               }
             }
           },
+          "402": {
+            "description": "Payment Required — x402 PaymentRequirements challenge"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -469,9 +472,6 @@
                 }
               }
             }
-          },
-          "402": {
-            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -533,6 +533,9 @@
               }
             }
           },
+          "402": {
+            "description": "Payment Required — x402 PaymentRequirements challenge"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -542,9 +545,6 @@
                 }
               }
             }
-          },
-          "402": {
-            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -606,6 +606,9 @@
               }
             }
           },
+          "402": {
+            "description": "Payment Required — x402 PaymentRequirements challenge"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -615,9 +618,6 @@
                 }
               }
             }
-          },
-          "402": {
-            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -679,6 +679,9 @@
               }
             }
           },
+          "402": {
+            "description": "Payment Required — x402 PaymentRequirements challenge"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -688,9 +691,6 @@
                 }
               }
             }
-          },
-          "402": {
-            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -752,6 +752,9 @@
               }
             }
           },
+          "402": {
+            "description": "Payment Required — x402 PaymentRequirements challenge"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -761,9 +764,6 @@
                 }
               }
             }
-          },
-          "402": {
-            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -824,6 +824,9 @@
               }
             }
           },
+          "402": {
+            "description": "Payment Required — x402 PaymentRequirements challenge"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -833,9 +836,6 @@
                 }
               }
             }
-          },
-          "402": {
-            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -896,6 +896,9 @@
               }
             }
           },
+          "402": {
+            "description": "Payment Required — x402 PaymentRequirements challenge"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -905,9 +908,6 @@
                 }
               }
             }
-          },
-          "402": {
-            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -968,6 +968,9 @@
               }
             }
           },
+          "402": {
+            "description": "Payment Required — x402 PaymentRequirements challenge"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -977,9 +980,6 @@
                 }
               }
             }
-          },
-          "402": {
-            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -1040,6 +1040,9 @@
               }
             }
           },
+          "402": {
+            "description": "Payment Required — x402 PaymentRequirements challenge"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -1049,9 +1052,6 @@
                 }
               }
             }
-          },
-          "402": {
-            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -1112,6 +1112,9 @@
               }
             }
           },
+          "402": {
+            "description": "Payment Required — x402 PaymentRequirements challenge"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -1121,9 +1124,6 @@
                 }
               }
             }
-          },
-          "402": {
-            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -1184,6 +1184,9 @@
               }
             }
           },
+          "402": {
+            "description": "Payment Required — x402 PaymentRequirements challenge"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -1193,9 +1196,6 @@
                 }
               }
             }
-          },
-          "402": {
-            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -1255,6 +1255,9 @@
               }
             }
           },
+          "402": {
+            "description": "Payment Required — x402 PaymentRequirements challenge"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -1264,9 +1267,6 @@
                 }
               }
             }
-          },
-          "402": {
-            "description": "Payment Required — x402 PaymentRequirements challenge"
           }
         },
         "security": [
@@ -1658,6 +1658,171 @@
         },
         "security": []
       }
+    },
+    "/v1/billing/subscribe/starter": {
+      "post": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Purchase or renew Starter prepaid subscription",
+        "description": "Manual monthly prepaid USDC payment on Base. $19.00 for 19000 weighted API credits. Returns a wallet-linked API key once. Renewal is manual; no automatic wallet withdrawals.",
+        "operationId": "subscribe_starter",
+        "responses": {
+          "200": {
+            "description": "Subscription activated and API key returned once."
+          },
+          "402": {
+            "description": "x402 USDC payment required."
+          },
+          "409": {
+            "description": "Settlement verification or idempotency conflict."
+          }
+        }
+      }
+    },
+    "/v1/billing/subscribe/trading-pro": {
+      "post": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Purchase or renew Trading Pro prepaid subscription",
+        "description": "Manual monthly prepaid USDC payment on Base. $49.00 for 49000 weighted API credits. Returns a wallet-linked API key once. Renewal is manual; no automatic wallet withdrawals.",
+        "operationId": "subscribe_trading_pro",
+        "responses": {
+          "200": {
+            "description": "Subscription activated and API key returned once."
+          },
+          "402": {
+            "description": "x402 USDC payment required."
+          },
+          "409": {
+            "description": "Settlement verification or idempotency conflict."
+          }
+        }
+      }
+    },
+    "/v1/billing/subscribe/agent-fleet": {
+      "post": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Purchase or renew Agent Fleet prepaid subscription",
+        "description": "Manual monthly prepaid USDC payment on Base. $99.00 for 99000 weighted API credits. Returns a wallet-linked API key once. Renewal is manual; no automatic wallet withdrawals.",
+        "operationId": "subscribe_agent_fleet",
+        "responses": {
+          "200": {
+            "description": "Subscription activated and API key returned once."
+          },
+          "402": {
+            "description": "x402 USDC payment required."
+          },
+          "409": {
+            "description": "Settlement verification or idempotency conflict."
+          }
+        }
+      }
+    },
+    "/v1/billing/plans": {
+      "get": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "List prepaid subscription plans",
+        "operationId": "billing_plans",
+        "responses": {
+          "200": {
+            "description": "Plan prices, monthly credit allowances and payment terms."
+          }
+        }
+      }
+    },
+    "/v1/billing/account": {
+      "get": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Get authenticated wallet subscription",
+        "operationId": "billing_account",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subscription status, credits and active API key prefixes."
+          },
+          "401": {
+            "description": "Valid subscription API key required."
+          }
+        }
+      }
+    },
+    "/v1/billing/usage": {
+      "get": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Get authenticated credit usage history",
+        "operationId": "billing_usage",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recent credit ledger transactions."
+          },
+          "401": {
+            "description": "Valid subscription API key required."
+          }
+        }
+      }
+    },
+    "/v1/billing/keys/revoke": {
+      "post": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Revoke one of the authenticated wallet's API keys",
+        "operationId": "revoke_billing_api_key",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "key_id"
+                ],
+                "properties": {
+                  "key_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "API key revoked."
+          },
+          "401": {
+            "description": "Valid subscription API key required."
+          },
+          "404": {
+            "description": "API key not found."
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1767,15 +1932,15 @@
           },
           "min_usd": {
             "type": "number",
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Min Usd",
             "description": "USD floor for whale alerts.",
-            "default": 100000.0
+            "default": 100000
           },
           "limit": {
             "type": "integer",
-            "maximum": 100.0,
-            "minimum": 1.0,
+            "maximum": 100,
+            "minimum": 1,
             "title": "Limit",
             "description": "Transfers to scan per direction.",
             "default": 50
@@ -1802,8 +1967,8 @@
           },
           "page_size": {
             "type": "integer",
-            "maximum": 100.0,
-            "minimum": 1.0,
+            "maximum": 100,
+            "minimum": 1,
             "title": "Page Size",
             "description": "NFTs per page.",
             "default": 100
@@ -1845,8 +2010,8 @@
           },
           "max_tokens": {
             "type": "integer",
-            "maximum": 200.0,
-            "minimum": 1.0,
+            "maximum": 200,
+            "minimum": 1,
             "title": "Max Tokens",
             "description": "Cap on returned token entries.",
             "default": 50
@@ -1996,8 +2161,8 @@
           },
           "limit": {
             "type": "integer",
-            "maximum": 100.0,
-            "minimum": 1.0,
+            "maximum": 100,
+            "minimum": 1,
             "title": "Limit",
             "description": "Max transactions per address.",
             "default": 25
@@ -2024,8 +2189,8 @@
           },
           "limit": {
             "type": "integer",
-            "maximum": 100.0,
-            "minimum": 1.0,
+            "maximum": 100,
+            "minimum": 1,
             "title": "Limit",
             "description": "Max transactions returned.",
             "default": 25
@@ -2103,8 +2268,8 @@
           },
           "limit": {
             "type": "integer",
-            "maximum": 100.0,
-            "minimum": 1.0,
+            "maximum": 100,
+            "minimum": 1,
             "title": "Limit",
             "description": "Recent transfers to summarize.",
             "default": 25
@@ -2137,15 +2302,15 @@
           },
           "min_usd": {
             "type": "number",
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Min Usd",
             "description": "USD floor for 'large' transfers.",
-            "default": 100000.0
+            "default": 100000
           },
           "limit": {
             "type": "integer",
-            "maximum": 100.0,
-            "minimum": 1.0,
+            "maximum": 100,
+            "minimum": 1,
             "title": "Limit",
             "description": "Transfers to scan.",
             "default": 50
@@ -2188,15 +2353,15 @@
           },
           "min_usd": {
             "type": "number",
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Min Usd",
             "description": "USD floor for 'large' transfers.",
-            "default": 100000.0
+            "default": 100000
           },
           "limit": {
             "type": "integer",
-            "maximum": 100.0,
-            "minimum": 1.0,
+            "maximum": 100,
+            "minimum": 1,
             "title": "Limit",
             "description": "Transfers to scan per direction.",
             "default": 50
@@ -2208,6 +2373,13 @@
           "address"
         ],
         "title": "WhaleAlertWebhookRequest"
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "CortexCloud API key"
       }
     }
   },

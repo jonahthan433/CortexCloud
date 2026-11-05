@@ -6,12 +6,13 @@ Base), /v1/capabilities (free) + discovery (/.well-known/x402.json,
 separate host service (relay, no payment logic) exposed by the tunnel
 at https://api.cortexcloud.org/mcp. Health/metrics/static unchanged.
 """
+import hmac
 import json as _json
 import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, Header, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -21,7 +22,7 @@ from app.core.logging import setup_logging
 
 logger = logging.getLogger("cortexcloud.main")
 
-SITE_DIR = "/opt/CortexCloudAPI/site"
+SITE_DIR = os.environ.get("SITE_DIR", os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "site")))
 
 
 @asynccontextmanager
@@ -113,6 +114,8 @@ def create_app(override_openapi: bool = True) -> FastAPI:
     # are free. Delivery is a metered background worker (see app/api/webhooks).
     from app.api.webhooks import router as webhooks_router
     application.include_router(webhooks_router)
+    from app.api.billing import router as billing_router
+    application.include_router(billing_router)
 
     application.include_router(discovery_router, tags=["Discovery"])
     application.include_router(bazaar_router, tags=["Bazaar / MCP"])
@@ -145,7 +148,13 @@ def create_app(override_openapi: bool = True) -> FastAPI:
 
     # ---- system / static ---------------------------------------------------
     @application.get("/metrics", include_in_schema=False, tags=["System"])
-    async def metrics():
+    async def metrics(x_internal_token: str | None = Header(default=None, alias="X-Internal-Token")):
+        # Prometheus telemetry is an internal surface (latency/cache/process
+        # stats). Gate it exactly like /internal/* so it is never public.
+        if not settings.INTERNAL_TOKEN:
+            raise HTTPException(status_code=503, detail="metrics disabled (INTERNAL_TOKEN unset)")
+        if not hmac.compare_digest(x_internal_token or "", settings.INTERNAL_TOKEN):
+            raise HTTPException(status_code=401, detail="invalid internal token")
         from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
@@ -229,6 +238,10 @@ def create_app(override_openapi: bool = True) -> FastAPI:
     @application.get("/demo", include_in_schema=False, tags=["System"])
     async def demo_page():
         return FileResponse(os.path.join(SITE_DIR, "demo.html"), media_type="text/html")
+
+    @application.get("/billing.html", include_in_schema=False, tags=["Billing"])
+    async def billing_page():
+        return FileResponse(os.path.join(SITE_DIR, "billing.html"), media_type="text/html")
 
     # Root-level static assets (Next export leftovers kept for compatibility)
     @application.get("/{asset}", include_in_schema=False)

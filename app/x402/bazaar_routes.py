@@ -40,7 +40,13 @@ def _endpoint_catalog() -> list[dict]:
         if float(price.lstrip("$")) > 0.0
     ]
     free = [
-        {"method": "GET", "path": "/v1/capabilities", "price": "free", "description": FREE_ROUTES["GET /v1/capabilities"]},
+        {
+            "method": route.split(" ", 1)[0],
+            "path": route.split(" ", 1)[1],
+            "price": "free",
+            "description": description,
+        }
+        for route, description in FREE_ROUTES.items()
     ]
     return paid + free
 
@@ -49,7 +55,7 @@ def _endpoint_catalog() -> list[dict]:
 async def bazaar_root():
     return {
         "name": "CortexCloud On-Chain Data API",
-        "description": "Pay-per-call on-chain data and intelligence over x402 (USDC on Base). Token, wallet, contract/liquidity risk, prices, whale activity, transaction history, balances, and cross-chain comparison. Evidence-backed JSON: source attribution, checked_at timestamps, explicit missing-data indicators. Providers: Alchemy + CoinGecko.",
+        "description": "On-chain data and intelligence with x402 pay-per-call and manual monthly prepaid USDC subscriptions on Base. Wallet-linked API keys spend weighted credits; x402 remains the overage path. Evidence-backed JSON: source attribution, checked_at timestamps, explicit missing-data indicators. Providers: Alchemy + CoinGecko; optional Helius routes appear only after configuration and verification.",
         "endpoints": _endpoint_catalog(),
         "mcp": {
             "transport": "streamable-http",

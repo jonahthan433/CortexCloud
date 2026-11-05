@@ -20,6 +20,10 @@ router = APIRouter(tags=["catalog"])
 
 @router.get("/v1/capabilities", summary="Agent capability catalog")
 async def capabilities() -> dict:
+    helius_configured = bool(settings.HELIUS_API_KEY and settings.HELIUS_VERIFIED)
+    helius_unverified = bool(settings.HELIUS_API_KEY and not settings.HELIUS_VERIFIED)
+    providers = ["alchemy", "coingecko"] + (["helius"] if helius_configured else [])
+    solana_endpoints = [f"/v1/data/{e}" for e in HELIUS_ENDPOINTS] if helius_configured else []
     return {
         "service": "CortexCloud On-Chain Data API",
         "version": "v1",
@@ -37,14 +41,16 @@ async def capabilities() -> dict:
             "/openapi.json",
             "/mcp",
         ],
-        "providers": ["alchemy", "coingecko", "helius"],
+        "providers": providers,
         "supported_chains": sorted(set(DATA_CHAINS.keys()) - {"1", "8453", "42161", "137", "10"}),
         "solana": {
             "aliases": ["solana", "sol"],
-            "provider": "helius" if settings.HELIUS_API_KEY else "not_configured",
-            "endpoints": [f"/v1/data/{e}" for e in HELIUS_ENDPOINTS],
-            "note": "Solana is supported on token-balances, tx-history and token-price only; "
-                    "every other route returns chain_not_supported. Set HELIUS_API_KEY to enable.",
+            "provider": "helius" if helius_configured else ("not_verified" if helius_unverified else "not_configured"),
+            "endpoints": solana_endpoints,
+            "status": "available" if helius_configured else ("not_verified" if helius_unverified else "not_configured"),
+            "note": ("Solana is supported on token-balances, tx-history, token-price, wallet-intel, token-intel, token-risk wallet-scoped whale-alerts and cross-chain-compare (requires an explicit Solana mint); "
+                    "every other route returns chain_not_supported.") if helius_configured
+                    else ("Helius is configured but not verified; Solana stays disabled until the internal provider check passes." if helius_unverified else "Solana is not enabled on this instance; configure and verify HELIUS_API_KEY before use."),
             "settlement": "x402 (USDC on Base) — Solana is the READ chain, not the payment chain.",
         },
         "categories": {
@@ -65,7 +71,7 @@ async def capabilities() -> dict:
                     "/v1/data/cross-chain-compare",
                     "/v1/data/market-snapshot",
                 ],
-                "providers": ["alchemy", "coingecko", "helius"],
+                "providers": providers,
                 "supported_chains": sorted(set(DATA_CHAINS.keys()) - {"1", "8453", "42161", "137", "10"}),
             },
             "webhooks": {
@@ -90,6 +96,18 @@ async def capabilities() -> dict:
                     "/v1/aggregate/prices",
                     "/v1/aggregate/nfts",
                     "/v1/aggregate/tx-history",
+                ],
+            },
+            "billing": {
+                "status": "available" if settings.X402_ENABLED else "disabled",
+                "note": "Manual monthly prepaid USDC subscriptions. 1 credit = $0.001; when credits run out, normal x402 per-call payments remain available. No automatic wallet withdrawals.",
+                "plans_endpoint": "/v1/billing/plans",
+                "account_endpoint": "/v1/billing/account",
+                "usage_endpoint": "/v1/billing/usage",
+                "subscription_routes": [
+                    "POST /v1/billing/subscribe/starter",
+                    "POST /v1/billing/subscribe/trading-pro",
+                    "POST /v1/billing/subscribe/agent-fleet",
                 ],
             },
         },

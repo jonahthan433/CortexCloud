@@ -26,6 +26,7 @@ from app.core.config import settings
 from app.x402.pricing import (
     DATA_CHAINS,
     data_price_usd,
+    data_provider_cost_usd,
     DEFAULT_CHAIN,
 )
 
@@ -88,8 +89,8 @@ async def _alchemy_nft(network: str, owner: str, page_size: int) -> tuple[int, d
     return r.status_code, data
 
 
-def _stamp(body: dict, endpoint: str, provider_cost: float) -> dict:
-    price = data_price_usd(endpoint)
+def _stamp(body: dict, endpoint: str, provider_cost: float, calls: int = 1) -> dict:
+    price = data_price_usd(endpoint, calls)
     body["price_usd"] = price
     body["provider_cost_usd"] = round(provider_cost, 8)
     body["margin_usd"] = round(price - provider_cost, 8)
@@ -157,13 +158,13 @@ async def aggregate_balances(req: AddressListRequest, request: Request):
         return JSONResponse(status_code=400, content={"error": "bad_chain", "detail": str(e)})
 
     endpoint = "token-balances"
-    provider_cost = data_price_usd(endpoint) * len(req.addresses)
+    provider_cost = data_provider_cost_usd(endpoint, len(req.addresses))
     cache_key = _cache_key("agg-bal", network, ",".join(sorted(req.addresses)))
     hit = _cached_get("aggregate-balances", cache_key)
     if hit is not None:
         hit = dict(hit)
         hit["cache_hit"] = True
-        return _stamp(hit, endpoint, provider_cost)
+        return _stamp(hit, endpoint, 0.0, len(req.addresses))
 
     all_balances: dict[str, dict] = {}
     for addr in req.addresses:
@@ -191,7 +192,7 @@ async def aggregate_balances(req: AddressListRequest, request: Request):
         "cache_hit": False,
     }
     _cached_set("aggregate-balances", cache_key, out)
-    return _stamp(out, endpoint, provider_cost)
+    return _stamp(out, endpoint, provider_cost, len(req.addresses))
 
 
 @router.post("/prices")
@@ -200,13 +201,13 @@ async def aggregate_prices(req: TokenIdListRequest, request: Request):
         return d
 
     endpoint = "token-price"
-    provider_cost = data_price_usd(endpoint)
+    provider_cost = data_provider_cost_usd(endpoint, len(req.ids))
     cache_key = _cache_key("agg-price", ",".join(sorted(req.ids)))
     hit = _cached_get("aggregate-prices", cache_key)
     if hit is not None:
         hit = dict(hit)
         hit["cache_hit"] = True
-        return _stamp(hit, endpoint, provider_cost)
+        return _stamp(hit, endpoint, 0.0, len(req.ids))
 
     ids_str = ",".join(req.ids)
     url = f"{COINGECKO_BASE}/simple/price"
@@ -225,7 +226,7 @@ async def aggregate_prices(req: TokenIdListRequest, request: Request):
 
     out = {"count": len(results), "prices": results, "cache_hit": False}
     _cached_set("aggregate-prices", cache_key, out)
-    return _stamp(out, endpoint, provider_cost)
+    return _stamp(out, endpoint, provider_cost, len(req.ids))
 
 
 @router.post("/nfts")
@@ -240,13 +241,13 @@ async def aggregate_nfts(req: AddressListRequest, request: Request):
         return JSONResponse(status_code=400, content={"error": "bad_chain", "detail": str(e)})
 
     endpoint = "nft-ownership"
-    provider_cost = data_price_usd(endpoint) * len(req.addresses)
+    provider_cost = data_provider_cost_usd(endpoint, len(req.addresses))
     cache_key = _cache_key("agg-nft", network, ",".join(sorted(req.addresses)))
     hit = _cached_get("aggregate-nfts", cache_key)
     if hit is not None:
         hit = dict(hit)
         hit["cache_hit"] = True
-        return _stamp(hit, endpoint, provider_cost)
+        return _stamp(hit, endpoint, 0.0, len(req.addresses))
 
     all_nfts: dict[str, dict] = {}
     for addr in req.addresses:
@@ -272,7 +273,7 @@ async def aggregate_nfts(req: AddressListRequest, request: Request):
         "cache_hit": False,
     }
     _cached_set("aggregate-nfts", cache_key, out)
-    return _stamp(out, endpoint, provider_cost)
+    return _stamp(out, endpoint, provider_cost, len(req.addresses))
 
 
 @router.post("/tx-history")
@@ -287,13 +288,13 @@ async def aggregate_tx_history(req: TxAggregateRequest, request: Request):
         return JSONResponse(status_code=400, content={"error": "bad_chain", "detail": str(e)})
 
     endpoint = "tx-history"
-    provider_cost = data_price_usd(endpoint) * len(req.addresses)
+    provider_cost = data_provider_cost_usd(endpoint, len(req.addresses))
     cache_key = _cache_key("agg-tx", network, ",".join(sorted(req.addresses)), str(req.limit))
     hit = _cached_get("aggregate-tx-history", cache_key)
     if hit is not None:
         hit = dict(hit)
         hit["cache_hit"] = True
-        return _stamp(hit, endpoint, provider_cost)
+        return _stamp(hit, endpoint, 0.0, len(req.addresses))
 
     all_txs = []
     for addr in req.addresses:
@@ -315,4 +316,4 @@ async def aggregate_tx_history(req: TxAggregateRequest, request: Request):
         "cache_hit": False,
     }
     _cached_set("aggregate-tx-history", cache_key, out)
-    return _stamp(out, endpoint, provider_cost)
+    return _stamp(out, endpoint, provider_cost, len(req.addresses))

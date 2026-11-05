@@ -3,7 +3,7 @@
 x402's bazaar extension lets agents discover what a paid endpoint does:
 input schema, output example, pricing — all derived from the x402
 pricing table. The registry below mirrors the live paid data surface
-(17 routes) plus the free capabilities tool and is served at
+(20 routes) plus the free capabilities tool and is served at
 /.well-known/bazaar (mcp.tools).
 
 The MCP gateway itself is a separate host service — a zero-dependency
@@ -39,6 +39,9 @@ _SPEC: tuple[tuple[str, str, str], ...] = (
     ("cortex_aggregate_nfts", "POST", "/v1/aggregate/nfts"),
     ("cortex_aggregate_prices", "POST", "/v1/aggregate/prices"),
     ("cortex_aggregate_tx_history", "POST", "/v1/aggregate/tx-history"),
+    ("cortex_subscribe_starter", "POST", "/v1/billing/subscribe/starter"),
+    ("cortex_subscribe_trading_pro", "POST", "/v1/billing/subscribe/trading-pro"),
+    ("cortex_subscribe_agent_fleet", "POST", "/v1/billing/subscribe/agent-fleet"),
 )
 
 
@@ -47,7 +50,10 @@ def _tool_entry(method: str, path: str) -> dict:
     description = ROUTE_DESCRIPTIONS.get(key, "").strip()
     price = ROUTE_PRICING.get(key, "")
     if price and price != "$0.00":
-        description = f"{description} x402 paid: {price} USDC on Base per call.".strip()
+        if path.startswith("/v1/billing/subscribe/"):
+            description = f"{description} One-time monthly prepaid x402 purchase: {price} USDC on Base; manual renewal, no automatic wallet withdrawals.".strip()
+        else:
+            description = f"{description} x402 paid: {price} USDC on Base per call.".strip()
     return {
         "method": method,
         "path": path,

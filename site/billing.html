@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CortexCloud Billing</title>
+<meta name="description" content="Manage your CortexCloud prepaid API subscription and usage credits.">
+<style>
+:root{color-scheme:dark;--bg:#0b1020;--panel:#121a2d;--panel2:#18233b;--line:#263550;--text:#e8eef9;--muted:#9aa9c2;--accent:#73d0b2;--warn:#f0c674;--danger:#f08b8b}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 15% 0%,#1a2c48 0,transparent 45%),var(--bg);color:var(--text);font:15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,sans-serif}
+main{max-width:1050px;margin:0 auto;padding:36px 22px 70px}header{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:28px}
+.brand{font-weight:800;letter-spacing:.02em;font-size:19px}.brand span{color:var(--accent)}.eyebrow{color:var(--accent);font-size:11px;text-transform:uppercase;letter-spacing:.16em;font-weight:700}
+h1{font-size:clamp(28px,5vw,42px);line-height:1.1;margin:10px 0}h2{font-size:17px;margin:0 0 12px}p{color:var(--muted);margin:8px 0}
+.panel{background:linear-gradient(145deg,var(--panel),#10182a);border:1px solid var(--line);border-radius:18px;padding:22px;margin:16px 0;box-shadow:0 18px 50px #0002}
+.connect{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:16px}
+input{min-width:0;background:#0b1324;border:1px solid #334461;border-radius:10px;color:var(--text);padding:13px 14px;font:inherit}
+button{border:0;border-radius:10px;padding:12px 17px;font:inherit;font-weight:700;background:var(--accent);color:#071a17;cursor:pointer}
+button.secondary{background:#24334d;color:var(--text);border:1px solid #3a4d6b}button.danger{background:#3b2028;color:#ffc2c2;border:1px solid #70404b}button:disabled{opacity:.5;cursor:wait}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.metric{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:17px}.metric small{color:var(--muted);display:block}.metric strong{font-size:25px;display:block;margin-top:5px;overflow-wrap:anywhere}
+.pill{display:inline-block;padding:3px 9px;border-radius:99px;background:#173b35;color:#a4f0d4;font-size:12px;font-weight:700}
+.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:560px}th,td{text-align:left;border-bottom:1px solid var(--line);padding:11px 9px;font-size:13px}th{color:var(--muted);font-weight:600}
+.plan{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:17px}.plan strong{font-size:22px}.plan .price{font-size:26px;font-weight:800;margin:5px 0}.plan code{color:var(--accent);overflow-wrap:anywhere}
+.notice{border-left:3px solid var(--warn);padding:10px 13px;background:#2b281e;border-radius:0 9px 9px 0;color:#e9d6a5;font-size:13px}
+.status{min-height:22px;color:var(--muted);font-size:13px}.hidden{display:none}.keyrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+@media(max-width:720px){main{padding:24px 15px 50px}.grid{grid-template-columns:1fr}.connect{grid-template-columns:1fr}header{align-items:flex-start;flex-direction:column}.panel{padding:17px}}
+</style>
+</head>
+<body>
+<main>
+<header><div class="brand">CORTEX<span>CLOUD</span></div><a href="/" style="color:var(--accent);text-decoration:none">← API home</a></header>
+<div class="eyebrow">Developer console</div>
+<h1>Billing & usage</h1>
+<p>View your prepaid subscription, weighted API credits, keys and recent usage.</p>
+
+<section class="panel">
+<h2>Connect your API key</h2>
+<p>Your key is stored only in this page's memory and is sent to the CortexCloud API over this origin. Do not use a shared device.</p>
+<div class="connect"><input id="apiKey" type="password" autocomplete="off" placeholder="cx_live_…"><button id="connect">Connect</button></div>
+<div class="status" id="status" role="status"></div>
+</section>
+
+<section id="account" class="hidden">
+<div class="grid">
+<div class="metric"><small>Subscription</small><strong id="plan">—</strong><span id="state" class="pill">—</span></div>
+<div class="metric"><small>Credits remaining</small><strong id="credits">—</strong><small id="creditValue">—</small></div>
+<div class="metric"><small>Renewal / expiry</small><strong id="expiry" style="font-size:17px">—</strong><small id="period">—</small></div>
+</div>
+
+<section class="panel">
+<h2>API keys</h2><p>Keys are shown as prefixes only. Revoke any key you no longer use.</p>
+<div id="keys"></div>
+</section>
+
+<section class="panel">
+<h2>Recent credit activity</h2>
+<div class="tablewrap"><table><thead><tr><th>Time</th><th>Type</th><th>Endpoint</th><th>Credits</th></tr></thead><tbody id="usage"><tr><td colspan="4">Connect to load usage.</td></tr></tbody></table></div>
+</section>
+</section>
+
+<section class="panel">
+<h2>Prepaid plans</h2>
+<p>Purchase or renew manually with an x402-compatible wallet/client. Payment is USDC on Base. No automatic wallet withdrawals.</p>
+<div class="grid" id="plans">
+<div class="plan"><b>Starter</b><div class="price">$19 / month</div><p>19,000 weighted credits</p><code>POST /v1/billing/subscribe/starter</code></div>
+<div class="plan"><b>Trading Pro</b><div class="price">$49 / month</div><p>49,000 weighted credits</p><code>POST /v1/billing/subscribe/trading-pro</code></div>
+<div class="plan"><b>Agent Fleet</b><div class="price">$99 / month</div><p>99,000 weighted credits</p><code>POST /v1/billing/subscribe/agent-fleet</code></div>
+</div>
+<p class="notice" style="margin-top:15px">1 credit = $0.001 of advertised API price. When credits are exhausted, requests return the normal x402 per-call payment challenge. Subscription renewals are manual.</p>
+</section>
+</main>
+<script>
+let apiKey = "";
+const el = id => document.getElementById(id);
+const money = n => "$" + Number(n).toFixed(2);
+async function api(path, options={}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: {"Authorization":"Bearer " + apiKey, ...(options.headers||{})}
+  });
+  const body = await response.json().catch(()=>({error:"invalid_response"}));
+  if (!response.ok) throw new Error(body.detail || body.error || ("HTTP " + response.status));
+  return body;
+}
+async function load() {
+  el("status").textContent = "Loading account…";
+  try {
+    const [account, usage] = await Promise.all([api("/v1/billing/account"), api("/v1/billing/usage")]);
+    el("plan").textContent = account.plan;
+    el("state").textContent = account.status;
+    el("credits").textContent = Number(account.credits_remaining).toLocaleString();
+    el("creditValue").textContent = money(account.credits_remaining * account.credit_unit_usd) + " remaining value";
+    el("expiry").textContent = new Date(account.period_end).toLocaleDateString();
+    el("period").textContent = "Started " + new Date(account.period_start).toLocaleDateString();
+    el("keys").replaceChildren();
+    for (const key of account.api_keys || []) {
+      const row = document.createElement("div"); row.className = "keyrow";
+      const label = document.createElement("span"); label.textContent = key.name + " · " + key.prefix + "…";
+      const button = document.createElement("button"); button.className = "danger secondary"; button.textContent = "Revoke";
+      button.onclick = async () => {
+        if (!confirm("Revoke this API key? Requests using it will stop working.")) return;
+        try { await api("/v1/billing/keys/revoke", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key_id:key.id})}); await load(); }
+        catch (e) { el("status").textContent = e.message; }
+      };
+      row.append(label, button); el("keys").append(row);
+    }
+    el("usage").replaceChildren();
+    for (const item of usage.transactions) {
+      const row = document.createElement("tr");
+      for (const value of [new Date(item.created_at).toLocaleString(), item.type, item.endpoint || "—", Number(item.amount_credits).toLocaleString()]) {
+        const cell = document.createElement("td"); cell.textContent = value; row.append(cell);
+      }
+      el("usage").append(row);
+    }
+    if (!usage.transactions.length) { const row=document.createElement("tr"); const cell=document.createElement("td"); cell.colSpan=4; cell.textContent="No credit activity yet."; row.append(cell); el("usage").append(row); }
+    el("account").classList.remove("hidden");
+    el("status").textContent = "Connected. Your API key remains only in this page's memory.";
+  } catch (e) { el("status").textContent = e.message; el("account").classList.add("hidden"); }
+}
+el("connect").addEventListener("click", () => { apiKey = el("apiKey").value.trim(); if (!apiKey.startsWith("cx_live_")) { el("status").textContent="Enter a valid cx_live_ API key."; return; } load(); });
+</script>
+</body>
+</html>

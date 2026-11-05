@@ -17,9 +17,9 @@ async def test_capabilities_is_data_only(client):
     assert caps["service"] == "CortexCloud On-Chain Data API"
     assert isinstance(caps["description"], str) and caps["description"].strip(), \
         "capabilities description must be a human-readable string, not a route table"
-    assert set(caps["categories"]) == {"data", "aggregate", "webhooks"}
+    assert set(caps["categories"]) == {"data", "aggregate", "webhooks", "billing"}
     assert caps["payments"]["scheme"] == "x402"
-    assert caps["providers"] == ["alchemy", "coingecko", "helius"]
+    assert caps["providers"] == ["alchemy", "coingecko"]
 
 
 @pytest.mark.asyncio

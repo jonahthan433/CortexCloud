@@ -88,10 +88,10 @@ class Settings(BaseSettings):
     JINA_API_KEY: Optional[str] = Field(default=None, env="JINA_API_KEY")
     ALCHEMY_API_KEY: Optional[str] = Field(default=None, env="ALCHEMY_API_KEY")
     COINGECKO_API_KEY: Optional[str] = Field(default=None, env="COINGECKO_API_KEY")
-    # Solana reads (token-balances / tx-history / token-price). Unset => those
-    # chain=solana calls return a structured provider_unconfigured error, and
-    # every other Solana request is chain_not_supported regardless.
+    # Solana is gated until the operator verifies the Helius key with the
+    # internal provider-check endpoint and explicitly sets HELIUS_VERIFIED=true.
     HELIUS_API_KEY: Optional[str] = Field(default=None, env="HELIUS_API_KEY")
+    HELIUS_VERIFIED: bool = Field(default=False, env="HELIUS_VERIFIED")
     OPENROUTER_API_KEY: Optional[str] = Field(default=None, env="OPENROUTER_API_KEY")
 
     GEMINI_API_KEY: Optional[str] = Field(default=None, env="GEMINI_API_KEY")
@@ -138,6 +138,11 @@ class Settings(BaseSettings):
     # Signs execution receipts (HMAC-SHA256) attached to final job payloads.
     # Optional: unset => receipts emit signed:false (hash-verifiable only).
     RECEIPT_SIGNING_KEY: Optional[str] = Field(default=None, env="RECEIPT_SIGNING_KEY")
+    # Telegram outbound ops alerts (payment failures, proof rejections, rate
+    # limits). Optional: unset => alerts stay log-only, never a silent no-op
+    # that looks like delivery.
+    TELEGRAM_BOT_TOKEN: Optional[str] = Field(default=None, env="TELEGRAM_BOT_TOKEN")
+    TELEGRAM_ALERT_CHAT_ID: Optional[str] = Field(default=None, env="TELEGRAM_ALERT_CHAT_ID")
 
     @model_validator(mode="after")
     def enforce_secrets_in_production(self) -> "Settings":

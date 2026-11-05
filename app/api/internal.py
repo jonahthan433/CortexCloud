@@ -2,7 +2,8 @@
 
 Gated by X-Internal-Token == INTERNAL_TOKEN (env). Endpoint is disabled
 (503) when the token is unset so money figures can never leak by accident.
-Plain /metrics (Prometheus, no revenue) stays public as before.
+Prometheus /metrics is gated by the same token (it exposes latency/cache/
+process telemetry, so it is not a public surface either).
 
 /internal/revenue adds endpoint-level business analytics: organic (external
 paying wallets) vs internal test traffic, repeat payers (7d/30d),
@@ -21,6 +22,31 @@ from app.database.session import AsyncSessionLocal
 from app.models import Benchmark, Execution, OptimizeJob, Payment
 
 router = APIRouter()
+
+@router.post("/internal/providers/helius/verify", include_in_schema=False)
+async def verify_helius_provider(
+    x_internal_token: str | None = Header(default=None, alias="X-Internal-Token"),
+):
+    """Verify Helius connectivity without enabling Solana automatically."""
+    if not settings.INTERNAL_TOKEN:
+        raise HTTPException(status_code=503, detail="internal provider verification disabled (INTERNAL_TOKEN unset)")
+    if not hmac.compare_digest(x_internal_token or "", settings.INTERNAL_TOKEN):
+        raise HTTPException(status_code=401, detail="invalid internal token")
+    if not settings.HELIUS_API_KEY:
+        raise HTTPException(status_code=503, detail="HELIUS_API_KEY is not configured")
+
+    from app.api.data import _helius_rpc
+    status, payload = await _helius_rpc("getHealth", [])
+    if status != 200 or payload.get("result") != "ok":
+        raise HTTPException(status_code=502, detail="Helius health check failed; Solana remains disabled")
+    return {
+        "provider": "helius",
+        "verified": True,
+        "health": "ok",
+        "solana_enabled": False,
+        "next_step": "Set HELIUS_VERIFIED=true in the service environment, then restart after approval.",
+    }
+
 
 
 @router.get("/internal/metrics", include_in_schema=False)

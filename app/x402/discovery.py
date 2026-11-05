@@ -128,14 +128,31 @@ async def llms_txt():
     ttl_rows = "\n".join(
         f"| /v1/data/{name} | {ttl}s |" for name, ttl in sorted(DATA_TTL_S.items())
     )
+    solana_section = ""
+    if settings.HELIUS_API_KEY and settings.HELIUS_VERIFIED:
+        solana_section = """## Solana (Helius)
+
+Solana reads are enabled on this instance for legacy SPL and Token-2022
+balances, transaction history, token prices, wallet intelligence, token
+intelligence and risk, wallet-scoped priced whale alerts, and cross-chain
+comparison. Cross-chain comparison requires the caller to provide both the
+EVM contract and the Solana mint; CortexCloud does not assert asset identity.
+Solana whale alerts require a wallet address and exclude transfers without a
+verified USD price. Unsupported Solana endpoint/chain combinations return
+chain_not_supported before payment settlement. Payment settlement remains
+USDC on Base; Solana is the read chain, not the payment chain.
+
+"""
 
     text = f"""# CortexCloud On-Chain Data API - api.cortexcloud.org
 
-CortexCloud is an agent-native, pay-per-call on-chain data API. Agents
-discover, pay for, and read blockchain data over x402 (USDC on Base,
-eip155:8453) — no API keys, no subscriptions. Data sources: Alchemy
-(primary) + CoinGecko (prices). Supported chains: ethereum, base, arbitrum,
-polygon, optimism (name or chain id).
+CortexCloud is an agent-native on-chain data API for AI agents and trading
+systems. Use x402 pay-per-call in USDC on Base (eip155:8453) without an API
+key, or buy a manual monthly prepaid subscription that issues a wallet-linked
+API key and weighted usage credits. Credits are consumed by advertised route
+price; after exhaustion, x402 per-call payments remain available. Renewals are
+manual — there are no automatic wallet withdrawals. Data sources: Alchemy (primary) + CoinGecko (prices).
+Supported EVM chains: ethereum, base, arbitrum, polygon, optimism.
 
 Every paid response is evidence-backed: each fact carries its source, a
 checked_at timestamp, and an explicit missing-data indicator when a value
@@ -143,20 +160,23 @@ could not be resolved. Nothing is fabricated.
 
 ## Workflow (agent-first)
 
-1. Read this file or GET /v1/capabilities (free) — the full endpoint list,
-   live prices, chains, and providers.
-2. POST the endpoint — receive a 402 x402 challenge (USDC on Base).
-3. Sign the payment (EIP-3009, gasless for the buyer) and resend with the
-   payment-signature header. The response is returned immediately.
-4. For recurring whale alerts, register a webhook once (step 2 also applies)
-   and let CortexCloud POST signed alerts to your HTTPS endpoint.
+1. Read this file or GET /v1/capabilities (free) — endpoint list, prices,
+   configured providers, chain support, and billing plans.
+2. For one-off calls, POST the endpoint and answer the 402 x402 challenge.
+3. For recurring API use, GET /v1/billing/plans and POST a subscription route;
+   the settled response returns a wallet-linked API key once.
+4. Send that key as Authorization: Bearer cx_live_…; each successful data
+   request deducts weighted credits. When credits are exhausted, use x402
+   payment-signature for a per-call overage.
+5. For recurring whale alerts, register a webhook and receive signed HTTPS
+   deliveries.
 
 Copy-paste buyer (Python, official x402 SDK):
 
     pip install "x402" eth-account httpx
     TEST_BUYER_KEY=0x... python paid_client.py   # 402 -> sign -> 200
 
-Source: https://raw.githubusercontent.com/jonahthan433/CortexCloudAPI/main/examples/paid_client.py
+Source: https://raw.githubusercontent.com/jonahthan433/CortexCloud/main/examples/paid_client.py
 (overrides: CC_PATH, CC_BODY, CC_URL)
 
 Copy-paste buyer (TypeScript, @x402/fetch + bun):
@@ -165,7 +185,7 @@ Copy-paste buyer (TypeScript, @x402/fetch + bun):
     CC_PRIVATE_KEY=0x... CC_PATH=/v1/data/token-price CC_BODY='{{"id":"ethereum"}}' \\
       bun run paid_client.ts
 
-Source: https://raw.githubusercontent.com/jonahthan433/CortexCloudAPI/main/examples/paid_client.ts
+Source: https://raw.githubusercontent.com/jonahthan433/CortexCloud/main/examples/paid_client.ts
 (overrides: CC_PRIVATE_KEY, CC_URL, CC_PATH, CC_BODY)
 
 ## Endpoints (advertised product)
@@ -182,8 +202,34 @@ Free:
 
 Identical requests inside the TTL window are served from the in-process cache:
 the upstream provider call is skipped, so there is no additional upstream cost.
-The x402 price is still charged per request — the cache is an upstream-cost and
-latency optimisation, not a discount.
+For x402 requests the advertised per-call price still applies; subscription
+requests deduct the same weighted credit amount. The cache is not a discount.
+
+## Monthly prepaid subscriptions
+
+    GET  /v1/billing/plans                         free
+    POST /v1/billing/subscribe/starter              $19 / month, 19,000 credits
+    POST /v1/billing/subscribe/trading-pro          $49 / month, 49,000 credits
+    POST /v1/billing/subscribe/agent-fleet          $99 / month, 99,000 credits
+    GET  /v1/billing/account                       free (API key required)
+    GET  /v1/billing/usage                         free (API key required)
+    POST /v1/billing/keys/revoke                    free (API key required)
+
+- One credit represents $0.001 of advertised API price.
+- Subscription payments are prepaid manually in USDC on Base. No recurring
+  wallet pulls or automatic withdrawals are performed.
+- The API key is returned only once after a settled subscription payment;
+  only its hash is stored. Save the key securely.
+- Data and aggregate requests debit credits. When credits are exhausted, the
+  request falls back to the normal x402 per-call challenge.
+- API key requests may supply an Idempotency-Key header to prevent duplicate
+  credit debits. A reused key returns 409.
+
+## Billing dashboard
+
+Open https://api.cortexcloud.org/billing.html to inspect subscription status,
+active API key prefixes, remaining credits, and the latest credit ledger.
+The dashboard keeps the entered key in page memory only; it does not persist it.
 
 ## Whale-alert webhooks
 
@@ -223,14 +269,15 @@ fails, that key carries an `error` while the rest of the snapshot still
 returns (`partial: true`, `errors`, `sections`). One call, $0.070 versus
 $0.100 for the three routes separately.
 
-## Honesty
+{solana_section}## Honesty
 
 - Provider costs are published; CortexCloud margin is computed transparently.
 - Missing data is reported as missing, never estimated silently.
 - whale-alerts applies the USD floor to native-asset transfers only;
   erc20 values are raw units (call /token-price for USD).
-- Supported chains are ethereum, base, arbitrum, polygon, and optimism
-  (name or chain id).
+- Supported EVM chains are ethereum, base, arbitrum, polygon, and optimism
+  (name or chain id). Optional Solana routes are described above only when
+  Helius is configured on this instance.
 - What is advertised is what runs: every route above is live on this
   instance.
 

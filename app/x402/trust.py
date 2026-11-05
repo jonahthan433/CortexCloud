@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives import hashes
 from cryptography.exceptions import InvalidSignature
 
-_KEY_DIR = os.environ.get("CORTEXCLOUD_KEY_DIR", "/opt/CortexCloudAPI")
+_KEY_DIR = os.environ.get("CORTEXCLOUD_KEY_DIR", os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 _KEY_PATH = os.path.join(_KEY_DIR, "server_ecdsa.key")
 _lock = threading.Lock()
 _private_key = None
@@ -22,6 +22,7 @@ def _get_or_create() -> ec.EllipticCurvePrivateKey:
     with _lock:
         if _private_key is not None:
             return _private_key
+        os.makedirs(_KEY_DIR, exist_ok=True)
         if os.path.exists(_KEY_PATH):
             with open(_KEY_PATH, "rb") as f:
                 _private_key = serialization.load_pem_private_key(f.read(), password=None)
