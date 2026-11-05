@@ -523,3 +523,15 @@ async def test_helius_internal_verification_does_not_auto_enable_solana(client, 
     assert response.json()["verified"] is True
     assert response.json()["solana_enabled"] is False
     assert "fake-test-key" not in response.text
+
+
+async def test_solana_data_calls_require_verified_helius(client, monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "HELIUS_API_KEY", "configured-but-not-verified", raising=False)
+    monkeypatch.setattr(settings, "HELIUS_VERIFIED", False, raising=False)
+    response = await client.post(
+        "/v1/data/token-balances",
+        json={"address": SOL, "chain": "solana"},
+    )
+    assert response.status_code == 503
+    assert response.json()["error"] == "provider_unverified"
