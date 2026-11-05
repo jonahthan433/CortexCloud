@@ -241,7 +241,7 @@ async def aggregate_nfts(req: AddressListRequest, request: Request):
         return JSONResponse(status_code=400, content={"error": "bad_chain", "detail": str(e)})
 
     endpoint = "nft-ownership"
-    provider_cost = data_price_usd(endpoint) * len(req.addresses)
+    provider_cost = data_provider_cost_usd(endpoint, len(req.addresses))
     cache_key = _cache_key("agg-nft", network, ",".join(sorted(req.addresses)))
     hit = _cached_get("aggregate-nfts", cache_key)
     if hit is not None:
