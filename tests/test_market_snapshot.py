@@ -238,7 +238,10 @@ def test_snapshot_examples_satisfy_their_schema():
     assert out["price_usd"] == 0.070
 
 
-async def test_capabilities_and_bazaar_advertise_snapshot(client):
+async def test_capabilities_and_bazaar_advertise_snapshot(client, monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "HELIUS_API_KEY", "test-key", raising=False)
+    monkeypatch.setattr(settings, "HELIUS_VERIFIED", True, raising=False)
     caps = (await client.get("/v1/capabilities")).json()
     assert "/v1/data/market-snapshot" in caps["categories"]["data"]["endpoints"]
     assert "helius" in caps["categories"]["data"]["providers"]
