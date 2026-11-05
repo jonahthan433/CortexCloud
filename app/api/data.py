@@ -1359,12 +1359,135 @@ class TokenIntelRequest(BaseModel):
     coin_id: str | None = Field(default=None, description="Optional CoinGecko coin id for market context.")
 
 
+async def _solana_token_intel(req: TokenIntelRequest) -> dict | JSONResponse:
+    """Evidence-backed Solana mint profile from Helius DAS and transaction history."""
+    if e := _need_helius():
+        return e
+    mint = req.contract.strip()
+    if not _BASE58.fullmatch(mint):
+        return JSONResponse(status_code=422, content={"error": "invalid_contract",
+                            "detail": "Solana contract must be a base58 mint address"})
+    endpoint = "token-intel"
+    cache_key = _cache_key(endpoint, "solana", mint, str(req.coin_id or ""))
+    hit = _cached_get(endpoint, cache_key)
+    if hit is not None:
+        out = dict(hit)
+        out["cache_hit"] = True
+        return _stamp(out, endpoint, 0.0)
+
+    asset_result, tx_result = await asyncio.gather(
+        _helius_rpc("getAsset", [{"id": mint}]),
+        _helius_transactions(mint, 10),
+    )
+    asset_status, asset_data = asset_result
+    if asset_status != 200:
+        return JSONResponse(status_code=asset_status or 502,
+                            content={"error": "upstream_helius", "detail": json.dumps(asset_data)[:500]})
+    asset = asset_data.get("result") or {}
+    info = asset.get("token_info") or {}
+    metadata = (asset.get("content") or {}).get("metadata") or {}
+    now = datetime.now(timezone.utc).isoformat()
+    facts = {}
+    flags = []
+
+    def fact(key, value, source, missing_reason=None):
+        item = {"source": source, "checked_at": now, "value": value}
+        if value is None and missing_reason:
+            item["missing"] = missing_reason
+        facts[key] = item
+
+    deployed = bool(asset.get("id") or asset.get("interface") or info)
+    fact("contract_deployed", deployed, "helius getAsset",
+         None if deployed else "asset_not_found")
+    fact("name", metadata.get("name"), "helius getAsset(content.metadata)")
+    fact("symbol", info.get("symbol") or metadata.get("symbol"), "helius getAsset(token_info)")
+    fact("decimals", info.get("decimals"), "helius getAsset(token_info)")
+    fact("supply", info.get("supply"), "helius getAsset(token_info)")
+    fact("token_program", info.get("token_program"), "helius getAsset(token_info)")
+    mint_authority = info.get("mint_authority") or info.get("mintAuthority")
+    freeze_authority = info.get("freeze_authority") or info.get("freezeAuthority")
+    fact("mint_authority", mint_authority, "helius getAsset(token_info)")
+    fact("freeze_authority", freeze_authority, "helius getAsset(token_info)")
+    if mint_authority:
+        flags.append("mint_authority_enabled")
+    if freeze_authority:
+        flags.append("freeze_authority_enabled")
+
+    price_info = info.get("price_info") or {}
+    price = price_info.get("price_per_token") if str(price_info.get("currency", "USD")).upper() == "USD" else None
+    price_source = "helius getAsset(token_info.price_info)" if price is not None else None
+    change = None
+    if price is None:
+        url = f"{COINGECKO_BASE}/simple/token_price/solana"
+        params = {"contract_addresses": mint, "vs_currencies": "usd", "include_24hr_change": "true"}
+        if settings.COINGECKO_API_KEY:
+            params["x_cg_demo_api_key"] = settings.COINGECKO_API_KEY
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.get(url, params=params)
+        if response.status_code == 200:
+            entry = response.json().get(mint) or {}
+            price, change = entry.get("usd"), entry.get("usd_24h_change")
+            if price is not None:
+                price_source = "coingecko /simple/token_price/solana"
+    else:
+        change = price_info.get("24h_change")
+    fact("price_usd", price, price_source or "price_lookup",
+         None if price is not None else "price_unavailable")
+    fact("change_24h_usd", change, price_source or "price_lookup",
+         None if change is not None else "change_unavailable")
+    if price is None:
+        flags.append("price_unavailable")
+
+    if req.coin_id:
+        cg = await _coingecko_coin(req.coin_id)
+        market = cg.get("market_data") or {}
+        genesis = cg.get("genesis_date")
+        age_days = None
+        if genesis:
+            try:
+                age_days = (datetime.now(timezone.utc).date()
+                            - datetime.fromisoformat(genesis).date()).days
+            except ValueError:
+                age_days = None
+        volume = (market.get("total_volume") or {}).get("usd")
+        fact("age_days", age_days, f"coingecko /coins/{req.coin_id}",
+             None if age_days is not None else "no_genesis_date")
+        fact("liquidity_usd_24h", volume, f"coingecko /coins/{req.coin_id}")
+        fact("market_cap_usd", (market.get("market_cap") or {}).get("usd"),
+             f"coingecko /coins/{req.coin_id}")
+        if volume is not None and volume < 50000:
+            flags.append("thin_liquidity_under_50k")
+        if age_days is not None and age_days < 30:
+            flags.append("new_token_under_30d")
+
+    tx_status, tx_data = tx_result
+    transactions = tx_data[:10] if tx_status == 200 and isinstance(tx_data, list) else []
+    fact("recent_transfer_count", len(transactions), "helius enhanced transactions",
+         None if tx_status == 200 else "transaction_history_unavailable")
+    if transactions:
+        latest = transactions[0]
+        fact("latest_transfer", {
+            "signature": latest.get("signature"),
+            "type": latest.get("type"),
+            "timestamp": latest.get("timestamp"),
+            "slot": latest.get("slot"),
+            "description": latest.get("description"),
+        }, "helius enhanced transactions")
+    if not deployed:
+        flags.append("asset_not_found")
+    verdict = "high" if len(flags) >= 3 else "medium" if flags else "low"
+    out = {"contract": mint, "chain": "solana", "verdict": verdict,
+           "risk_flags": flags, "facts": facts, "cache_hit": False}
+    _cached_set(endpoint, cache_key, out)
+    return _stamp(out, endpoint, helius_provider_cost_usd(2))
+
+
 @router.post("/token-intel")
 async def token_intel(req: TokenIntelRequest, request: Request):
     if d := _disabled():
         return d
     if is_solana(req.chain):
-        return _chain_not_supported("token-intel", req.chain)
+        return await _solana_token_intel(req)
     if e := _need_alchemy():
         return e
     try:
