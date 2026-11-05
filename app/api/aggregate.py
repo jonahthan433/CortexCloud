@@ -288,7 +288,7 @@ async def aggregate_tx_history(req: TxAggregateRequest, request: Request):
         return JSONResponse(status_code=400, content={"error": "bad_chain", "detail": str(e)})
 
     endpoint = "tx-history"
-    provider_cost = data_price_usd(endpoint) * len(req.addresses)
+    provider_cost = data_provider_cost_usd(endpoint, len(req.addresses))
     cache_key = _cache_key("agg-tx", network, ",".join(sorted(req.addresses)), str(req.limit))
     hit = _cached_get("aggregate-tx-history", cache_key)
     if hit is not None:
