@@ -457,3 +457,17 @@ async def test_solana_cross_chain_compare_requires_explicit_mint_and_compares_bo
     assert sol["deployed"] is True
     assert sol["price_usd"] == 1.0
     assert sol["latest_tx"] == "sol-tx"
+
+
+async def test_solana_is_not_advertised_until_helius_is_configured(client, monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "HELIUS_API_KEY", None, raising=False)
+    capabilities = await client.get("/v1/capabilities")
+    body = capabilities.json()
+    assert body["solana"]["status"] == "not_configured"
+    assert body["solana"]["endpoints"] == []
+    assert "helius" not in body["providers"]
+
+    llms = await client.get("/llms.txt")
+    assert "Solana (Helius)" not in llms.text
+    assert "Token-2022" not in llms.text
