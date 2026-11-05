@@ -51,10 +51,16 @@ explicit missing-data indicators).
 
 ## Chains
 - EVM: ethereum, base, arbitrum, polygon, optimism (name or chain id)
-- Solana: implemented in code (`HELIUS_ENDPOINTS`) but NOT enabled — no
-  `HELIUS_API_KEY` is configured, and `/v1/capabilities` reports
-  `solana.provider: not_configured`. Do not advertise Solana until the key is
-  set and verified.
+- Solana: implemented in code but NOT enabled — no `HELIUS_API_KEY` is
+  configured, and `/v1/capabilities` reports `solana.status: not_configured`.
+  Do not advertise Solana until the key is set and verified. Once configured,
+  the gated Solana surface includes token balances (legacy SPL + Token-2022),
+  transaction history, token price, wallet intelligence, token intelligence,
+  token risk, wallet-scoped whale alerts, and cross-chain comparison.
+  Solana whale alerts require a wallet address and exclude unpriced transfers.
+  Cross-chain comparison requires both an EVM contract and an explicit Solana
+  mint; the service does not assert that caller-supplied addresses represent
+  the same asset.
 
 ## Evidence / honesty
 - Every paid fact ships as `{value, source, checked_at[, missing]}`
@@ -96,3 +102,21 @@ MCP rebuild (from the source repo on the Hermes host):
 Regenerate after deploy. Note: `scripts/update_state.py` still emits the
 legacy optimization price table (`MODE_PRICE_USD`/Benchmark rows) and must be
 rewritten for the data surface before its output is trusted.
+
+## Monetization and launch readiness audit (2026-11-05)
+
+- The existing x402 USDC/Base pay-per-call ledger is the implemented payment
+  path. Do not replace or bypass it.
+- Legacy ORM files for users, organizations, API keys, usage logs and billing
+  accounts exist, and the initial migration creates their tables; however,
+  they are not mounted as a customer-facing authentication, subscription,
+  credit or billing API. No complete self-service billing dashboard is present
+  in the repository source.
+- Do not claim subscriptions, prepaid credits, Stripe checkout, or customer
+  dashboard functionality until these are implemented, tested and configured.
+- The marketplace submission tracker contains listings whose status requires
+  re-verification. Do not claim new listings are live without confirming them
+  on each external directory.
+- A PostgreSQL-backed GitHub Actions test workflow has been added on the
+  feature branch. Its first run exposed existing CI/test-fixture failures;
+  the suite is not yet certified green.
