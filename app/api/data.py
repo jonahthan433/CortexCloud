@@ -65,6 +65,7 @@ COINGECKO_BASE = "https://api.coingecko.com/api/v3"
 HELIUS_RPC_URL = "https://mainnet.helius-rpc.com/?api-key={key}"
 HELIUS_TX_URL = "https://api.helius.xyz/v0/addresses/{address}/transactions"
 SOLANA_TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+SOLANA_TOKEN_2022_PROGRAM = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 # ponytail: in-process cache (single worker). Swap to Redis by pointing TTLCache
 # at a redis-backed store — same .get/.set API. No provider/route changes needed.
 _CACHES: dict[str, TTLCache] = {ep: TTLCache(ttl_s) for ep, ttl_s in DATA_TTL_S.items()}
@@ -370,11 +371,12 @@ def _strip_pricing(payload: dict) -> dict:
 
 
 async def _solana_token_balances(req: TokenBalancesRequest) -> dict | JSONResponse:
-    """SPL token balances via Helius getTokenAccountsByOwner (jsonParsed)."""
+    """SPL + Token-2022 balances via Helius getTokenAccountsByOwner."""
     if e := _need_helius():
         return e
     endpoint = "token-balances"
-    provider_cost = helius_provider_cost_usd(1)
+    # Each program requires a separate RPC read; account for both provider calls.
+    provider_cost = helius_provider_cost_usd(2)
     mints = ",".join(req.tokens or [])
     cache_key = _cache_key(endpoint, "solana", req.address, mints or "all", str(req.max_tokens))
     hit = _cached_get(endpoint, cache_key)
@@ -383,28 +385,48 @@ async def _solana_token_balances(req: TokenBalancesRequest) -> dict | JSONRespon
         out["cache_hit"] = True
         return _stamp(out, endpoint, provider_cost)
 
-    status, data = await _helius_rpc(
-        "getTokenAccountsByOwner",
-        [req.address, {"programId": SOLANA_TOKEN_PROGRAM}, {"encoding": "jsonParsed"}],
-    )
-    if status != 200:
-        return JSONResponse(status_code=status or 502,
-                            content={"error": "upstream_helius", "detail": json.dumps(data)[:500]})
-    accounts = (data.get("result") or {}).get("value") or []
+    # Solana indexes the legacy SPL Token Program and Token-2022 separately.
+    # Fail closed if either read fails; a partial result would misrepresent
+    # the wallet's holdings.
+    results = await asyncio.gather(*[
+        _helius_rpc(
+            "getTokenAccountsByOwner",
+            [req.address, {"programId": program_id}, {"encoding": "jsonParsed"}],
+        )
+        for program_id in (SOLANA_TOKEN_PROGRAM, SOLANA_TOKEN_2022_PROGRAM)
+    ])
+    for status, data in results:
+        if status != 200:
+            return JSONResponse(
+                status_code=status or 502,
+                content={"error": "upstream_helius", "detail": json.dumps(data)[:500]},
+            )
+
     wanted = set(req.tokens or [])
     balances = []
-    for acc in accounts:
-        info = (((acc.get("account") or {}).get("data") or {}).get("parsed") or {}).get("info") or {}
-        mint = info.get("mint")
-        if wanted and mint not in wanted:
-            continue
-        amount = info.get("tokenAmount") or {}
-        balances.append({
-            "mint": mint,
-            "raw": amount.get("amount"),
-            "decimals": amount.get("decimals"),
-            "ui_amount": amount.get("uiAmount"),
-        })
+    seen_accounts = set()
+    for _status, data in results:
+        accounts = (data.get("result") or {}).get("value") or []
+        for acc in accounts:
+            # pubkey is the token-account identity; do not dedupe by mint,
+            # because one wallet can legitimately hold multiple accounts
+            # for the same mint.
+            account_key = acc.get("pubkey")
+            if account_key and account_key in seen_accounts:
+                continue
+            if account_key:
+                seen_accounts.add(account_key)
+            info = (((acc.get("account") or {}).get("data") or {}).get("parsed") or {}).get("info") or {}
+            mint = info.get("mint")
+            if wanted and mint not in wanted:
+                continue
+            amount = info.get("tokenAmount") or {}
+            balances.append({
+                "mint": mint,
+                "raw": amount.get("amount"),
+                "decimals": amount.get("decimals"),
+                "ui_amount": amount.get("uiAmount"),
+            })
     balances = balances[: req.max_tokens]
     now = datetime.now(timezone.utc).isoformat()
     out = {
