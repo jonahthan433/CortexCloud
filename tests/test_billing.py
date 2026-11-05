@@ -71,6 +71,7 @@ async def test_billing_plans_and_manual_prepaid_subscription(client):
     assert account.status_code == 200, account.text
     assert account.json()["wallet"] == wallet
     assert account.json()["credits_remaining"] == 19000
+    assert len(account.json()["api_keys"]) == 1
 
     usage = await client.get(
         "/v1/billing/usage",
@@ -78,6 +79,14 @@ async def test_billing_plans_and_manual_prepaid_subscription(client):
     )
     assert usage.status_code == 200
     assert usage.json()["transactions"][0]["type"] == "subscription_grant"
+
+    revoke = await client.post(
+        "/v1/billing/keys/revoke",
+        headers={"Authorization": "Bearer " + result["api_key"]},
+        json={"key_id": account.json()["api_keys"][0]["id"]},
+    )
+    assert revoke.status_code == 200
+    assert revoke.json()["revoked"] is True
 
 
 @pytest.mark.asyncio
