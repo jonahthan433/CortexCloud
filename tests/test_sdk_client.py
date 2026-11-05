@@ -52,7 +52,7 @@ def test_subscription_api_key_pays_without_private_key(monkeypatch):
 def test_api_key_falls_back_to_x402_when_private_key_is_available(monkeypatch):
     fake = FakeClient()
     fake.responses = [FakeResponse(402, {"accepts": [{}]}), FakeResponse(200, {"paid": True})]
-    monkeypatch.setattr(client_module.httpx, "Client", lambda *a, **k: fake)
+    monkeypatch.setattr(client_module.httpx, "Client", lambda *a, **k: _configure_fake(fake, k))
     monkeypatch.setattr(client_module, "sign_payment", lambda challenge, key: "signed-payment")
     cc = CortexCloud(api_key="cx_live_example", private_key="0xprivate")
     assert cc.pay("POST", "/v1/data/token-price", {"id": "ethereum"}) == {"paid": True}
@@ -69,7 +69,7 @@ def test_no_api_key_or_private_key_rejects_paid_call():
 def test_token_price_uses_coin_id_schema(monkeypatch):
     fake = FakeClient()
     fake.responses = [FakeResponse(200, {"usd": 1.0})]
-    monkeypatch.setattr(client_module.httpx, "Client", lambda *a, **k: fake)
+    monkeypatch.setattr(client_module.httpx, "Client", lambda *a, **k: _configure_fake(fake, k))
     cc = CortexCloud(api_key="cx_live_example")
     cc.token_price("ethereum")
     assert fake.calls[0][2] == {"id": "ethereum", "currency": "usd", "chain": "ethereum"}
@@ -78,7 +78,7 @@ def test_token_price_uses_coin_id_schema(monkeypatch):
 def test_block_uses_block_query_parameter(monkeypatch):
     fake = FakeClient()
     fake.responses = [FakeResponse(200, {"number": 1})]
-    monkeypatch.setattr(client_module.httpx, "Client", lambda *a, **k: fake)
+    monkeypatch.setattr(client_module.httpx, "Client", lambda *a, **k: _configure_fake(fake, k))
     cc = CortexCloud(api_key="cx_live_example")
     cc.block(chain="base", number="latest")
     assert fake.calls[0][1] == "/v1/data/block?chain=base&block=latest"
