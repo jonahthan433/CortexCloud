@@ -1175,6 +1175,35 @@ def _validate_data_body(path: str, data) -> list | None:
     return None
 
 
+def _validate_aggregate_body(path: str, data) -> JSONResponse | None:
+    """Validate batch inputs before x402 settlement or subscription credit debit."""
+    import re
+    from app.x402.pricing import DATA_CHAINS
+
+    if not isinstance(data, dict):
+        return JSONResponse(status_code=422, content={"error": "invalid_body"})
+    if path.endswith(("/balances", "/nfts", "/tx-history")):
+        addresses = data.get("addresses")
+        if not isinstance(addresses, list) or not 1 <= len(addresses) <= 20:
+            return JSONResponse(status_code=422, content={"error": "addresses_must_contain_1_to_20_items"})
+        if any(not re.fullmatch(r"0x[0-9a-fA-F]{40}", str(addr)) for addr in addresses):
+            return JSONResponse(status_code=422, content={"error": "invalid_evm_address_in_addresses"})
+        chain = str(data.get("chain") or "ethereum").lower()
+        if chain not in DATA_CHAINS:
+            return JSONResponse(status_code=400, content={"error": "bad_chain", "detail": f"unsupported chain: {chain}"})
+        if path.endswith("/tx-history"):
+            limit = data.get("limit", 25)
+            if not isinstance(limit, int) or not 1 <= limit <= 100:
+                return JSONResponse(status_code=422, content={"error": "limit_must_be_1_to_100"})
+    elif path.endswith("/prices"):
+        ids = data.get("ids")
+        if not isinstance(ids, list) or not 1 <= len(ids) <= 50:
+            return JSONResponse(status_code=422, content={"error": "ids_must_contain_1_to_50_items"})
+        if any(not isinstance(item, str) or not item.strip() for item in ids):
+            return JSONResponse(status_code=422, content={"error": "ids_must_be_non_empty_strings"})
+    return None
+
+
 def _validate_optimize_body(data) -> list | None:
     """Money-path guard: reject bodies the endpoint would reject, BEFORE
     any x402/MPP settlement. Returns a FastAPI-style 422 detail list."""
@@ -1379,6 +1408,14 @@ class X402Middleware(BaseHTTPMiddleware):
             _derr = _validate_data_body(path, data)
             if _derr:
                 return JSONResponse(status_code=422, content={"detail": _derr})
+        _aggregate_paths = {
+            "/v1/aggregate/balances", "/v1/aggregate/prices",
+            "/v1/aggregate/nfts", "/v1/aggregate/tx-history",
+        }
+        if path in _aggregate_paths and (payment_signature or (mpp and authorization) or has_subscription_key):
+            _aggregate_error = _validate_aggregate_body(path, data)
+            if _aggregate_error is not None:
+                return _aggregate_error
         if ((path == "/v1/optimize" or path in _ai_paths)
                 and (payment_signature or (mpp and authorization))):
             if path == "/v1/optimize":
