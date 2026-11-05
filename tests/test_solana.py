@@ -107,13 +107,6 @@ async def test_solana_token_balances_uses_helius(client, monkeypatch):
     assert body["price_usd"] == 0.004
     assert body["provider_cost_usd"] == 0.000098
 
-    cached = await client.post("/v1/data/token-balances",
-                               json={"address": SOL, "chain": "solana"})
-    assert cached.status_code == 200, cached.text
-    assert cached.json()["cache_hit"] is True
-    assert cached.json()["provider_cost_usd"] == 0.0
-    assert len(seen_programs) == 2  # cache hit must not call either token program again
-
 
 async def test_solana_token_balances_filters_by_mint_and_includes_token_2022(client, monkeypatch):
     from app.core.config import settings
@@ -546,3 +539,28 @@ async def test_solana_data_calls_require_verified_helius(client, monkeypatch):
     )
     assert response.status_code == 503
     assert response.json()["error"] == "provider_unverified"
+
+
+async def test_solana_token_balances_cache_hit_has_zero_provider_cost(client, monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "HELIUS_API_KEY", "test-key", raising=False)
+
+    async def unexpected_rpc(*_args, **_kwargs):
+        raise AssertionError("cache hit must not call Helius")
+
+    monkeypatch.setattr("app.api.data._helius_rpc", unexpected_rpc)
+    monkeypatch.setattr(
+        "app.api.data._cached_get",
+        lambda endpoint, _key: {
+            "address": SOL, "chain": "solana", "token_count": 0,
+            "balances": [], "evidence": {}, "cache_hit": False,
+        } if endpoint == "token-balances" else None,
+    )
+    response = await client.post(
+        "/v1/data/token-balances",
+        json={"address": SOL, "chain": "solana"},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["cache_hit"] is True
+    assert body["provider_cost_usd"] == 0.0
