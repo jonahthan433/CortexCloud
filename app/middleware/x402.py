@@ -1008,29 +1008,45 @@ INPUT_SCHEMAS = {
 
 
 def _chain_not_supported_response(path: str, data):
-    """Solana is wired to HELIUS_ENDPOINTS only. Reject anything else BEFORE
-    settlement with the same structured error the route body returns, so no
-    buyer ever pays for a 400."""
+    """Reject unsupported or unconfigured Solana reads before settlement."""
     if not isinstance(data, dict):
         return None
     from app.x402.pricing import HELIUS_ENDPOINTS, is_solana
 
     chain = data.get("chain")
-    if chain is None or not is_solana(chain):
-        return None
-    if path in {f"/v1/data/{e}" for e in HELIUS_ENDPOINTS}:
-        return None
-    return JSONResponse(
-        status_code=400,
-        content={
-            "error": "chain_not_supported",
-            "chain": str(chain),
-            "endpoint": path,
-            "detail": "Solana is not implemented for this endpoint; it is supported on: "
-                      + ", ".join(f"/v1/data/{e}" for e in HELIUS_ENDPOINTS),
-            "solana_supported_endpoints": [f"/v1/data/{e}" for e in HELIUS_ENDPOINTS],
-        },
+    chains = data.get("chains") or []
+    solana_requested = is_solana(chain) or (
+        path == "/v1/data/cross-chain-compare"
+        and isinstance(chains, list)
+        and any(is_solana(item) for item in chains)
     )
+    if not solana_requested:
+        return None
+
+    supported = path in {f"/v1/data/{e}" for e in HELIUS_ENDPOINTS}
+    if not supported:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": "chain_not_supported",
+                "chain": str(chain or "solana"),
+                "endpoint": path,
+                "detail": "Solana is not implemented for this endpoint; it is supported on: "
+                          + ", ".join(f"/v1/data/{e}" for e in HELIUS_ENDPOINTS),
+                "solana_supported_endpoints": [f"/v1/data/{e}" for e in HELIUS_ENDPOINTS],
+            },
+        )
+    if not settings.HELIUS_API_KEY:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "provider_unconfigured",
+                "provider": "helius",
+                "chain": "solana",
+                "detail": "Solana reads are disabled until HELIUS_API_KEY is configured and verified.",
+            },
+        )
+    return None
 
 
 def _validate_data_body(path: str, data) -> list | None:
