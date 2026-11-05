@@ -1419,12 +1419,12 @@ class X402Middleware(BaseHTTPMiddleware):
         # Re-validate on the paid pass before the settle branch (same guard,
         # no double-charge).
         if path in _data_paths and (payment_signature or (mpp and authorization) or has_subscription_key):
-            _chain_err = _chain_not_supported_response(path, data)
-            if _chain_err is not None:
-                return _chain_err
             _derr = _validate_data_body(path, data)
             if _derr:
                 return JSONResponse(status_code=422, content={"detail": _derr})
+            _chain_err = _chain_not_supported_response(path, data)
+            if _chain_err is not None:
+                return _chain_err
         _aggregate_paths = {
             "/v1/aggregate/balances", "/v1/aggregate/prices",
             "/v1/aggregate/nfts", "/v1/aggregate/tx-history",
