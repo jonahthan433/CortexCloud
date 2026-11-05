@@ -117,7 +117,7 @@ rewritten for the data surface before its output is trusted.
 - Added PostgreSQL-backed GitHub Actions CI and deterministic test configuration.
 - Solana discovery is gated by both `HELIUS_API_KEY` and `HELIUS_VERIFIED=true`. An authenticated internal `POST /internal/providers/helius/verify` runs Helius `getHealth` but deliberately does not enable Solana; the operator must set the flag after a successful check.
 - Aggregate pricing now scales by batch size; cache hits report zero upstream provider cost.
-- GitHub Actions run #234 (commit `bcea6a2`) passed: 207 tests passed, 5 skipped, 0 failed; Alembic migration upgrade also passed. Additional cache and concurrency regression tests are running on the latest branch head. The run emitted 57 warnings, including Pydantic v2 `Field(env=...)` deprecations and upstream Node/websockets deprecations. Treat skipped tests and warnings as follow-up review items; this is CI validation, not production-provider verification.
+- GitHub Actions run #244 (commit `1a64b59`) passed: 208 tests passed, 5 skipped, 0 failed; Alembic migration upgrade also passed. This includes subscription rate-limit enforcement, concurrent credit-idempotency, and Solana cache-cost regression coverage. The run emitted 57 warnings, including Pydantic v2 `Field(env=...)` deprecations and upstream Node/websockets deprecations. Treat skipped tests and warnings as follow-up review items; this is CI validation, not production-provider verification.
 
 ### Phase 2 — multi-chain intelligence
 - Implemented Token-2022-aware Solana balances, wallet intelligence, token intelligence, token risk, wallet-scoped priced whale alerts, and EVM/Solana cross-chain comparison.
