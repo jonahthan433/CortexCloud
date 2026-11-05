@@ -63,20 +63,29 @@ async def test_solana_without_key_is_503_provider_unconfigured(client, monkeypat
 # ---------------------------------------------------------------------------
 # token-balances (Helius getTokenAccountsByOwner)
 # ---------------------------------------------------------------------------
-async def test_solana_token_balances_uses_helius(client, monkeypatch):
+async async def test_solana_token_balances_uses_helius(client, monkeypatch):
     from app.core.config import settings
+    from app.api.data import SOLANA_TOKEN_PROGRAM, SOLANA_TOKEN_2022_PROGRAM
     monkeypatch.setattr(settings, "HELIUS_API_KEY", "test-key", raising=False)
+    seen_programs = []
 
     async def fake_rpc(method, params):
         assert method == "getTokenAccountsByOwner"
         assert params[0] == SOL  # base58 passed through, not lowercased
-        return 200, {"result": {"value": [{
-            "account": {"data": {"parsed": {"info": {
-                "mint": MINT,
-                "owner": SOL,
-                "tokenAmount": {"amount": "1500000", "decimals": 6, "uiAmount": 1.5},
-            }}}},
-        }]}}
+        program = params[1]["programId"]
+        seen_programs.append(program)
+        if program == SOLANA_TOKEN_PROGRAM:
+            values = [{
+                "pubkey": "LegacyAccount111111111111111111111111111111",
+                "account": {"data": {"parsed": {"info": {
+                    "mint": MINT,
+                    "owner": SOL,
+                    "tokenAmount": {"amount": "1500000", "decimals": 6, "uiAmount": 1.5},
+                }}}},
+            }]
+        else:
+            values = []
+        return 200, {"result": {"value": values}}
 
     monkeypatch.setattr("app.api.data._helius_rpc", fake_rpc)
     r = await client.post("/v1/data/token-balances",
@@ -84,30 +93,56 @@ async def test_solana_token_balances_uses_helius(client, monkeypatch):
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["chain"] == "solana"
+    assert set(seen_programs) == {SOLANA_TOKEN_PROGRAM, SOLANA_TOKEN_2022_PROGRAM}
     # Wrapper keys are snake_case like the rest of the API surface.
     assert body["balances"] == [{"mint": MINT, "raw": "1500000", "decimals": 6, "ui_amount": 1.5}]
     assert body["evidence"]["token_accounts"]["source"] == "helius"
     assert body["evidence"]["balances"]["checked_at"]
     assert body["price_usd"] == 0.004
+    assert body["provider_cost_usd"] == 0.000098
 
 
-async def test_solana_token_balances_filters_by_mint(client, monkeypatch):
+async def test_solana_token_balances_filters_by_mint_and_includes_token_2022(client, monkeypatch):
     from app.core.config import settings
+    from app.api.data import SOLANA_TOKEN_PROGRAM, SOLANA_TOKEN_2022_PROGRAM
     monkeypatch.setattr(settings, "HELIUS_API_KEY", "test-key", raising=False)
 
+    def account(pubkey, mint, raw):
+        return {"pubkey": pubkey, "account": {"data": {"parsed": {"info": {
+            "mint": mint,
+            "tokenAmount": {"amount": raw, "decimals": 0, "uiAmount": float(raw)},
+        }}}}}
+
     async def fake_rpc(method, params):
-        return 200, {"result": {"value": [
-            {"account": {"data": {"parsed": {"info": {
-                "mint": MINT, "tokenAmount": {"amount": "1", "decimals": 0, "uiAmount": 1}}}}}},
-            {"account": {"data": {"parsed": {"info": {
-                "mint": SOL, "tokenAmount": {"amount": "2", "decimals": 0, "uiAmount": 2}}}}}},
-        ]}}
+        program = params[1]["programId"]
+        if program == SOLANA_TOKEN_PROGRAM:
+            values = [account("LegacyAcct111111111111111111111111111111", MINT, "1")]
+        else:
+            values = [account("Token2022Acct1111111111111111111111111111", SOL, "2")]
+        return 200, {"result": {"value": values}}
 
     monkeypatch.setattr("app.api.data._helius_rpc", fake_rpc)
     r = await client.post("/v1/data/token-balances",
-                          json={"address": SOL, "chain": "solana", "tokens": [MINT]})
+                          json={"address": SOL, "chain": "solana", "tokens": [SOL]})
     assert r.status_code == 200, r.text
-    assert [b["mint"] for b in r.json()["balances"]] == [MINT]
+    assert [b["mint"] for b in r.json()["balances"]] == [SOL]
+
+
+async def test_solana_token_balances_fails_closed_if_one_program_fails(client, monkeypatch):
+    from app.core.config import settings
+    from app.api.data import SOLANA_TOKEN_PROGRAM
+    monkeypatch.setattr(settings, "HELIUS_API_KEY", "test-key", raising=False)
+
+    async def fake_rpc(method, params):
+        if params[1]["programId"] == SOLANA_TOKEN_PROGRAM:
+            return 200, {"result": {"value": []}}
+        return 503, {"error": "provider unavailable"}
+
+    monkeypatch.setattr("app.api.data._helius_rpc", fake_rpc)
+    r = await client.post("/v1/data/token-balances",
+                          json={"address": SOL, "chain": "solana"})
+    assert r.status_code == 503, r.text
+    assert r.json()["error"] == "upstream_helius"
 
 
 # ---------------------------------------------------------------------------
