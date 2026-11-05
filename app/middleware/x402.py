@@ -1544,6 +1544,11 @@ class X402Middleware(BaseHTTPMiddleware):
             # Do not let an API key be interpreted as an MPP authorization.
             authorization = None
 
+        if path.startswith("/v1/billing/subscribe/"):
+            # Subscription activation is tied to the x402 settlement nonce
+            # recorded in the payment ledger; do not accept MPP here.
+            authorization = None
+
         if not payment_signature:
             if mpp and authorization:
                 # MPP credential path: client answered a challenge with
