@@ -232,6 +232,10 @@ def create_app(override_openapi: bool = True) -> FastAPI:
     async def demo_page():
         return FileResponse(os.path.join(SITE_DIR, "demo.html"), media_type="text/html")
 
+    @application.get("/billing.html", include_in_schema=False, tags=["Billing"])
+    async def billing_page():
+        return FileResponse(os.path.join(SITE_DIR, "billing.html"), media_type="text/html")
+
     # Root-level static assets (Next export leftovers kept for compatibility)
     @application.get("/{asset}", include_in_schema=False)
     async def _site_asset(asset: str):
