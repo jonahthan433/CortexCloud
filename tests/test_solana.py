@@ -35,10 +35,14 @@ def test_helius_wiring_is_priced_on_the_floor_and_cheap():
     assert p.HELIUS_ENDPOINTS == ("token-balances", "tx-history", "token-price", "wallet-intel", "token-intel", "token-risk", "whale-alerts", "cross-chain-compare")
     assert p.helius_provider_cost_usd(1) == 0.000049
     assert p.helius_provider_cost_usd(3) == 0.000147
-    # Solana reads stay at the $0.004 floor (provider cost is ~80x below it).
-    for ep in p.HELIUS_ENDPOINTS:
+    # Tier-1 Solana reads stay at the $0.004 floor; Tier-2 routes retain their
+    # distinct intelligence prices.
+    for ep in ("token-balances", "tx-history", "token-price"):
         assert p.data_provider_cost_usd(ep) < p.PRICING_FLOOR_USD
         assert p.data_price_usd(ep) == p.PRICING_FLOOR_USD
+    assert p.data_price_usd("wallet-intel") == 0.006
+    assert p.data_price_usd("token-risk") == 0.020
+    assert p.data_price_usd("token-intel") == 0.030
 
 
 def test_all_data_chains_is_evm_plus_solana():
@@ -300,7 +304,7 @@ async def test_solana_wallet_intel_uses_helius(client, monkeypatch):
 
     monkeypatch.setattr("app.api.data._helius_rpc", fake_rpc)
     monkeypatch.setattr("app.api.data._helius_transactions", fake_transactions)
-    r = await client.post("/v1/data/wallet-intel", json={"address": SOL, "chain": "solana"})
+    r = await client.post("/v1/data/wallet-intel", json={"address": SOL, "chain": "solana", "limit": 10})
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["native_balance"] == 2.0
