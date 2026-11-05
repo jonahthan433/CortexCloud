@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CortexCloud — agent-native x402 API platform for AI agents</title>
-<meta name="description" content="Pay-per-call on-chain data API for AI agents: token prices, risk scoring, wallet intelligence, whale alerts, balances, tx history, cross-chain comparison — evidence-backed JSON, settled in USDC on Base via x402. No API keys, no signup.">
+<meta name="description" content="Pay-per-call on-chain data API for AI agents: token prices, risk scoring, wallet intelligence, whale alerts, balances, tx history, cross-chain comparison — evidence-backed JSON, settled in USDC on Base via x402. No signup required for x402 pay-per-call; optional monthly prepaid credits use a wallet-linked API key.">
 <meta name="robots" content="index, follow">
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/favicon.png">
@@ -103,15 +103,17 @@ pre .tp{color:var(--muted)}
 <header class="hero wrap">
   <p class="eyebrow">Agent-native infrastructure · x402 pay-per-call</p>
   <h1>Cortex<span class="mark">Cloud</span></h1>
-  <p class="sub">On-chain data and intelligence behind one pay-per-call API. Token prices, risk, wallet profiles, whale activity, balances, transaction history, and cross-chain comparison — every response evidence-backed with source attribution and timestamps. Settled in USDC on Base. No API keys. No signup.</p>
+  <p class="sub">On-chain data and intelligence behind one pay-per-call API. Token prices, risk, wallet profiles, whale activity, balances, transaction history, and cross-chain comparison — every response evidence-backed with source attribution and timestamps. Settled in USDC on Base. Pay per call without an API key, or use prepaid monthly credits.</p>
   <div class="cta">
     <a class="btn primary" href="#free-example">Try a free example</a>
     <a class="btn" href="/docs">API reference</a>
+    <a class="btn" href="/billing.html">Billing dashboard</a>
   </div>
   <div class="meta">
     <span>Challenge <b>free</b></span>
     <span>Data calls from <b>$0.004</b></span>
     <span>Settled <b>USDC on Base</b></span>
+    <span>Subscriptions from <b>$19/month</b></span>
   </div>
 </header>
 
@@ -205,6 +207,17 @@ pre .tp{color:var(--muted)}
     <a href="https://smithery.ai/servers/ampwerajonathan50/cortexcloud-mcp">Smithery</a>
     <a href="https://www.tryponcho.com/m/api.cortexcloud.org">Poncho</a>
   </div>
+</section>
+
+<section class="wrap" id="subscriptions">
+  <h2>Prepaid plans for agents and trading systems</h2>
+  <p class="sec-sub">Pay monthly in USDC on Base. Credits are consumed by the advertised price of each API call; x402 per-call payments remain available when credits run out. Renewal is manual — no automatic wallet withdrawals.</p>
+  <div class="steps">
+    <div class="step"><h3>Starter · $19/month</h3><p>19,000 weighted API credits.</p></div>
+    <div class="step"><h3>Trading Pro · $49/month</h3><p>49,000 weighted API credits.</p></div>
+    <div class="step"><h3>Agent Fleet · $99/month</h3><p>99,000 weighted API credits.</p></div>
+  </div>
+  <p style="margin-top:18px"><a class="btn primary" href="/billing.html">Open billing dashboard</a> <a class="btn" href="/v1/billing/plans">View plan API</a></p>
 </section>
 
 <footer class="foot wrap">
