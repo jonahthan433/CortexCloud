@@ -35,10 +35,15 @@ class FakeClient:
         return self.request("POST", path, **kwargs)
 
 
+def _configure_fake(fake, kwargs):
+    fake.default_headers = kwargs.get("headers") or {}
+    return fake
+
+
 def test_subscription_api_key_pays_without_private_key(monkeypatch):
     fake = FakeClient()
     fake.responses = [FakeResponse(200, {"ok": True})]
-    monkeypatch.setattr(client_module.httpx, "Client", lambda *a, **k: fake)
+    monkeypatch.setattr(client_module.httpx, "Client", lambda *a, **k: _configure_fake(fake, k))
     cc = CortexCloud(api_key="cx_live_example")
     assert cc.pay("POST", "/v1/data/token-price", {"id": "ethereum"}) == {"ok": True}
     assert fake.calls[0][3]["Authorization"] == "Bearer cx_live_example"
