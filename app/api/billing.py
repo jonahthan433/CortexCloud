@@ -17,7 +17,6 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 
 from app.database.session import AsyncSessionLocal
-from app.models import Payment
 from app.models.subscription import WalletAPIKey, WalletCreditTransaction, WalletSubscription
 
 router = APIRouter(prefix="/v1/billing", tags=["Billing"])
@@ -86,20 +85,11 @@ async def subscribe(plan_id: str, request: Request):
         })
 
     expected_atomic = int(round(plan["price_usd"] * 1_000_000))
+    if (getattr(request.state, "x402_amount_atomic", None) != expected_atomic
+            or getattr(request.state, "x402_path", None) != request.url.path):
+        return JSONResponse(status_code=409, content={"error": "settled_plan_payment_not_found"})
     now = datetime.now(timezone.utc)
     async with AsyncSessionLocal() as db:
-        payment_result = await db.execute(
-            select(Payment).where(
-                Payment.nonce == nonce,
-                func.lower(Payment.payer) == wallet,
-                Payment.endpoint == request.url.path,
-                Payment.status == "settled",
-            )
-        )
-        payment = payment_result.scalar_one_or_none()
-        if payment is None or payment.amount_atomic != expected_atomic:
-            return JSONResponse(status_code=409, content={"error": "settled_plan_payment_not_found"})
-
         duplicate = await db.execute(
             select(WalletCreditTransaction).where(WalletCreditTransaction.payment_nonce == nonce)
         )
