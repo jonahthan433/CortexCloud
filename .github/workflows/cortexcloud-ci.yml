@@ -38,7 +38,8 @@ jobs:
       POSTGRES_DB: cortexcloud_test
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/cortexcloud_test
       DATA_ENABLED: "false"
-      WALLET_ADDRESS: 0x1111111111111111111111111111111111111111
+      X402_ENABLED: "true"
+      WALLET_ADDRESS: "0x1111111111111111111111111111111111111111"
       ALCHEMY_API_KEY: ci-test-key
       HELIUS_API_KEY: ""
     steps:
