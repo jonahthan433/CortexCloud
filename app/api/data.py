@@ -375,15 +375,18 @@ async def _solana_token_balances(req: TokenBalancesRequest) -> dict | JSONRespon
     if e := _need_helius():
         return e
     endpoint = "token-balances"
-    # Each program requires a separate RPC read; account for both provider calls.
-    provider_cost = helius_provider_cost_usd(2)
     mints = ",".join(req.tokens or [])
     cache_key = _cache_key(endpoint, "solana", req.address, mints or "all", str(req.max_tokens))
     hit = _cached_get(endpoint, cache_key)
     if hit is not None:
         out = dict(hit)
         out["cache_hit"] = True
-        return _stamp(out, endpoint, provider_cost)
+        # A cache hit performs no Helius RPC calls; do not overstate provider
+        # cost or understate gross margin in the payment ledger.
+        return _stamp(out, endpoint, 0.0)
+
+    # Each token program requires a separate RPC read.
+    provider_cost = helius_provider_cost_usd(2)
 
     # Solana indexes the legacy SPL Token Program and Token-2022 separately.
     # Fail closed if either read fails; a partial result would misrepresent
