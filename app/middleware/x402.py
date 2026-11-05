@@ -1467,11 +1467,13 @@ class X402Middleware(BaseHTTPMiddleware):
                                or request.headers.get("x-idempotency-key") or "").strip() or None
             if idempotency_key and len(idempotency_key) > 128:
                 return JSONResponse(status_code=422, content={"error": "idempotency_key_too_long"})
+
+            from datetime import datetime, timezone
+            from sqlalchemy import select
+            from app.database.session import AsyncSessionLocal
+            from app.models.subscription import WalletSubscription, WalletCreditTransaction
+            remaining = None
             try:
-                from datetime import datetime, timezone
-                from sqlalchemy import select
-                from app.database.session import AsyncSessionLocal
-                from app.models.subscription import WalletSubscription, WalletCreditTransaction
                 async with AsyncSessionLocal() as credit_db:
                     if idempotency_key:
                         duplicate = await credit_db.execute(
@@ -1502,54 +1504,43 @@ class X402Middleware(BaseHTTPMiddleware):
                             idempotency_key=idempotency_key,
                         ))
                         await credit_db.commit()
-                    else:
-                        remaining = None
-                if remaining is not None:
-                    try:
-                        response = await call_next(request)
-                    except Exception:
-                        async with AsyncSessionLocal() as refund_db:
-                            sub_result = await refund_db.execute(
-                                select(WalletSubscription)
-                                .where(WalletSubscription.wallet_address == api_key.wallet_address)
-                                .with_for_update()
-                            )
-                            current = sub_result.scalar_one_or_none()
-                            if current:
-                                current.credits_remaining += credits_needed
-                                refund_db.add(WalletCreditTransaction(
-                                    wallet_address=api_key.wallet_address,
-                                    amount_credits=credits_needed,
-                                    type="usage_refund",
-                                    endpoint=path,
-                                ))
-                                await refund_db.commit()
-                        raise
-                    if response.status_code >= 500:
-                        async with AsyncSessionLocal() as refund_db:
-                            sub_result = await refund_db.execute(
-                                select(WalletSubscription)
-                                .where(WalletSubscription.wallet_address == api_key.wallet_address)
-                                .with_for_update()
-                            )
-                            current = sub_result.scalar_one_or_none()
-                            if current:
-                                current.credits_remaining += credits_needed
-                                refund_db.add(WalletCreditTransaction(
-                                    wallet_address=api_key.wallet_address,
-                                    amount_credits=credits_needed,
-                                    type="usage_refund",
-                                    endpoint=path,
-                                ))
-                                await refund_db.commit()
-                        remaining += credits_needed
-                    response.headers["X-CortexCloud-Billing"] = "subscription_credits"
-                    response.headers["X-CortexCloud-Credits-Used"] = str(credits_needed)
-                    response.headers["X-CortexCloud-Credits-Remaining"] = str(remaining)
-                    _log_request(request, response, request.state.x402_start)
-                    return response
             except Exception as exc:
                 logger.warning("subscription credit debit failed; falling back to x402: %s", exc)
+                remaining = None
+
+            if remaining is not None:
+                async def _refund_credits() -> int:
+                    async with AsyncSessionLocal() as refund_db:
+                        sub_result = await refund_db.execute(
+                            select(WalletSubscription)
+                            .where(WalletSubscription.wallet_address == api_key.wallet_address)
+                            .with_for_update()
+                        )
+                        current = sub_result.scalar_one_or_none()
+                        if current:
+                            current.credits_remaining += credits_needed
+                            refund_db.add(WalletCreditTransaction(
+                                wallet_address=api_key.wallet_address,
+                                amount_credits=credits_needed,
+                                type="usage_refund",
+                                endpoint=path,
+                            ))
+                            await refund_db.commit()
+                            return current.credits_remaining
+                    return remaining + credits_needed
+
+                try:
+                    response = await call_next(request)
+                except Exception:
+                    await _refund_credits()
+                    raise
+                if response.status_code >= 500:
+                    remaining = await _refund_credits()
+                response.headers["X-CortexCloud-Billing"] = "subscription_credits"
+                response.headers["X-CortexCloud-Credits-Used"] = str(credits_needed)
+                response.headers["X-CortexCloud-Credits-Remaining"] = str(remaining)
+                _log_request(request, response, request.state.x402_start)
+                return response
             # Do not let an API key be interpreted as an MPP authorization.
             authorization = None
 
