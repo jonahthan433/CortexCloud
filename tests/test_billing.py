@@ -9,7 +9,6 @@ from sqlalchemy import select, text
 from starlette.requests import Request
 
 from app.database.session import AsyncSessionLocal
-from app.models import Payment
 from app.models.subscription import WalletAPIKey, WalletCreditTransaction, WalletSubscription
 
 
@@ -47,16 +46,11 @@ async def test_billing_plans_and_manual_prepaid_subscription(client):
     wallet = "0x" + "12" * 20
     nonce = uuid.uuid4().hex
     path = "/v1/billing/subscribe/starter"
-    async with AsyncSessionLocal() as db:
-        db.add(Payment(
-            endpoint=path, payer=wallet, amount_atomic=19_000_000,
-            amount_usd=19.0, nonce=nonce, status="settled",
-        ))
-        await db.commit()
-
     request = _request(path)
     request.state.x402_payer = wallet
     request.state.x402_nonce = nonce
+    request.state.x402_amount_atomic = 19_000_000
+    request.state.x402_path = path
     from app.api.billing import subscribe
     result = await subscribe("starter", request)
     assert result["status"] == "active"
