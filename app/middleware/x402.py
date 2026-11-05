@@ -1095,23 +1095,25 @@ def _validate_data_body(path: str, data) -> list | None:
             return err(["body", "limit"], "limit must be 1..100")
     elif path == "/v1/data/token-risk":
         c = data.get("contract")
-        if not c or not _HEX.match(str(c)):
-            return err(["body", "contract"], "contract must be a 0x-prefixed 40-hex address")
+        if not c or not _addr_ok(c):
+            return err(["body", "contract"], _contract_msg)
     elif path == "/v1/data/token-intel":
         c = data.get("contract")
-        if not c or not _HEX.match(str(c)):
-            return err(["body", "contract"], "contract must be a 0x-prefixed 40-hex address")
+        if not c or not _addr_ok(c):
+            return err(["body", "contract"], _contract_msg)
     elif path == "/v1/data/wallet-intel":
         addr = data.get("address")
-        if not addr or not _HEX.match(str(addr)):
-            return err(["body", "address"], "address must be a 0x-prefixed 40-hex EVM address")
+        if not addr or not _addr_ok(addr):
+            return err(["body", "address"], _addr_msg)
         lim = data.get("limit")
         if lim is not None and (not isinstance(lim, int) or lim < 1 or lim > 100):
             return err(["body", "limit"], "limit must be 1..100")
     elif path == "/v1/data/whale-alerts":
-        addr = data.get("address")  # optional: chain-wide scan when absent
-        if addr and not _HEX.match(str(addr)):
-            return err(["body", "address"], "address must be a 0x-prefixed 40-hex EVM address")
+        addr = data.get("address")  # optional chain-wide scan on EVM only
+        if sol and not addr:
+            return err(["body", "address"], "Solana whale alerts require a wallet address")
+        if addr and not _addr_ok(addr):
+            return err(["body", "address"], _addr_msg)
         mu = data.get("min_usd")
         if mu is not None and (not isinstance(mu, (int, float)) or mu < 0):
             return err(["body", "min_usd"], "min_usd must be a non-negative number")
