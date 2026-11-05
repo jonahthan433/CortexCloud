@@ -97,5 +97,17 @@ async def capabilities() -> dict:
                     "/v1/aggregate/tx-history",
                 ],
             },
+            "billing": {
+                "status": "available" if settings.X402_ENABLED else "disabled",
+                "note": "Manual monthly prepaid USDC subscriptions. 1 credit = $0.001; when credits run out, normal x402 per-call payments remain available. No automatic wallet withdrawals.",
+                "plans_endpoint": "/v1/billing/plans",
+                "account_endpoint": "/v1/billing/account",
+                "usage_endpoint": "/v1/billing/usage",
+                "subscription_routes": [
+                    "POST /v1/billing/subscribe/starter",
+                    "POST /v1/billing/subscribe/trading-pro",
+                    "POST /v1/billing/subscribe/agent-fleet",
+                ],
+            },
         },
     }
