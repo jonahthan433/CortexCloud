@@ -31,7 +31,7 @@ def test_solana_is_not_an_alchemy_network():
 
 
 def test_helius_wiring_is_priced_on_the_floor_and_cheap():
-    assert p.HELIUS_ENDPOINTS == ("token-balances", "tx-history", "token-price", "wallet-intel", "token-intel", "token-risk")
+    assert p.HELIUS_ENDPOINTS == ("token-balances", "tx-history", "token-price", "wallet-intel", "token-intel", "token-risk", "whale-alerts")
     assert p.helius_provider_cost_usd(1) == 0.000049
     assert p.helius_provider_cost_usd(3) == 0.000147
     # Solana reads stay at the $0.004 floor (provider cost is ~80x below it).
@@ -217,7 +217,6 @@ async def test_solana_token_price_rejects_evm_contract(client, monkeypatch):
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize("path,body", [
     ("/v1/data/nft-ownership", {"address": SOL, "chain": "solana"}),
-    ("/v1/data/whale-alerts", {"address": SOL, "chain": "solana"}),
     ("/v1/data/market-snapshot", {"contract": MINT, "chain": "solana"}),
 ])
 async def test_solana_is_explicitly_unsupported_elsewhere(client, path, body):
@@ -245,7 +244,7 @@ async def test_discovery_advertises_solana_subset(client, monkeypatch):
     body = r.json()
     assert "helius" in body["providers"]
     assert body["solana"]["endpoints"] == [
-        "/v1/data/token-balances", "/v1/data/tx-history", "/v1/data/token-price", "/v1/data/wallet-intel", "/v1/data/token-intel", "/v1/data/token-risk"
+        "/v1/data/token-balances", "/v1/data/tx-history", "/v1/data/token-price", "/v1/data/wallet-intel", "/v1/data/token-intel", "/v1/data/token-risk", "/v1/data/whale-alerts"
     ]
     assert "helius" in body["categories"]["data"]["providers"]
 
@@ -372,3 +371,51 @@ async def test_solana_token_risk_uses_authorities_and_supply_concentration(clien
     concentration = next(e for e in body["evidence"] if e["check"] == "largest_token_accounts")
     assert concentration["largest_account_pct_of_supply"] == 25.0
     assert "beneficial wallet owner" in concentration["note"]
+
+
+async def test_solana_whale_alerts_require_wallet_and_apply_real_usd_prices(client, monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "HELIUS_API_KEY", "test-key", raising=False)
+
+    async def fake_transactions(address, limit):
+        return 200, [{
+            "signature": "whale-sig",
+            "timestamp": 1730000000,
+            "nativeTransfers": [{
+                "fromUserAccount": address, "toUserAccount": "WhaleCounterparty11111111111111111111111",
+                "amount": 1_000_000_000,
+            }],
+            "tokenTransfers": [{
+                "fromUserAccount": "OtherWallet111111111111111111111111111111",
+                "toUserAccount": address, "mint": MINT, "tokenAmount": 50.0,
+            }],
+        }]
+
+    async def fake_rpc(method, params):
+        assert method == "getAsset" and params[0]["id"] == MINT
+        return 200, {"result": {"token_info": {"price_info": {
+            "price_per_token": 2.0, "currency": "USD",
+        }}}}
+
+    async def fake_sol_price():
+        return 100.0, "test SOL/USD feed"
+
+    monkeypatch.setattr("app.api.data._helius_transactions", fake_transactions)
+    monkeypatch.setattr("app.api.data._helius_rpc", fake_rpc)
+    monkeypatch.setattr("app.api.data._solana_native_usd_price", fake_sol_price)
+    r = await client.post("/v1/data/whale-alerts", json={
+        "address": SOL, "chain": "solana", "min_usd": 100.0, "limit": 10,
+    })
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["alerts_count"] == 2
+    assert all(item["value_usd"] >= 100 for item in body["alerts"])
+    assert body["unpriced_transfers"] == 0
+
+
+async def test_solana_whale_alerts_reject_chain_wide_scan(client, monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "HELIUS_API_KEY", "test-key", raising=False)
+    r = await client.post("/v1/data/whale-alerts", json={"chain": "solana"})
+    assert r.status_code == 422
+    assert r.json()["error"] == "address_required"
