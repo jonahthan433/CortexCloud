@@ -1618,6 +1618,7 @@ class X402Middleware(BaseHTTPMiddleware):
             _sig_payload = {}
         _auth0 = (_sig_payload.get("payload") or {}).get("authorization") or {}
         request.state.x402_payer = _auth0.get("from")
+        request.state.x402_nonce = _auth0.get("nonce")
         request.state.x402_cache = False
 
         # S1: payment-proof cache — the same proof verified+settled within the
