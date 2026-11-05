@@ -1348,6 +1348,122 @@ async def whale_alert_payload(req: WhaleAlertRequest, network: str) -> dict:
             "cache_hit": False}
 
 
+async def _solana_native_usd_price() -> tuple[float | None, str]:
+    """Return SOL/USD from CoinGecko; never infer a price from transfer units."""
+    url = f"{COINGECKO_BASE}/simple/price"
+    params = {"ids": "solana", "vs_currencies": "usd"}
+    if settings.COINGECKO_API_KEY:
+        params["x_cg_demo_api_key"] = settings.COINGECKO_API_KEY
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        response = await client.get(url, params=params)
+    if response.status_code != 200:
+        return None, "coingecko_unavailable"
+    value = (response.json().get("solana") or {}).get("usd")
+    try:
+        return (float(value), "coingecko /simple/price") if value is not None else (None, "sol_price_missing")
+    except (TypeError, ValueError):
+        return None, "sol_price_invalid"
+
+
+async def _solana_whale_alerts(req: WhaleAlertRequest) -> dict | JSONResponse:
+    """Wallet-scoped SOL and priced SPL transfer alerts; unknown prices are excluded."""
+    if e := _need_helius():
+        return e
+    if not req.address:
+        return JSONResponse(status_code=422, content={
+            "error": "address_required",
+            "detail": "Solana whale alerts require a wallet address; chain-wide scans are not supported.",
+        })
+    endpoint = "whale-alerts"
+    cache_key = _cache_key(endpoint, "solana", req.address, str(req.min_usd), str(req.limit))
+    hit = _cached_get(endpoint, cache_key)
+    if hit is not None:
+        out = dict(hit)
+        out["cache_hit"] = True
+        return _stamp(out, endpoint, 0.0)
+
+    tx_result, sol_price_result = await asyncio.gather(
+        _helius_transactions(req.address, req.limit),
+        _solana_native_usd_price(),
+    )
+    tx_status, tx_data = tx_result
+    if tx_status != 200 or not isinstance(tx_data, list):
+        return JSONResponse(status_code=tx_status or 502,
+                            content={"error": "upstream_helius", "detail": json.dumps(tx_data)[:500]})
+    sol_price, sol_price_source = sol_price_result
+    token_mints = []
+    for tx in tx_data[:req.limit]:
+        for transfer in tx.get("tokenTransfers") or []:
+            mint = transfer.get("mint")
+            if mint and mint not in token_mints and len(token_mints) < 5:
+                token_mints.append(mint)
+    asset_results = await asyncio.gather(*[
+        _helius_rpc("getAsset", [{"id": mint}]) for mint in token_mints
+    ])
+    token_prices = {}
+    for mint, (status, data) in zip(token_mints, asset_results):
+        info = ((data.get("result") or {}).get("token_info") or {}) if status == 200 else {}
+        price_info = info.get("price_info") or {}
+        value = price_info.get("price_per_token")
+        if value is not None and str(price_info.get("currency", "USD")).upper() == "USD":
+            try:
+                token_prices[mint] = (float(value), "helius getAsset(token_info.price_info)")
+            except (TypeError, ValueError):
+                pass
+
+    alerts, unpriced = [], 0
+    for tx in tx_data[:req.limit]:
+        signature = tx.get("signature")
+        timestamp = tx.get("timestamp")
+        try:
+            timestamp = datetime.fromtimestamp(timestamp, timezone.utc).isoformat() if isinstance(timestamp, (int, float)) else None
+        except (OverflowError, OSError, ValueError):
+            timestamp = None
+        for transfer in tx.get("nativeTransfers") or []:
+            amount = transfer.get("amount")
+            if not isinstance(amount, (int, float)) or sol_price is None:
+                unpriced += 1
+                continue
+            sol_amount = float(amount) / 1_000_000_000
+            usd_value = sol_amount * sol_price
+            if usd_value >= req.min_usd:
+                alerts.append({
+                    "asset": "SOL", "direction": "out" if transfer.get("fromUserAccount") == req.address else "in",
+                    "value": sol_amount, "value_usd": round(usd_value, 2),
+                    "price_source": sol_price_source, "hash": signature,
+                    "from": transfer.get("fromUserAccount"), "to": transfer.get("toUserAccount"),
+                    "timestamp": timestamp, "source": "helius enhanced transactions",
+                })
+        for transfer in tx.get("tokenTransfers") or []:
+            mint = transfer.get("mint")
+            price = token_prices.get(mint)
+            try:
+                amount = float(transfer.get("tokenAmount"))
+            except (TypeError, ValueError):
+                amount = None
+            if not price or amount is None:
+                unpriced += 1
+                continue
+            usd_value = amount * price[0]
+            if usd_value >= req.min_usd:
+                alerts.append({
+                    "asset": mint, "direction": "out" if transfer.get("fromUserAccount") == req.address else "in",
+                    "value": amount, "value_usd": round(usd_value, 2),
+                    "price_source": price[1], "hash": signature,
+                    "from": transfer.get("fromUserAccount"), "to": transfer.get("toUserAccount"),
+                    "timestamp": timestamp, "source": "helius enhanced transactions",
+                })
+    alerts.sort(key=lambda item: item["value_usd"], reverse=True)
+    out = {
+        "watched_address": req.address, "chain": "solana", "min_usd": req.min_usd,
+        "alerts": alerts, "alerts_count": len(alerts), "unpriced_transfers": unpriced,
+        "note": "Wallet-scoped scan only. USD thresholds are applied only when a SOL or token USD price is available; unpriced transfers are excluded, not estimated.",
+        "cache_hit": False,
+    }
+    _cached_set(endpoint, cache_key, out)
+    return _stamp(out, endpoint, helius_provider_cost_usd(1 + len(token_mints)))
+
+
 @router.post("/whale-alerts")
 async def whale_alerts(req: WhaleAlertRequest, request: Request):
     """Large-transfer alerts for a wallet (or chain-wide token scan when a
@@ -1355,7 +1471,7 @@ async def whale_alerts(req: WhaleAlertRequest, request: Request):
     if d := _disabled():
         return d
     if is_solana(req.chain):
-        return _chain_not_supported("whale-alerts", req.chain)
+        return await _solana_whale_alerts(req)
     if e := _need_alchemy():
         return e
     try:
