@@ -18,6 +18,7 @@ def _enable(monkeypatch):
     from app.core.config import settings
     monkeypatch.setattr(settings, "DATA_ENABLED", True, raising=False)
     monkeypatch.setattr(settings, "X402_ENABLED", False, raising=False)
+    monkeypatch.setattr(settings, "HELIUS_VERIFIED", True, raising=False)
 
 
 # ---------------------------------------------------------------------------
@@ -53,6 +54,7 @@ def test_all_data_chains_is_evm_plus_solana():
 async def test_solana_without_key_is_503_provider_unconfigured(client, monkeypatch):
     from app.core.config import settings
     monkeypatch.setattr(settings, "HELIUS_API_KEY", None, raising=False)
+    monkeypatch.setattr(settings, "HELIUS_VERIFIED", False, raising=False)
     r = await client.post("/v1/data/token-balances", json={"address": SOL, "chain": "solana"})
     assert r.status_code == 503, r.text
     assert r.json()["error"] == "provider_unconfigured"
