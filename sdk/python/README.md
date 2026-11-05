@@ -1,8 +1,9 @@
 # cortexcloud
 
-Agent-native, pay-per-call API platform settled by **x402** (USDC on Base). Six
-categories: Optimization/Quantum, AI, Research, Data, Automation, MCP. No API
-keys — free endpoints need no wallet; paid endpoints settle per call.
+CortexCloud On-Chain Data API client for AI agents and trading systems.
+Supports x402 pay-per-call in USDC on Base and optional monthly prepaid
+subscriptions with wallet-linked API keys and weighted credits. Subscription
+renewal is manual; there are no automatic wallet withdrawals.
 
 ```bash
 pip install cortexcloud
@@ -18,18 +19,35 @@ est = cc.estimate({"problem_type": "qubo", "n": 6, "data": {...}})
 print(est["recommendation"]["mode"], est["recommendation"]["cortexcloud_price_usd"])
 ```
 
-## Paid call (any category)
+## Pay per call with x402
 
 ```python
 cc = CortexCloud(private_key="0x...")   # Base wallet with USDC
-price = cc.token_price("ETH")            # Data  $0.004
-ans   = cc.research_answer("best L2 for USDC settlement?")  # Research $0.012
-job   = cc.optimize({"problem_type": "qubo", "n": 6, "data": {...}})  # Opt $0.05
-print(cc.wait(job["job_id"]))
+price = cc.token_price("ethereum")      # CoinGecko id, $0.004
+wallet = cc.wallet_intel("0x...")
 ```
 
-Every paid method handles the x402 v2 flow automatically: 402 challenge →
-EIP-712 sign → settle → JSON. You never touch the payment header.
+Every x402 method handles the 402 challenge → EIP-712 sign → settlement flow.
+
+## Monthly prepaid credits
+
+```python
+# Purchase or renew manually; the response contains a one-time API key.
+buyer = CortexCloud(private_key="0x...")
+purchase = buyer.subscribe("trading-pro")
+api_key = purchase["api_key"]  # save securely; shown only once
+
+# Use credits; if credits run out, include private_key for x402 overages.
+cc = CortexCloud(api_key=api_key, private_key="0x...")
+account = cc.billing_account()
+usage = cc.billing_usage()
+data = cc.token_balances("0x...", chain="base")
+```
+
+Plans: Starter $19/19,000 credits; Trading Pro $49/49,000 credits;
+Agent Fleet $99/99,000 credits. One credit equals $0.001 of advertised API
+price. Requests deduct credits first; when exhausted, x402 per-call payment
+remains available. Renewals are manual.
 
 ## Surfaces
 
