@@ -47,7 +47,7 @@ async def capabilities() -> dict:
             "provider": "helius" if settings.HELIUS_API_KEY else "not_configured",
             "endpoints": solana_endpoints,
             "status": "available" if helius_configured else "not_configured",
-            "note": ("Solana is supported on token-balances, tx-history and token-price only; "
+            "note": ("Solana is supported on token-balances, tx-history, token-price and wallet-intel; "
                     "every other route returns chain_not_supported.") if helius_configured
                     else "Solana is not enabled on this instance; configure and verify HELIUS_API_KEY before use.",
             "settlement": "x402 (USDC on Base) — Solana is the READ chain, not the payment chain.",
