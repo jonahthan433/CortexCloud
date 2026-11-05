@@ -206,3 +206,26 @@ async def test_subscription_key_idempotency_prevents_double_debit(client, monkey
     second = await client.get("/v1/data/block?chain=ethereum&block=latest", headers=headers)
     assert first.status_code == 200
     assert second.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_billing_discovery_and_dashboard_are_published(client):
+    capabilities = await client.get("/v1/capabilities")
+    assert capabilities.status_code == 200
+    billing = capabilities.json()["categories"]["billing"]
+    assert billing["status"] == "available"
+    assert "/v1/billing/plans" == billing["plans_endpoint"]
+    assert "POST /v1/billing/subscribe/starter" in billing["subscription_routes"]
+
+    manifest = await client.get("/.well-known/bazaar")
+    assert manifest.status_code == 200
+    paths = {item["path"] for item in manifest.json()["endpoints"]}
+    assert "/v1/billing/subscribe/starter" in paths
+
+    llms = await client.get("/llms.txt")
+    assert "Monthly prepaid subscriptions" in llms.text
+    assert "/v1/billing/subscribe/trading-pro" in llms.text
+
+    dashboard = await client.get("/billing.html")
+    assert dashboard.status_code == 200
+    assert "Billing &amp; usage" in dashboard.text or "Billing & usage" in dashboard.text
