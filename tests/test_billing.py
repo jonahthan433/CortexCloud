@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -216,10 +217,11 @@ async def test_subscription_key_idempotency_prevents_double_debit(client, monkey
                                 "timestamp": "0x64", "transactions": [], "parentHash": "0xdef"}}
     monkeypatch.setattr("app.api.data._alchemy_rpc", fake_rpc)
     headers = {"Authorization": "Bearer " + raw_key, "Idempotency-Key": "same-call"}
-    first = await client.get("/v1/data/block?chain=ethereum&block=latest", headers=headers)
-    second = await client.get("/v1/data/block?chain=ethereum&block=latest", headers=headers)
-    assert first.status_code == 200
-    assert second.status_code == 409
+    first, second = await asyncio.gather(
+        client.get("/v1/data/block?chain=ethereum&block=latest", headers=headers),
+        client.get("/v1/data/block?chain=ethereum&block=latest", headers=headers),
+    )
+    assert sorted([first.status_code, second.status_code]) == [200, 409]
 
 
 @pytest.mark.asyncio
