@@ -1479,6 +1479,9 @@ class X402Middleware(BaseHTTPMiddleware):
             request.state.x402_payer = api_key.wallet_address
             request.state.subscription_api_key_id = str(api_key.id)
             request.state.x402_start = time.perf_counter()
+            limited = await _rate_limit(request)
+            if limited:
+                return limited
             credits_needed = max(1, (int(required) + 999) // 1000)  # 1 credit = $0.001
             idempotency_key = (request.headers.get("idempotency-key")
                                or request.headers.get("x-idempotency-key") or "").strip() or None
