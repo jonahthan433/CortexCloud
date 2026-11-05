@@ -23,6 +23,7 @@ def _get_or_create() -> ec.EllipticCurvePrivateKey:
         if _private_key is not None:
             return _private_key
         os.makedirs(_KEY_DIR, exist_ok=True)
+        os.makedirs(_KEY_DIR, exist_ok=True)
         if os.path.exists(_KEY_PATH):
             with open(_KEY_PATH, "rb") as f:
                 _private_key = serialization.load_pem_private_key(f.read(), password=None)
