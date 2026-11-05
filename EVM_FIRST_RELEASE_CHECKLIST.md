@@ -4,10 +4,15 @@ Status: preparation only. This checklist does not authorize production changes.
 Target: CortexCloud On-Chain Data API on Base x402, with EVM data/intelligence routes only.
 Explicitly out of scope for this release: Solana enablement, Helius provisioning, production migration, merge, and deployment until separately approved.
 
-## Evidence already present in the repository
-- Latest CI run on head c86e55d: PostgreSQL service started, Alembic upgrade passed, test suite passed (208 passed, 5 skipped, 0 failed).
-- Operator reports a funded-buyer x402 staging transaction completed using an operator-controlled wallet. Attach transaction/settlement reference, paid response evidence, and matching payment/billing ledger row to the release record before calling this gate independently verified.
-- The opt-in CI smoke module tests x402 challenge shape only; it is not the funded settlement proof.
+## Evidence recorded
+- [x] Funded staging buyer completed a Base USDC x402 transaction on CT105 staging.
+- [x] On-chain settlement: `0xe0cf8be4826bfe70fb4eee9ffad527d1224b40332b7627ba65fa7de1525a412b`, success status `0x1`, block 53553894, 2026-11-05 16:45:35 UTC; 4,000 atomic USDC = $0.004 transferred.
+- [x] Paid API response: HTTP 200 from `POST /v1/data/token-price`; decoded `X-PAYMENT-RESPONSE` reports success on `eip155:8453` and references the same settlement transaction.
+- [x] Billing ledger: `x402_payments` row id 294, settled, $0.004, endpoint `/v1/data/token-price`, timestamp 2026-11-05 16:45:38 UTC.
+- [x] Strong cross-link: the ledger nonce matches the EIP-3009 `AuthorizationUsed` log topic in the settlement receipt. Buyer balance moved exactly from 0.103977 to 0.099977 USDC.
+- Evidence was supplied by the operator. No secrets or key material are stored in this repository; raw evidence artifacts were not committed.
+- Isolation caveat: no dedicated staging subdomain exists. `api.cortexcloud.org` is the only ingress and fronts CT105. This proves the staging transaction flow, not independent staging/production isolation.
+- Earlier CI run #254 on head `5f13d1b` passed. The documentation update below triggers fresh CI; confirm it on the final head.
 
 ## EVM-only release scope
 - Enable only the advertised EVM chains: Ethereum, Base, Arbitrum, Polygon, and Optimism.
@@ -17,7 +22,6 @@ Explicitly out of scope for this release: Solana enablement, Helius provisioning
 - Verify the public route catalog, pricing, OpenAPI, llms.txt, agentsearch, bazaar, and MCP catalog agree with the actual EVM-only routes.
 
 ## Required production preflight
-- [ ] Funded staging proof recorded: Base USDC transaction hash, settlement result, successful paid API response, and matching payment ledger entry. Never store private keys or secrets in this repository.
 - [ ] Latest CI green on the exact release head; migration upgrade succeeds against PostgreSQL.
 - [ ] Production config reviewed without exposing secrets: ENV, DATA_ENABLED, X402_ENABLED, WALLET_ADDRESS, facilitator credentials, X402_NETWORK=eip155:8453, ALCHEMY_API_KEY, DATABASE_URL, and webhook signing secret.
 - [ ] Confirm no placeholder/default database password and no test/staging credentials in production.
