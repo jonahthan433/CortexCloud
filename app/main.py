@@ -113,6 +113,8 @@ def create_app(override_openapi: bool = True) -> FastAPI:
     # are free. Delivery is a metered background worker (see app/api/webhooks).
     from app.api.webhooks import router as webhooks_router
     application.include_router(webhooks_router)
+    from app.api.billing import router as billing_router
+    application.include_router(billing_router)
 
     application.include_router(discovery_router, tags=["Discovery"])
     application.include_router(bazaar_router, tags=["Bazaar / MCP"])
