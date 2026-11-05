@@ -55,7 +55,7 @@ def _endpoint_catalog() -> list[dict]:
 async def bazaar_root():
     return {
         "name": "CortexCloud On-Chain Data API",
-        "description": "On-chain data and intelligence with x402 pay-per-call and manual monthly prepaid USDC subscriptions on Base. Wallet-linked API keys spend weighted credits; x402 remains the overage path. Evidence-backed JSON: source attribution, checked_at timestamps, explicit missing-data indicators. Providers: Alchemy + CoinGecko; optional Helius routes appear only when configured.",
+        "description": "On-chain data and intelligence with x402 pay-per-call and manual monthly prepaid USDC subscriptions on Base. Wallet-linked API keys spend weighted credits; x402 remains the overage path. Evidence-backed JSON: source attribution, checked_at timestamps, explicit missing-data indicators. Providers: Alchemy + CoinGecko; optional Helius routes appear only after configuration and verification.",
         "endpoints": _endpoint_catalog(),
         "mcp": {
             "transport": "streamable-http",
