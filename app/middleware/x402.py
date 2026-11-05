@@ -152,6 +152,7 @@ _CATEGORY_BY_PREFIX: tuple[tuple[str, str], ...] = (
     ("/v1/data/", "data"),
     ("/v1/aggregate/", "aggregate"),
     ("/v1/webhooks/", "webhook"),
+    ("/v1/billing/subscribe/", "billing"),
     ("/v1/ai/", "ai"),
     ("/v1/research/", "research"),
 )
