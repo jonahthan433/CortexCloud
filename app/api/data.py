@@ -1563,6 +1563,18 @@ async def cross_chain_compare(req: CrossChainCompareRequest, request: Request):
                     price = entry.get("usd")
                     if price is not None:
                         price_source = "coingecko /simple/token_price/solana"
+            if price is None and req.coin_id:
+                url = f"{COINGECKO_BASE}/simple/price"
+                params = {"ids": req.coin_id, "vs_currencies": "usd", "include_24hr_change": "true"}
+                if settings.COINGECKO_API_KEY:
+                    params["x_cg_demo_api_key"] = settings.COINGECKO_API_KEY
+                async with httpx.AsyncClient(timeout=20.0) as client:
+                    response = await client.get(url, params=params)
+                if response.status_code == 200:
+                    entry = response.json().get(req.coin_id) or {}
+                    price = entry.get("usd")
+                    if price is not None:
+                        price_source = f"coingecko /simple/price ({req.coin_id})"
             txs = tx_data[:25] if tx_status == 200 and isinstance(tx_data, list) else []
             return {
                 "chain": chain,
@@ -1595,6 +1607,16 @@ async def cross_chain_compare(req: CrossChainCompareRequest, request: Request):
             if r.status_code == 200:
                 entry = (r.json().get(c) or {})
                 price, change = entry.get("usd"), entry.get("usd_24h_change")
+        if price is None and req.coin_id:
+            url = f"{COINGECKO_BASE}/simple/price"
+            params = {"ids": req.coin_id, "vs_currencies": "usd", "include_24hr_change": "true"}
+            if settings.COINGECKO_API_KEY:
+                params["x_cg_demo_api_key"] = settings.COINGECKO_API_KEY
+            async with httpx.AsyncClient(timeout=20.0) as cc:
+                r = await cc.get(url, params=params)
+            if r.status_code == 200:
+                entry = r.json().get(req.coin_id) or {}
+                price, change = entry.get("usd"), entry.get("usd_24h_change")
         st_code, d_code = await _alchemy_rpc(network, "eth_getCode", [c, "latest"])
         deployed = bool(st_code == 200 and d_code.get("result") not in (None, "0x"))
         st_x, d_x = await _alchemy_rpc(network, "alchemy_getAssetTransfers", [
@@ -1611,6 +1633,7 @@ async def cross_chain_compare(req: CrossChainCompareRequest, request: Request):
     results = await asyncio.gather(*[_one(chain) for chain in chains])
     live = [r for r in results if r.get("deployed") and r.get("price_usd") is not None]
     out = {"contract": c, "solana_mint": req.solana_mint, "chains": results,
+           "comparison_basis": "Caller-supplied EVM contract and Solana mint; CortexCloud does not assert they represent the same underlying asset.",
            "summary": {"chains_checked": len(results), "chains_live": len(live),
                        "best_liquidity_chain": max(
                            (r["chain"] for r in live),
