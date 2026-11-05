@@ -475,6 +475,13 @@ async def test_solana_is_not_advertised_until_helius_is_configured(client, monke
     assert "Solana (Helius)" not in llms.text
     assert "Token-2022" not in llms.text
 
+    monkeypatch.setattr(settings, "HELIUS_API_KEY", "configured-but-not-verified", raising=False)
+    capabilities = await client.get("/v1/capabilities")
+    body = capabilities.json()
+    assert body["solana"]["status"] == "not_verified"
+    assert body["solana"]["endpoints"] == []
+    assert "helius" not in body["providers"]
+
 
 async def test_unconfigured_helius_is_rejected_before_x402_settlement(monkeypatch):
     from app.core.config import settings
