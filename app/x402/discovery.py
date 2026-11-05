@@ -129,7 +129,7 @@ async def llms_txt():
         f"| /v1/data/{name} | {ttl}s |" for name, ttl in sorted(DATA_TTL_S.items())
     )
     solana_section = ""
-    if settings.HELIUS_API_KEY:
+    if settings.HELIUS_API_KEY and settings.HELIUS_VERIFIED:
         solana_section = """## Solana (Helius)
 
 Solana reads are enabled on this instance for legacy SPL and Token-2022
