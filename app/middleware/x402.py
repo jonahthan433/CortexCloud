@@ -1157,11 +1157,17 @@ def _validate_data_body(path: str, data) -> list | None:
         if chains is not None and (not isinstance(chains, list) or len(chains) < 1 or len(chains) > 5):
             return err(["body", "chains"], "chains must be a list of 1..5 chain names")
         if chains is not None:
-            # cross-chain-compare is EVM-only: Solana is never a comparable
-            # chain here, so reject the list before billing.
-            bad = [ch for ch in chains if str(ch).lower() not in DATA_CHAINS]
+            solana_requested = any(is_solana(ch) for ch in chains)
+            bad = [ch for ch in chains if str(ch).lower() not in ALL_DATA_CHAINS]
             if bad:
                 return err(["body", "chains"], f"unsupported chains: {bad}")
+            if not any(not is_solana(ch) for ch in chains):
+                return err(["body", "chains"], "at least one EVM chain is required")
+            solana_mint = data.get("solana_mint")
+            if solana_requested and not _B58.match(str(solana_mint or "")):
+                return err(["body", "solana_mint"], "a valid base58 solana_mint is required when Solana is included")
+            if solana_mint is not None and not _B58.match(str(solana_mint)):
+                return err(["body", "solana_mint"], "solana_mint must be a base58 Solana mint address")
     # Chain enum check for every data route that accepts a chain (address routes).
     if path != "/v1/data/cross-chain-compare" and data.get("chain") is not None:
         if str(data["chain"]).lower() not in ALL_DATA_CHAINS:
