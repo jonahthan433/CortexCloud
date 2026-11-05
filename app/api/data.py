@@ -292,6 +292,15 @@ def _need_helius() -> JSONResponse | None:
                 "chain": "solana",
             },
         )
+    if not settings.HELIUS_VERIFIED:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "provider_unverified",
+                "detail": "Helius key has not passed the internal provider verification check.",
+                "chain": "solana",
+            },
+        )
     return None
 
 
