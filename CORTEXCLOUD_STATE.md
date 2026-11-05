@@ -8,17 +8,22 @@ always the final truth (`app/x402/pricing.py` for prices;
 `PUBLIC_PRODUCT_ROUTES` is the advertised subset).
 
 ## What this is
-Pay-per-call on-chain data + intelligence API over x402 (USDC on Base,
-eip155:8453). The advertised product is 17 paid data/aggregate/webhook routes
-plus 2 free discovery routes. Data sources: Alchemy (primary), CoinGecko
-(prices). Every paid response is evidence-backed (source, checked_at,
-explicit missing-data indicators).
+On-chain data and intelligence API for AI agents and trading systems. The
+production service currently supports x402 pay-per-call in USDC on Base
+(eip155:8453). The feature branch also adds manual monthly prepaid USDC
+subscriptions with wallet-linked API keys, weighted credits, and x402
+overages; no automatic wallet withdrawals. Data sources: Alchemy (primary),
+CoinGecko (prices), and optional Helius only when configured. Every paid
+response is evidence-backed (source, checked_at, explicit missing-data
+indicators).
 
-## Live surface
+## Current production surface (before this feature branch is deployed)
 - API: `cortexcloud.service` (uvicorn :8000)
   - Paid (x402, USDC on Base): 12 `/v1/data/*` routes, 4 `/v1/aggregate/*`
     routes, `POST /v1/webhooks/whale-alerts`
   - Free: `GET /v1/capabilities`, `GET /v1/webhooks/whale-alerts`
+- Feature-branch additions (not yet deployed): 3 subscription purchase routes,
+  billing plans/account/usage/key-revocation APIs, and `/billing.html`.
 - Discovery: `/llms.txt`, `/.well-known/x402.json`, `/.well-known/x402`,
   `/.well-known/agentsearch.txt`, `/.well-known/bazaar`,
   `/.well-known/x402list.txt`, `/openapi.json`
@@ -40,12 +45,16 @@ explicit missing-data indicators).
 | whale-alerts | $0.050 |
 | market-snapshot | $0.070 |
 | webhooks/whale-alerts registration | $0.100 + $0.020 per delivered alert |
+| Starter prepaid subscription | $19/month · 19,000 credits |
+| Trading Pro prepaid subscription | $49/month · 49,000 credits |
+| Agent Fleet prepaid subscription | $99/month · 99,000 credits |
 
 - Prices are the advertised floors in `ROUTE_PRICING`; provider cost is far
   below the floor on data routes (Alchemy ~$0.000011/call, CoinGecko free
   tier).
 - Cache TTLs per route (5–60s): identical requests inside the window are
-  served from cache; the x402 price is still charged per request.
+  served from cache. x402 requests still pay per call; subscription requests
+  debit the same weighted credit amount.
 - `ROUTE_PRICING` contains legacy optimization/AI/research entries only as
   code paths; the advertised product is filtered by `PUBLIC_PRODUCT_ROUTES`.
 
