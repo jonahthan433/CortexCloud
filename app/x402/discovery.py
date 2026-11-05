@@ -138,8 +138,9 @@ intelligence and risk, wallet-scoped priced whale alerts, and cross-chain
 comparison. Cross-chain comparison requires the caller to provide both the
 EVM contract and the Solana mint; CortexCloud does not assert asset identity.
 Solana whale alerts require a wallet address and exclude transfers without a
-verified USD price. Payment settlement remains USDC on Base; Solana is the
-read chain, not the payment chain.
+verified USD price. Unsupported Solana endpoint/chain combinations return
+chain_not_supported before payment settlement. Payment settlement remains
+USDC on Base; Solana is the read chain, not the payment chain.
 
 """
 
