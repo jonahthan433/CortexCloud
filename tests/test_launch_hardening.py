@@ -79,3 +79,57 @@ async def test_usage_matches_checksummed_payer(client, monkeypatch):
                          headers={"X-Internal-Token": "test-internal-token"})
     assert r.status_code == 200, r.text
     assert any(u["endpoint"] == "/v1/test" for u in r.json()["usage"])
+
+
+@pytest.mark.asyncio
+async def test_notify_noop_without_credentials(monkeypatch):
+    from app.core.config import settings
+    from app.core.notify import notify
+    monkeypatch.setattr(settings, "TELEGRAM_BOT_TOKEN", None, raising=False)
+    monkeypatch.setattr(settings, "TELEGRAM_ALERT_CHAT_ID", None, raising=False)
+    assert await notify("x") is False
+
+
+@pytest.mark.asyncio
+async def test_notify_posts_when_configured(monkeypatch):
+    import httpx
+    from app.core.config import settings
+    from app.core import notify as notify_mod
+
+    monkeypatch.setattr(settings, "TELEGRAM_BOT_TOKEN", "test-token", raising=False)
+    monkeypatch.setattr(settings, "TELEGRAM_ALERT_CHAT_ID", "12345", raising=False)
+
+    seen = {}
+
+    class FakeClient:
+        def __init__(self, *a, **k):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def post(self, url, json=None):
+            seen["url"] = url
+            seen["json"] = json
+            return httpx.Response(200, json={"ok": True})
+
+    monkeypatch.setattr(notify_mod.httpx, "AsyncClient", FakeClient)
+    assert await notify_mod.notify("hello") is True
+    assert "test-token" in seen["url"]
+    assert seen["json"]["chat_id"] == "12345"
+    assert seen["json"]["text"] == "hello"
+
+
+def test_format_alert_is_secret_free():
+    """Only an allow-list of fields is forwarded — arbitrary kwargs (a token,
+    a signature, a raw body) must never reach the alert."""
+    from app.core.notify import format_alert
+    msg = format_alert("proof_rejected", 3, {
+        "payer": "0xabc", "reason": "bad_sig", "bucket": "proof",
+        "secret": "SHOULD_NOT_APPEAR", "signature": "SHOULD_NOT_APPEAR",
+    })
+    assert "proof_rejected" in msg and "0xabc" in msg and "bad_sig" in msg
+    assert "SHOULD_NOT_APPEAR" not in msg

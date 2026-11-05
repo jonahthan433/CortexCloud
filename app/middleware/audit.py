@@ -8,6 +8,7 @@
 
 fail-open: fs errors never break the request path.
 """
+import asyncio
 import json
 import logging
 import os
@@ -55,6 +56,13 @@ async def alert(bucket: str, window: int, threshold: int, event: str, **fields) 
             rec.update(fields)
             logger.error(json.dumps(rec, default=str))
             _ALERTS[key] = []  # reset so fresh breaches re-alert
+            # Outbound copy (Telegram) in addition to the log line. Fire-and-
+            # forget: a slow or dead gateway must never delay the request.
+            try:
+                from app.core.notify import format_alert, notify
+                asyncio.create_task(notify(format_alert(event, len(hits), fields)))
+            except Exception:  # noqa: BLE001
+                logger.debug("telegram alert dispatch failed", exc_info=True)
             return True
     except Exception:  # noqa: BLE001
         logger.debug("alert check failed", exc_info=True)

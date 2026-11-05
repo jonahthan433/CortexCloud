@@ -138,6 +138,11 @@ class Settings(BaseSettings):
     # Signs execution receipts (HMAC-SHA256) attached to final job payloads.
     # Optional: unset => receipts emit signed:false (hash-verifiable only).
     RECEIPT_SIGNING_KEY: Optional[str] = Field(default=None, env="RECEIPT_SIGNING_KEY")
+    # Telegram outbound ops alerts (payment failures, proof rejections, rate
+    # limits). Optional: unset => alerts stay log-only, never a silent no-op
+    # that looks like delivery.
+    TELEGRAM_BOT_TOKEN: Optional[str] = Field(default=None, env="TELEGRAM_BOT_TOKEN")
+    TELEGRAM_ALERT_CHAT_ID: Optional[str] = Field(default=None, env="TELEGRAM_ALERT_CHAT_ID")
 
     @model_validator(mode="after")
     def enforce_secrets_in_production(self) -> "Settings":
