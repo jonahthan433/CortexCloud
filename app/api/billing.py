@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.database.session import AsyncSessionLocal
 from app.models import Payment
@@ -91,7 +91,7 @@ async def subscribe(plan_id: str, request: Request):
         payment_result = await db.execute(
             select(Payment).where(
                 Payment.nonce == nonce,
-                Payment.payer == wallet,
+                func.lower(Payment.payer) == wallet,
                 Payment.endpoint == request.url.path,
                 Payment.status == "settled",
             )
@@ -184,10 +184,12 @@ async def billing_account(request: Request):
         subscription = result.scalar_one_or_none()
         if subscription is None:
             return JSONResponse(status_code=404, content={"error": "subscription_not_found"})
+        now = datetime.now(timezone.utc)
+        status = "expired" if subscription.period_end <= now else subscription.status
         return {
             "wallet": key.wallet_address,
             "plan": subscription.plan_id,
-            "status": subscription.status,
+            "status": status,
             "period_start": subscription.period_start.isoformat(),
             "period_end": subscription.period_end.isoformat(),
             "credits_granted": subscription.credits_granted,
