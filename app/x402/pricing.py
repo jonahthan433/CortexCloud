@@ -507,7 +507,7 @@ DEFAULT_CHAIN = "ethereum"
 SOLANA_CHAINS: set[str] = {"solana", "sol", "mainnet-beta", "101"}
 # Endpoints wired to Helius/CoinGecko-Solana today. Everything else 400s with
 # chain_not_supported (honest gap, not a silent wrong-chain answer).
-HELIUS_ENDPOINTS: tuple[str, ...] = ("token-balances", "tx-history", "token-price", "wallet-intel", "token-intel", "token-risk")
+HELIUS_ENDPOINTS: tuple[str, ...] = ("token-balances", "tx-history", "token-price", "wallet-intel", "token-intel", "token-risk", "whale-alerts")
 # Caller chain -> CoinGecko asset platform id for Solana token prices.
 COINGECKO_SOLANA_PLATFORM = "solana"
 
