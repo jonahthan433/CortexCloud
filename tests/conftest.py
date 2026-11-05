@@ -41,17 +41,20 @@ async def _create_test_tables():
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
     except Exception:  # noqa: BLE001
+        if os.environ.get("CI"):
+            raise
         pass  # no PG here; DB-backed tests skip individually
     yield
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
-async def _clean_tables():
+async def _clean_tables(_create_test_tables):
     from sqlalchemy import text
 
     try:
         async with AsyncSessionLocal() as db:
-            for t in ("x402_nonces", "benchmarks", "x402_payments", "opt_executions", "opt_jobs"):
+            for t in ("wallet_credit_transactions", "wallet_api_keys", "wallet_subscriptions",
+                      "x402_nonces", "benchmarks", "x402_payments", "opt_executions", "opt_jobs"):
                 await db.execute(text(f"TRUNCATE {t} RESTART IDENTITY CASCADE"))
             await db.commit()
     except Exception:  # noqa: BLE001
