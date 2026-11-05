@@ -493,3 +493,26 @@ async def test_unconfigured_helius_is_rejected_before_x402_settlement(monkeypatc
         {"contract": "0x" + "11" * 20, "chains": ["ethereum", "solana"], "solana_mint": MINT},
     )
     assert compare is not None and compare.status_code == 503
+
+
+async def test_helius_internal_verification_does_not_auto_enable_solana(client, monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "HELIUS_API_KEY", "fake-test-key", raising=False)
+    monkeypatch.setattr(settings, "HELIUS_VERIFIED", False, raising=False)
+    monkeypatch.setattr(settings, "INTERNAL_TOKEN", "internal-test-token", raising=False)
+
+    async def fake_rpc(method, params):
+        assert method == "getHealth"
+        return 200, {"result": "ok"}
+
+    monkeypatch.setattr("app.api.data._helius_rpc", fake_rpc)
+    denied = await client.post("/internal/providers/helius/verify",
+                               headers={"X-Internal-Token": "wrong"})
+    assert denied.status_code == 401
+
+    response = await client.post("/internal/providers/helius/verify",
+                                 headers={"X-Internal-Token": "internal-test-token"})
+    assert response.status_code == 200, response.text
+    assert response.json()["verified"] is True
+    assert response.json()["solana_enabled"] is False
+    assert "fake-test-key" not in response.text
