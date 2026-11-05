@@ -209,7 +209,9 @@ async def test_subscription_key_idempotency_prevents_double_debit(client, monkey
 
 
 @pytest.mark.asyncio
-async def test_billing_discovery_and_dashboard_are_published(client):
+async def test_billing_discovery_and_dashboard_are_published(client, monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "X402_ENABLED", True, raising=False)
     capabilities = await client.get("/v1/capabilities")
     assert capabilities.status_code == 200
     billing = capabilities.json()["categories"]["billing"]
