@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from app.database.session import AsyncSessionLocal
 from app.models.subscription import WalletAPIKey, WalletCreditTransaction, WalletSubscription
