@@ -252,19 +252,19 @@ ROUTE_PRICING = {
 
 ROUTE_DESCRIPTIONS = {
     # Data API (Tier 1)
-    "POST /v1/data/token-balances": "ERC-20 token balances for a wallet on a chain (Alchemy Token API). x402-paid, USDC on Base.",
-    "POST /v1/data/token-price": "Spot USD price for a token/coin (CoinGecko where free tier suffices, else Alchemy). x402-paid.",
+    "POST /v1/data/token-balances": "EVM ERC-20 balances via Alchemy; Solana legacy SPL and Token-2022 balances via Helius when configured. x402-paid or prepaid credits.",
+    "POST /v1/data/token-price": "Spot USD price for a token/coin; EVM and optional Solana mint pricing with evidence. x402-paid or prepaid credits.",
     "POST /v1/data/nft-ownership": "NFTs owned by a wallet on a chain (Alchemy NFT API). x402-paid, USDC on Base.",
-    "POST /v1/data/tx-history": "Normalized transactions for an address on a chain (Alchemy Transfers API). x402-paid, USDC on Base.",
+    "POST /v1/data/tx-history": "Normalized EVM transactions via Alchemy or Solana enhanced transaction history via Helius when configured. x402-paid or prepaid credits.",
     "GET /v1/data/gas-oracle": "Current base fee + priority fee (gas price) for a chain (Alchemy). x402-paid, USDC on Base.",
     "GET /v1/data/block": "Block by number or 'latest' on a chain (Alchemy). x402-paid, USDC on Base.",
     # Tier 2 intelligence
-    "POST /v1/data/token-risk": "Token risk verdict (age, liquidity, contract checks, suspicious-transfer scan) with per-claim evidence. x402-paid.",
-    "POST /v1/data/wallet-intel": "Wallet profile: balances, holdings, recent activity, counterparty relationships (Alchemy). x402-paid.",
-    "POST /v1/data/whale-alerts": "Large-transfer / accumulation alerts for a wallet with tx hashes + timestamps (Alchemy). x402-paid.",
-    "POST /v1/data/cross-chain-compare": "Compare one contract across chains (price, activity, deployment) in one call (Alchemy + CoinGecko). x402-paid.",
+    "POST /v1/data/token-risk": "Evidence-backed EVM token checks or Solana mint-authority, freeze-authority and token-account concentration checks via Helius. x402-paid or prepaid credits.",
+    "POST /v1/data/wallet-intel": "Wallet profile, balances, holdings, recent activity and counterparties; EVM via Alchemy, Solana via Helius when configured. x402-paid or prepaid credits.",
+    "POST /v1/data/whale-alerts": "Large-transfer alerts with hashes and timestamps; EVM via Alchemy, optional wallet-scoped Solana alerts use only transfers with verified USD prices. x402-paid or prepaid credits.",
+    "POST /v1/data/cross-chain-compare": "Compare an EVM contract across EVM chains and optionally a caller-supplied Solana mint via Helius; the caller is responsible for matching asset identity. x402-paid or prepaid credits.",
     # Flagship: evidence-backed token profile in one call.
-    "POST /v1/data/token-intel": "Flagship token intelligence: deployment, metadata, spot price, 24h change, optional age/liquidity/market-cap, and recent activity. Each fact carries its source, a checked_at timestamp, and explicit missing-data indicators. Alchemy + CoinGecko. x402-paid, USDC on Base.",
+    "POST /v1/data/token-intel": "Evidence-backed EVM token or optional Solana mint profile, including metadata, authorities, spot price and recent activity. Each fact carries its source and checked_at timestamp. x402-paid or prepaid credits.",
     # Composed snapshot (token + whale + risk) in one paid call.
     "POST /v1/data/market-snapshot": "One-call market snapshot: token intelligence, whale activity, and risk verdict fanned out in parallel and merged under token/whale_activity/risk with a snapshot_at timestamp. Partial failures return an error key per section instead of failing the whole response. x402-paid, USDC on Base.",
     # Whale-alert webhooks (registration paid, delivery metered).
@@ -278,16 +278,6 @@ ROUTE_DESCRIPTIONS = {
     "POST /v1/billing/subscribe/trading-pro": "Trading Pro monthly prepaid USDC subscription: $49 for 49,000 weighted API credits and a wallet-linked API key.",
     "POST /v1/billing/subscribe/agent-fleet": "Agent Fleet monthly prepaid USDC subscription: $99 for 99,000 weighted API credits and a wallet-linked API key.",
 }
-
-FREE_ROUTES = {
-    "GET /v1/capabilities": "Service capabilities, limits, payment terms (free).",
-    "GET /v1/webhooks/whale-alerts": "List registered whale-alert webhooks, optionally filtered by owner=0x... (free; HMAC secrets and management tokens are never returned).",
-    "GET /v1/billing/plans": "Public subscription plans, monthly prices, and weighted credit allowances (free).",
-    "GET /v1/billing/account": "Authenticated wallet subscription status and remaining credits (free).",
-    "GET /v1/billing/usage": "Authenticated credit usage and transaction history (free).",
-    "POST /v1/billing/keys/revoke": "Revoke one of the authenticated wallet's API keys (free).",
-}
-
 
 def price_for_mode(mode: str, n: int | None = None) -> str:
     return f"${effective_price_usd(mode, n=n):.6f}"
