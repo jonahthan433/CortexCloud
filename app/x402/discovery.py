@@ -132,9 +132,14 @@ async def llms_txt():
     if settings.HELIUS_API_KEY:
         solana_section = """## Solana (Helius)
 
-Solana reads are enabled on this instance for token balances (legacy SPL and
-Token-2022), transaction history, and token prices. Payment settlement remains
-USDC on Base; Solana is the read chain, not the payment chain.
+Solana reads are enabled on this instance for legacy SPL and Token-2022
+balances, transaction history, token prices, wallet intelligence, token
+intelligence and risk, wallet-scoped priced whale alerts, and cross-chain
+comparison. Cross-chain comparison requires the caller to provide both the
+EVM contract and the Solana mint; CortexCloud does not assert asset identity.
+Solana whale alerts require a wallet address and exclude transfers without a
+verified USD price. Payment settlement remains USDC on Base; Solana is the
+read chain, not the payment chain.
 
 """
 
