@@ -231,3 +231,25 @@ async def test_billing_discovery_and_dashboard_are_published(client, monkeypatch
     dashboard = await client.get("/billing.html")
     assert dashboard.status_code == 200
     assert "Billing &amp; usage" in dashboard.text or "Billing & usage" in dashboard.text
+
+
+@pytest.mark.asyncio
+async def test_subscription_purchase_uses_x402_usdc_challenge(client, monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "X402_ENABLED", True, raising=False)
+    monkeypatch.setattr(settings, "WALLET_ADDRESS", "0x" + "11" * 20, raising=False)
+    response = await client.post("/v1/billing/subscribe/starter")
+    assert response.status_code == 402, response.text
+    body = response.json()
+    assert body["x402Version"] == 2
+    assert body["accepts"][0]["network"] == "eip155:8453"
+    assert body["accepts"][0]["maxAmountRequired"] == "19000000"
+
+
+@pytest.mark.asyncio
+async def test_billing_account_rejects_invalid_api_key(client):
+    response = await client.get(
+        "/v1/billing/account",
+        headers={"Authorization": "Bearer cx_live_not-a-real-key"},
+    )
+    assert response.status_code == 401
