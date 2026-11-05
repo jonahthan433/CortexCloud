@@ -917,6 +917,105 @@ def _top_holders_from_balances(balances: list[dict], top_n: int) -> tuple[list[d
             round(sum(r for r, _ in rows[:top_n]) / total, 6))
 
 
+async def _solana_token_risk(req: TokenRiskRequest) -> dict | JSONResponse:
+    """Solana mint risk checks: authorities and token-account concentration."""
+    if e := _need_helius():
+        return e
+    mint = req.contract.strip()
+    if not _BASE58.fullmatch(mint):
+        return JSONResponse(status_code=422, content={"error": "invalid_contract",
+                            "detail": "Solana contract must be a base58 mint address"})
+    endpoint = "token-risk"
+    cache_key = _cache_key(endpoint, "solana", mint, str(req.coin_id or ""))
+    hit = _cached_get(endpoint, cache_key)
+    if hit is not None:
+        out = dict(hit)
+        out["cache_hit"] = True
+        return _stamp(out, endpoint, 0.0)
+
+    asset_result, supply_result, holders_result = await asyncio.gather(
+        _helius_rpc("getAsset", [{"id": mint}]),
+        _helius_rpc("getTokenSupply", [mint, {"commitment": "confirmed"}]),
+        _helius_rpc("getTokenLargestAccounts", [mint, {"commitment": "confirmed"}]),
+    )
+    for status, data in (asset_result, supply_result, holders_result):
+        if status != 200:
+            return JSONResponse(status_code=status or 502,
+                                content={"error": "upstream_helius", "detail": json.dumps(data)[:500]})
+
+    asset = asset_result[1].get("result") or {}
+    info = asset.get("token_info") or {}
+    supply_value = ((supply_result[1].get("result") or {}).get("value") or {})
+    total_supply = supply_value.get("uiAmount")
+    if total_supply is None:
+        raw_supply = supply_value.get("amount")
+        decimals = supply_value.get("decimals")
+        try:
+            total_supply = int(raw_supply) / (10 ** int(decimals))
+        except (TypeError, ValueError, ZeroDivisionError):
+            total_supply = None
+    accounts = ((holders_result[1].get("result") or {}).get("value") or [])
+    account_values = []
+    for item in accounts:
+        amount = item.get("uiAmount")
+        if amount is None:
+            try:
+                amount = int(item.get("amount")) / (10 ** int(item.get("decimals")))
+            except (TypeError, ValueError, ZeroDivisionError):
+                amount = None
+        if amount is not None:
+            account_values.append(amount)
+    largest = max(account_values, default=None)
+    largest_pct = (largest / total_supply * 100) if largest is not None and total_supply else None
+    mint_authority = info.get("mint_authority") or info.get("mintAuthority")
+    freeze_authority = info.get("freeze_authority") or info.get("freezeAuthority")
+    flags = []
+    if mint_authority:
+        flags.append("mint_authority_enabled")
+    if freeze_authority:
+        flags.append("freeze_authority_enabled")
+    if largest_pct is not None and largest_pct >= 20:
+        flags.append("single_token_account_over_20pct_supply")
+
+    evidence = [
+        {"check": "mint_authority", "source": "helius getAsset(token_info)",
+         "enabled": bool(mint_authority), "authority": mint_authority},
+        {"check": "freeze_authority", "source": "helius getAsset(token_info)",
+         "enabled": bool(freeze_authority), "authority": freeze_authority},
+        {"check": "supply", "source": "helius getTokenSupply",
+         "total_supply_ui": total_supply, "decimals": supply_value.get("decimals")},
+        {"check": "largest_token_accounts", "source": "helius getTokenLargestAccounts",
+         "accounts_scanned": len(accounts), "largest_account_ui": largest,
+         "largest_account_pct_of_supply": largest_pct,
+         "note": "Account-level concentration only; accounts are not deduplicated by beneficial wallet owner."},
+    ]
+    age_days = volume = None
+    if req.coin_id:
+        cg = await _coingecko_coin(req.coin_id)
+        market = cg.get("market_data") or {}
+        volume = (market.get("total_volume") or {}).get("usd")
+        genesis = cg.get("genesis_date")
+        if genesis:
+            try:
+                age_days = (datetime.now(timezone.utc).date()
+                            - datetime.fromisoformat(genesis).date()).days
+            except ValueError:
+                age_days = None
+        evidence.append({"check": "age_liquidity", "source": f"coingecko /coins/{req.coin_id}",
+                         "genesis_date": genesis, "age_days": age_days,
+                         "total_volume_usd_24h": volume})
+        if volume is not None and volume < 50000:
+            flags.append("thin_liquidity_under_50k")
+        if age_days is not None and age_days < 30:
+            flags.append("new_token_under_30d")
+
+    verdict = "high" if len(flags) >= 3 else "medium" if flags else "low"
+    out = {"contract": mint, "chain": "solana", "verdict": verdict,
+           "risk_flags": flags, "evidence": evidence, "cache_hit": False}
+    _cached_set(endpoint, cache_key, out)
+    return _stamp(out, endpoint, helius_provider_cost_usd(3))
+
+
 @router.post("/token-risk")
 async def token_risk(req: TokenRiskRequest, request: Request):
     """Token risk verdict with evidence. Price/liquidity/age from CoinGecko,
@@ -925,7 +1024,7 @@ async def token_risk(req: TokenRiskRequest, request: Request):
     if d := _disabled():
         return d
     if is_solana(req.chain):
-        return _chain_not_supported("token-risk", req.chain)
+        return await _solana_token_risk(req)
     if e := _need_alchemy():
         return e
     try:
