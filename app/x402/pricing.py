@@ -244,6 +244,10 @@ ROUTE_PRICING = {
     "POST /v1/aggregate/nfts": "$0.004",
     "POST /v1/aggregate/prices": "$0.004",
     "POST /v1/aggregate/tx-history": "$0.004",
+    # Manual monthly prepaid USDC subscriptions (no automatic wallet debits).
+    "POST /v1/billing/subscribe/starter": "$19.00",
+    "POST /v1/billing/subscribe/trading-pro": "$49.00",
+    "POST /v1/billing/subscribe/agent-fleet": "$99.00",
 }
 
 ROUTE_DESCRIPTIONS = {
@@ -270,11 +274,18 @@ ROUTE_DESCRIPTIONS = {
     "POST /v1/aggregate/nfts": "Batch NFT ownership across addresses (Alchemy). x402-paid, USDC on Base.",
     "POST /v1/aggregate/prices": "Batch spot USD prices for many tokens (CoinGecko). x402-paid, USDC on Base.",
     "POST /v1/aggregate/tx-history": "Batch normalized transfers across addresses (Alchemy). x402-paid, USDC on Base.",
+    "POST /v1/billing/subscribe/starter": "Starter monthly prepaid USDC subscription: $19 for 19,000 weighted API credits and a wallet-linked API key.",
+    "POST /v1/billing/subscribe/trading-pro": "Trading Pro monthly prepaid USDC subscription: $49 for 49,000 weighted API credits and a wallet-linked API key.",
+    "POST /v1/billing/subscribe/agent-fleet": "Agent Fleet monthly prepaid USDC subscription: $99 for 99,000 weighted API credits and a wallet-linked API key.",
 }
 
 FREE_ROUTES = {
     "GET /v1/capabilities": "Service capabilities, limits, payment terms (free).",
     "GET /v1/webhooks/whale-alerts": "List registered whale-alert webhooks, optionally filtered by owner=0x... (free; HMAC secrets and management tokens are never returned).",
+    "GET /v1/billing/plans": "Public subscription plans, monthly prices, and weighted credit allowances (free).",
+    "GET /v1/billing/account": "Authenticated wallet subscription status and remaining credits (free).",
+    "GET /v1/billing/usage": "Authenticated credit usage and transaction history (free).",
+    "POST /v1/billing/keys/revoke": "Revoke one of the authenticated wallet's API keys (free).",
 }
 
 
@@ -577,6 +588,9 @@ PUBLIC_PRODUCT_ROUTES: set[str] = {
     "POST /v1/aggregate/nfts",
     "POST /v1/aggregate/prices",
     "POST /v1/aggregate/tx-history",
+    "POST /v1/billing/subscribe/starter",
+    "POST /v1/billing/subscribe/trading-pro",
+    "POST /v1/billing/subscribe/agent-fleet",
 }
 
 
