@@ -150,8 +150,7 @@ systems. Use x402 pay-per-call in USDC on Base (eip155:8453) without an API
 key, or buy a manual monthly prepaid subscription that issues a wallet-linked
 API key and weighted usage credits. Credits are consumed by advertised route
 price; after exhaustion, x402 per-call payments remain available. Renewals are
-manual — there are no automatic wallet withdrawals. Data sources: Alchemy
-(primary) + CoinGecko (prices), with optional Helius-backed Solana reads.
+manual — there are no automatic wallet withdrawals. Data sources: Alchemy (primary) + CoinGecko (prices).
 Supported EVM chains: ethereum, base, arbitrum, polygon, optimism.
 
 Every paid response is evidence-backed: each fact carries its source, a
@@ -275,8 +274,9 @@ $0.100 for the three routes separately.
 - Missing data is reported as missing, never estimated silently.
 - whale-alerts applies the USD floor to native-asset transfers only;
   erc20 values are raw units (call /token-price for USD).
-- Supported chains are ethereum, base, arbitrum, polygon, and optimism
-  (name or chain id).
+- Supported EVM chains are ethereum, base, arbitrum, polygon, and optimism
+  (name or chain id). Optional Solana routes are described above only when
+  Helius is configured on this instance.
 - What is advertised is what runs: every route above is live on this
   instance.
 
