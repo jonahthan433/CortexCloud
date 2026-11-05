@@ -1542,6 +1542,7 @@ class X402Middleware(BaseHTTPMiddleware):
                                     endpoint=path,
                                 ))
                                 await refund_db.commit()
+                        remaining += credits_needed
                     response.headers["X-CortexCloud-Billing"] = "subscription_credits"
                     response.headers["X-CortexCloud-Credits-Used"] = str(credits_needed)
                     response.headers["X-CortexCloud-Credits-Remaining"] = str(remaining)
