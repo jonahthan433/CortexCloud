@@ -100,9 +100,8 @@ MCP rebuild (from the source repo on the Hermes host):
 ## Commercialization backlog (hand-maintained — next moves)
 1. Recurring external paid calls: directory listings, demo funnel, referrals
 2. Discovery copy sync: `llms.txt`/`agentsearch.txt` are generated from
-   `app/x402/pricing.py` — verify after any route/price change; the TypeScript
-   install line in the generator still names the deprecated `x402-fetch`
-   package and must be corrected to `@x402/fetch`
+   `app/x402/pricing.py` — verify after any route/price change. The TypeScript
+   buyer example now uses `@x402/fetch`.
 3. Agent discovery: re-submit stale directory listings (optimization-era
    copy) with the on-chain data blurbs in `MARKETPLACE_LISTINGS.md`
 4. MCP registry: refresh listing; keep tool descriptions in sync with the API
