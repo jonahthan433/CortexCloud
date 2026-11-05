@@ -241,7 +241,9 @@ async def test_solana_on_get_routes_is_chain_not_supported(client):
 # ---------------------------------------------------------------------------
 # Discovery surfaces expose the Solana subset
 # ---------------------------------------------------------------------------
-async def test_discovery_advertises_solana_subset(client):
+async def test_discovery_advertises_solana_subset(client, monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "HELIUS_API_KEY", "test-key", raising=False)
     r = await client.get("/v1/capabilities")
     body = r.json()
     assert "helius" in body["providers"]
@@ -256,3 +258,14 @@ async def test_discovery_advertises_solana_subset(client):
     # The TTL table is generated from DATA_TTL_S, not hand-written.
     for name, ttl in p.DATA_TTL_S.items():
         assert f"| /v1/data/{name} | {ttl}s |" in llms
+
+
+async def test_discovery_hides_unconfigured_helius_and_solana(client, monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "HELIUS_API_KEY", None, raising=False)
+    r = await client.get("/v1/capabilities")
+    body = r.json()
+    assert "helius" not in body["providers"]
+    assert "helius" not in body["categories"]["data"]["providers"]
+    assert body["solana"]["status"] == "not_configured"
+    assert body["solana"]["endpoints"] == []
