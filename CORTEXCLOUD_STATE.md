@@ -116,7 +116,7 @@ rewritten for the data surface before its output is trusted.
 
 ### Phase 1 — production readiness
 - Added PostgreSQL-backed GitHub Actions CI and deterministic test configuration.
-- Solana discovery is gated: Helius is omitted from provider lists and Solana routes are hidden until `HELIUS_API_KEY` is configured.
+- Solana discovery is gated by both `HELIUS_API_KEY` and `HELIUS_VERIFIED=true`. An authenticated internal `POST /internal/providers/helius/verify` runs Helius `getHealth` but deliberately does not enable Solana; the operator must set the flag after a successful check.
 - Aggregate pricing now scales by batch size; cache hits report zero upstream provider cost.
 - The CI suite has not yet been certified green. The first run exposed 29 failures caused by x402 being disabled and missing provider test configuration; fixtures and validation are being corrected.
 
@@ -124,7 +124,7 @@ rewritten for the data surface before its output is trusted.
 - Implemented Token-2022-aware Solana balances, wallet intelligence, token intelligence, token risk, wallet-scoped priced whale alerts, and EVM/Solana cross-chain comparison.
 - Cross-chain comparison requires a caller-supplied EVM contract and Solana mint; the API does not claim those addresses identify the same asset.
 - Solana whale alerts require a wallet address. Transfers without a verified USD price are excluded rather than estimated.
-- Helius is still unconfigured in the deployment environment. Solana must remain hidden until the provider key is configured and live checks pass.
+- Helius is still unconfigured in the deployment environment. Solana must remain hidden until the provider key is configured, the internal health check passes, and `HELIUS_VERIFIED=true` is explicitly set.
 
 ### Phase 3 — monetization
 - Added manual monthly prepaid USDC plans on Base: Starter $19/19,000 credits; Trading Pro $49/49,000; Agent Fleet $99/99,000.
