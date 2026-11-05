@@ -1519,6 +1519,17 @@ class X402Middleware(BaseHTTPMiddleware):
                         current = sub_result.scalar_one_or_none()
                         if current:
                             current.credits_remaining += credits_needed
+                            if idempotency_key:
+                                charge_result = await refund_db.execute(
+                                    select(WalletCreditTransaction).where(
+                                        WalletCreditTransaction.wallet_address == api_key.wallet_address,
+                                        WalletCreditTransaction.idempotency_key == idempotency_key,
+                                    ).with_for_update()
+                                )
+                                charge = charge_result.scalar_one_or_none()
+                                if charge:
+                                    charge.idempotency_key = None
+                                    charge.type = "usage_refunded"
                             refund_db.add(WalletCreditTransaction(
                                 wallet_address=api_key.wallet_address,
                                 amount_credits=credits_needed,
@@ -1534,10 +1545,12 @@ class X402Middleware(BaseHTTPMiddleware):
                 except Exception:
                     await _refund_credits()
                     raise
+                credits_used = credits_needed
                 if response.status_code >= 500:
                     remaining = await _refund_credits()
+                    credits_used = 0
                 response.headers["X-CortexCloud-Billing"] = "subscription_credits"
-                response.headers["X-CortexCloud-Credits-Used"] = str(credits_needed)
+                response.headers["X-CortexCloud-Credits-Used"] = str(credits_used)
                 response.headers["X-CortexCloud-Credits-Remaining"] = str(remaining)
                 _log_request(request, response, request.state.x402_start)
                 return response
