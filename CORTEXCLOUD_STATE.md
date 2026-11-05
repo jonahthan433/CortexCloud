@@ -117,7 +117,7 @@ rewritten for the data surface before its output is trusted.
 - Added PostgreSQL-backed GitHub Actions CI and deterministic test configuration.
 - Solana discovery is gated by both `HELIUS_API_KEY` and `HELIUS_VERIFIED=true`. An authenticated internal `POST /internal/providers/helius/verify` runs Helius `getHealth` but deliberately does not enable Solana; the operator must set the flag after a successful check.
 - Aggregate pricing now scales by batch size; cache hits report zero upstream provider cost.
-- Latest GitHub Actions run #227 (commit `c425204`) passed: 207 tests passed, 5 skipped, 0 failed; Alembic migration upgrade also passed. The run emitted 57 warnings, including Pydantic v2 `Field(env=...)` deprecations and upstream Node/websockets deprecations. Treat skipped tests and warnings as follow-up review items; this is CI validation, not production-provider verification.
+- GitHub Actions run #234 (commit `bcea6a2`) passed: 207 tests passed, 5 skipped, 0 failed; Alembic migration upgrade also passed. Additional cache and concurrency regression tests are running on the latest branch head. The run emitted 57 warnings, including Pydantic v2 `Field(env=...)` deprecations and upstream Node/websockets deprecations. Treat skipped tests and warnings as follow-up review items; this is CI validation, not production-provider verification.
 
 ### Phase 2 — multi-chain intelligence
 - Implemented Token-2022-aware Solana balances, wallet intelligence, token intelligence, token risk, wallet-scoped priced whale alerts, and EVM/Solana cross-chain comparison.
@@ -135,5 +135,6 @@ rewritten for the data surface before its output is trusted.
 ### Phase 4 — commercial launch preparation
 - Updated the public README, website pricing section, llms.txt discovery, SDK documentation and examples.
 - External directory submissions/listing status still require re-verification; no external listing is claimed live solely from repository changes.
-- Production migration, Helius configuration, provider verification, green CI, and an explicit production deployment approval remain launch gates.
+- Production migration, Helius configuration, provider verification, and explicit production deployment approval remain launch gates. The security checklist also records Cloudflare HTTPS redirect/HSTS and an outbound alert destination as infrastructure follow-ups.
+- External directory listings remain unverified and must be checked/re-submitted by the account owner; repository updates alone do not establish listing status.
 - No production deployment has been performed, and `main` has not been modified.
