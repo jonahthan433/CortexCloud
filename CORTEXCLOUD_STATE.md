@@ -103,20 +103,29 @@ Regenerate after deploy. Note: `scripts/update_state.py` still emits the
 legacy optimization price table (`MODE_PRICE_USD`/Benchmark rows) and must be
 rewritten for the data surface before its output is trusted.
 
-## Monetization and launch readiness audit (2026-11-05)
+## Phase completion status (feature branch, 2026-11-05)
 
-- The existing x402 USDC/Base pay-per-call ledger is the implemented payment
-  path. Do not replace or bypass it.
-- Legacy ORM files for users, organizations, API keys, usage logs and billing
-  accounts exist, and the initial migration creates their tables; however,
-  they are not mounted as a customer-facing authentication, subscription,
-  credit or billing API. No complete self-service billing dashboard is present
-  in the repository source.
-- Do not claim subscriptions, prepaid credits, Stripe checkout, or customer
-  dashboard functionality until these are implemented, tested and configured.
-- The marketplace submission tracker contains listings whose status requires
-  re-verification. Do not claim new listings are live without confirming them
-  on each external directory.
-- A PostgreSQL-backed GitHub Actions test workflow has been added on the
-  feature branch. Its first run exposed existing CI/test-fixture failures;
-  the suite is not yet certified green.
+### Phase 1 — production readiness
+- Added PostgreSQL-backed GitHub Actions CI and deterministic test configuration.
+- Solana discovery is gated: Helius is omitted from provider lists and Solana routes are hidden until `HELIUS_API_KEY` is configured.
+- Aggregate pricing now scales by batch size; cache hits report zero upstream provider cost.
+- The CI suite has not yet been certified green. The first run exposed 29 failures caused by x402 being disabled and missing provider test configuration; fixtures and validation are being corrected.
+
+### Phase 2 — multi-chain intelligence
+- Implemented Token-2022-aware Solana balances, wallet intelligence, token intelligence, token risk, wallet-scoped priced whale alerts, and EVM/Solana cross-chain comparison.
+- Cross-chain comparison requires a caller-supplied EVM contract and Solana mint; the API does not claim those addresses identify the same asset.
+- Solana whale alerts require a wallet address. Transfers without a verified USD price are excluded rather than estimated.
+- Helius is still unconfigured in the deployment environment. Solana must remain hidden until the provider key is configured and live checks pass.
+
+### Phase 3 — monetization
+- Added manual monthly prepaid USDC plans on Base: Starter $19/19,000 credits; Trading Pro $49/49,000; Agent Fleet $99/99,000.
+- One credit equals $0.001 of advertised API price. Subscription purchases are x402-settled, issue a wallet-linked API key once, and create a credit ledger.
+- API-key requests debit credits; exhausted balances fall back to ordinary x402 per-call overages. Failed upstream 5xx responses refund credits. Idempotency keys prevent duplicate debits.
+- Added authenticated billing account/usage endpoints, API-key revocation, a browser billing dashboard, Python SDK support, and purchase/trading-bot examples.
+- Renewals are manual. There are no automatic wallet withdrawals or recurring wallet pulls.
+
+### Phase 4 — commercial launch preparation
+- Updated the public README, website pricing section, llms.txt discovery, SDK documentation and examples.
+- External directory submissions/listing status still require re-verification; no external listing is claimed live solely from repository changes.
+- Production migration, Helius configuration, provider verification, green CI, and an explicit production deployment approval remain launch gates.
+- No production deployment has been performed, and `main` has not been modified.
