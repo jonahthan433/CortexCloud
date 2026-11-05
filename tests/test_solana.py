@@ -471,3 +471,21 @@ async def test_solana_is_not_advertised_until_helius_is_configured(client, monke
     llms = await client.get("/llms.txt")
     assert "Solana (Helius)" not in llms.text
     assert "Token-2022" not in llms.text
+
+
+async def test_unconfigured_helius_is_rejected_before_x402_settlement(monkeypatch):
+    from app.core.config import settings
+    from app.middleware.x402 import _chain_not_supported_response
+    monkeypatch.setattr(settings, "HELIUS_API_KEY", None, raising=False)
+    result = _chain_not_supported_response(
+        "/v1/data/token-balances", {"address": SOL, "chain": "solana"}
+    )
+    assert result is not None
+    assert result.status_code == 503
+    assert result.body and b"provider_unconfigured" in result.body
+
+    compare = _chain_not_supported_response(
+        "/v1/data/cross-chain-compare",
+        {"contract": "0x" + "11" * 20, "chains": ["ethereum", "solana"], "solana_mint": MINT},
+    )
+    assert compare is not None and compare.status_code == 503
