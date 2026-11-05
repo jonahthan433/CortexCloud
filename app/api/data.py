@@ -183,9 +183,11 @@ class WhaleAlertRequest(BaseModel):
 
 
 class CrossChainCompareRequest(BaseModel):
-    contract: str = Field(description="ERC-20 contract address.")
+    contract: str = Field(description="EVM token contract address.")
     chains: list[str] = Field(default=["ethereum", "base", "arbitrum", "polygon", "optimism"],
-                              description="Chains to compare (max 5).")
+                              description="EVM chains and optionally Solana (max 5).")
+    solana_mint: str | None = Field(default=None, description="Solana mint address when comparing Solana.")
+    coin_id: str | None = Field(default=None, description="Optional CoinGecko asset id for shared market context.")
 
 
 def _disabled() -> JSONResponse | None:
@@ -1495,32 +1497,92 @@ async def whale_alerts(req: WhaleAlertRequest, request: Request):
 
 @router.post("/cross-chain-compare")
 async def cross_chain_compare(req: CrossChainCompareRequest, request: Request):
-    """Same contract across chains in ONE paid call: price, activity, holders
-    proxy, per-chain verdict. Saves the buyer N-1 calls."""
+    """Compare an EVM token contract across EVM networks and an optional Solana mint."""
     if d := _disabled():
         return d
-    if e := _need_alchemy():
+    chains = req.chains[:5]
+    solana_chains = [chain for chain in chains if is_solana(chain)]
+    evm_chains = [chain for chain in chains if not is_solana(chain)]
+    if evm_chains and (e := _need_alchemy()):
         return e
+    if solana_chains and (e := _need_helius()):
+        return e
+    if solana_chains and not req.solana_mint:
+        return JSONResponse(status_code=422, content={
+            "error": "solana_mint_required",
+            "detail": "Provide solana_mint when Solana is included in chains.",
+        })
+    if solana_chains and not _BASE58.fullmatch(req.solana_mint or ""):
+        return JSONResponse(status_code=422, content={
+            "error": "invalid_solana_mint",
+            "detail": "solana_mint must be a base58 Solana mint address.",
+        })
+    if not evm_chains:
+        return JSONResponse(status_code=422, content={
+            "error": "evm_contract_required",
+            "detail": "At least one EVM chain is required alongside the EVM contract address.",
+        })
     endpoint = "cross-chain-compare"
     c = req.contract.lower()
-    chains = req.chains[:5]
-    provider_cost = data_provider_cost_usd(endpoint, calls=len(chains) * 2)  # meta+price per chain
-    cache_key = _cache_key(endpoint, c, ",".join(sorted(chains)))
+    provider_cost = (
+        data_provider_cost_usd(endpoint, calls=len(evm_chains) * 2)
+        + (helius_provider_cost_usd(2) if solana_chains else 0.0)
+    )
+    cache_key = _cache_key(endpoint, c, req.solana_mint or "", str(req.coin_id or ""), ",".join(sorted(chains)))
     hit = _cached_get(endpoint, cache_key)
     if hit is not None:
-        hit = dict(hit)
-        hit["cache_hit"] = True
-        return _stamp(hit, endpoint, provider_cost)
+        out = dict(hit)
+        out["cache_hit"] = True
+        return _stamp(out, endpoint, 0.0)
 
     async def _one(chain: str) -> dict:
         if is_solana(chain):
-            return {"chain": chain, "error": "chain_not_supported",
-                    "detail": "Solana is not implemented for cross-chain-compare"}
+            mint = req.solana_mint
+            asset_result, tx_result = await asyncio.gather(
+                _helius_rpc("getAsset", [{"id": mint}]),
+                _helius_transactions(mint, 25),
+            )
+            asset_status, asset_data = asset_result
+            tx_status, tx_data = tx_result
+            if asset_status != 200:
+                return {"chain": chain, "error": "helius_unavailable"}
+            asset = asset_data.get("result") or {}
+            info = asset.get("token_info") or {}
+            price_info = info.get("price_info") or {}
+            price = price_info.get("price_per_token") if str(price_info.get("currency", "USD")).upper() == "USD" else None
+            price_source = "helius getAsset(token_info.price_info)" if price is not None else None
+            if price is None:
+                url = f"{COINGECKO_BASE}/simple/token_price/solana"
+                params = {"contract_addresses": mint, "vs_currencies": "usd", "include_24hr_change": "true"}
+                if settings.COINGECKO_API_KEY:
+                    params["x_cg_demo_api_key"] = settings.COINGECKO_API_KEY
+                async with httpx.AsyncClient(timeout=20.0) as client:
+                    response = await client.get(url, params=params)
+                if response.status_code == 200:
+                    entry = response.json().get(mint) or {}
+                    price = entry.get("usd")
+                    if price is not None:
+                        price_source = "coingecko /simple/token_price/solana"
+            txs = tx_data[:25] if tx_status == 200 and isinstance(tx_data, list) else []
+            return {
+                "chain": chain,
+                "deployed": bool(asset.get("id") or info),
+                "price_usd": price,
+                "change_24h_usd": (price_info.get("24h_change") if price_source and price_source.startswith("helius") else None),
+                "recent_transfers": len(txs) if tx_status == 200 else None,
+                "latest_tx": (txs[0].get("signature") if txs else None),
+                "latest_block": (txs[0].get("slot") if txs else None),
+                "evidence": {
+                    "asset_check": "helius getAsset",
+                    "price_check": price_source or "price_unavailable",
+                    "activity_check": "helius enhanced transactions",
+                    "mint": mint,
+                },
+            }
         try:
             network = _network(chain)
         except ValueError:
             return {"chain": chain, "error": "unsupported_chain"}
-        # CoinGecko price-by-contract on this platform.
         platform = COINGECKO_PLATFORMS.get(str(chain).lower())
         price = change = None
         if platform:
@@ -1533,7 +1595,6 @@ async def cross_chain_compare(req: CrossChainCompareRequest, request: Request):
             if r.status_code == 200:
                 entry = (r.json().get(c) or {})
                 price, change = entry.get("usd"), entry.get("usd_24h_change")
-        # Contract presence + recent activity on this chain.
         st_code, d_code = await _alchemy_rpc(network, "eth_getCode", [c, "latest"])
         deployed = bool(st_code == 200 and d_code.get("result") not in (None, "0x"))
         st_x, d_x = await _alchemy_rpc(network, "alchemy_getAssetTransfers", [
@@ -1547,13 +1608,13 @@ async def cross_chain_compare(req: CrossChainCompareRequest, request: Request):
                              "price_check": f"coingecko /simple/token_price/{platform}",
                              "activity_check": "alchemy alchemy_getAssetTransfers"}}
 
-    results = await asyncio.gather(*[_one(ch) for ch in chains])
+    results = await asyncio.gather(*[_one(chain) for chain in chains])
     live = [r for r in results if r.get("deployed") and r.get("price_usd") is not None]
-    out = {"contract": c, "chains": results,
+    out = {"contract": c, "solana_mint": req.solana_mint, "chains": results,
            "summary": {"chains_checked": len(results), "chains_live": len(live),
                        "best_liquidity_chain": max(
                            (r["chain"] for r in live),
-                           key=lambda ch: next((r.get("recent_transfers", 0)
+                           key=lambda ch: next((r.get("recent_transfers", 0) or 0
                                                 for r in live if r["chain"] == ch), 0),
                            default=None)},
            "cache_hit": False}
