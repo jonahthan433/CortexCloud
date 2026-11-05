@@ -20,7 +20,8 @@ router = APIRouter(tags=["catalog"])
 
 @router.get("/v1/capabilities", summary="Agent capability catalog")
 async def capabilities() -> dict:
-    helius_configured = bool(settings.HELIUS_API_KEY)
+    helius_configured = bool(settings.HELIUS_API_KEY and settings.HELIUS_VERIFIED)
+    helius_unverified = bool(settings.HELIUS_API_KEY and not settings.HELIUS_VERIFIED)
     providers = ["alchemy", "coingecko"] + (["helius"] if helius_configured else [])
     solana_endpoints = [f"/v1/data/{e}" for e in HELIUS_ENDPOINTS] if helius_configured else []
     return {
@@ -44,12 +45,12 @@ async def capabilities() -> dict:
         "supported_chains": sorted(set(DATA_CHAINS.keys()) - {"1", "8453", "42161", "137", "10"}),
         "solana": {
             "aliases": ["solana", "sol"],
-            "provider": "helius" if settings.HELIUS_API_KEY else "not_configured",
+            "provider": "helius" if helius_configured else ("not_verified" if helius_unverified else "not_configured"),
             "endpoints": solana_endpoints,
-            "status": "available" if helius_configured else "not_configured",
+            "status": "available" if helius_configured else ("not_verified" if helius_unverified else "not_configured"),
             "note": ("Solana is supported on token-balances, tx-history, token-price, wallet-intel, token-intel, token-risk wallet-scoped whale-alerts and cross-chain-compare (requires an explicit Solana mint); "
                     "every other route returns chain_not_supported.") if helius_configured
-                    else "Solana is not enabled on this instance; configure and verify HELIUS_API_KEY before use.",
+                    else ("Helius is configured but not verified; Solana stays disabled until the internal provider check passes." if helius_unverified else "Solana is not enabled on this instance; configure and verify HELIUS_API_KEY before use."),
             "settlement": "x402 (USDC on Base) — Solana is the READ chain, not the payment chain.",
         },
         "categories": {
