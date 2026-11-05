@@ -55,7 +55,7 @@ def upgrade() -> None:
         sa.Column("idempotency_key", sa.String(128), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.UniqueConstraint("payment_nonce", name="uq_wallet_credit_transactions_payment_nonce"),
-        sa.UniqueConstraint("idempotency_key", name="uq_wallet_credit_transactions_idempotency_key"),
+        sa.UniqueConstraint("wallet_address", "idempotency_key", name="uq_wallet_credit_wallet_idempotency"),
     )
     op.create_index("ix_wallet_credit_transactions_wallet_address", "wallet_credit_transactions", ["wallet_address"])
     op.create_index("ix_wallet_credit_transactions_created_at", "wallet_credit_transactions", ["created_at"])
