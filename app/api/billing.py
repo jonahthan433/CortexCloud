@@ -186,6 +186,13 @@ async def billing_account(request: Request):
             return JSONResponse(status_code=404, content={"error": "subscription_not_found"})
         now = datetime.now(timezone.utc)
         status = "expired" if subscription.period_end <= now else subscription.status
+        keys_result = await db.execute(
+            select(WalletAPIKey).where(
+                WalletAPIKey.wallet_address == key.wallet_address,
+                WalletAPIKey.is_active.is_(True),
+            ).order_by(WalletAPIKey.created_at.desc())
+        )
+        active_keys = keys_result.scalars().all()
         return {
             "wallet": key.wallet_address,
             "plan": subscription.plan_id,
@@ -195,6 +202,11 @@ async def billing_account(request: Request):
             "credits_granted": subscription.credits_granted,
             "credits_remaining": subscription.credits_remaining,
             "credit_unit_usd": CREDIT_USD,
+            "api_keys": [
+                {"id": str(item.id), "name": item.name, "prefix": item.prefix,
+                 "created_at": item.created_at.isoformat()}
+                for item in active_keys
+            ],
         }
 
 
