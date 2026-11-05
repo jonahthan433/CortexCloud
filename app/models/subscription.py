@@ -1,7 +1,7 @@
 """Wallet-linked prepaid subscription and API-credit ledger models."""
 import uuid
 from datetime import datetime
-from sqlalchemy import Boolean, DateTime, Integer, String, func
+from sqlalchemy import Boolean, DateTime, Integer, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.session import Base
@@ -37,6 +37,9 @@ class WalletAPIKey(Base):
 
 class WalletCreditTransaction(Base):
     __tablename__ = "wallet_credit_transactions"
+    __table_args__ = (
+        UniqueConstraint("wallet_address", "idempotency_key", name="uq_wallet_credit_wallet_idempotency"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     wallet_address: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
@@ -44,5 +47,5 @@ class WalletCreditTransaction(Base):
     type: Mapped[str] = mapped_column(String(32), nullable=False)
     endpoint: Mapped[str | None] = mapped_column(String(128), nullable=True)
     payment_nonce: Mapped[str | None] = mapped_column(String(128), unique=True, nullable=True)
-    idempotency_key: Mapped[str | None] = mapped_column(String(128), unique=True, nullable=True)
+    idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True, nullable=False)
