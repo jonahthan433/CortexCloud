@@ -70,7 +70,7 @@ async def capabilities() -> dict:
                     "/v1/data/cross-chain-compare",
                     "/v1/data/market-snapshot",
                 ],
-                "providers": ["alchemy", "coingecko", "helius"],
+                "providers": providers,
                 "supported_chains": sorted(set(DATA_CHAINS.keys()) - {"1", "8453", "42161", "137", "10"}),
             },
             "webhooks": {
