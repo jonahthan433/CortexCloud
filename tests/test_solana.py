@@ -31,7 +31,7 @@ def test_solana_is_not_an_alchemy_network():
 
 
 def test_helius_wiring_is_priced_on_the_floor_and_cheap():
-    assert p.HELIUS_ENDPOINTS == ("token-balances", "tx-history", "token-price")
+    assert p.HELIUS_ENDPOINTS == ("token-balances", "tx-history", "token-price", "wallet-intel")
     assert p.helius_provider_cost_usd(1) == 0.000049
     assert p.helius_provider_cost_usd(3) == 0.000147
     # Solana reads stay at the $0.004 floor (provider cost is ~80x below it).
@@ -218,7 +218,6 @@ async def test_solana_token_price_rejects_evm_contract(client, monkeypatch):
 @pytest.mark.parametrize("path,body", [
     ("/v1/data/nft-ownership", {"address": SOL, "chain": "solana"}),
     ("/v1/data/token-risk", {"contract": MINT, "chain": "solana"}),
-    ("/v1/data/wallet-intel", {"address": SOL, "chain": "solana"}),
     ("/v1/data/whale-alerts", {"address": SOL, "chain": "solana"}),
     ("/v1/data/token-intel", {"contract": MINT, "chain": "solana"}),
     ("/v1/data/market-snapshot", {"contract": MINT, "chain": "solana"}),
@@ -248,7 +247,7 @@ async def test_discovery_advertises_solana_subset(client, monkeypatch):
     body = r.json()
     assert "helius" in body["providers"]
     assert body["solana"]["endpoints"] == [
-        "/v1/data/token-balances", "/v1/data/tx-history", "/v1/data/token-price"
+        "/v1/data/token-balances", "/v1/data/tx-history", "/v1/data/token-price", "/v1/data/wallet-intel"
     ]
     assert "helius" in body["categories"]["data"]["providers"]
 
@@ -269,3 +268,44 @@ async def test_discovery_hides_unconfigured_helius_and_solana(client, monkeypatc
     assert "helius" not in body["categories"]["data"]["providers"]
     assert body["solana"]["status"] == "not_configured"
     assert body["solana"]["endpoints"] == []
+
+
+async def test_solana_wallet_intel_uses_helius(client, monkeypatch):
+    from app.core.config import settings
+    from app.api.data import SOLANA_TOKEN_PROGRAM, SOLANA_TOKEN_2022_PROGRAM
+    monkeypatch.setattr(settings, "HELIUS_API_KEY", "test-key", raising=False)
+
+    async def fake_rpc(method, params):
+        if method == "getBalance":
+            return 200, {"result": {"value": 2_000_000_000}}
+        assert method == "getTokenAccountsByOwner"
+        if params[1]["programId"] == SOLANA_TOKEN_PROGRAM:
+            return 200, {"result": {"value": []}}
+        assert params[1]["programId"] == SOLANA_TOKEN_2022_PROGRAM
+        return 200, {"result": {"value": [{
+            "pubkey": "Token2022Acct1111111111111111111111111111",
+            "account": {"data": {"parsed": {"info": {
+                "mint": MINT,
+                "tokenAmount": {"amount": "2500000", "decimals": 6, "uiAmount": 2.5},
+            }}}},
+        }]}}
+
+    async def fake_transactions(address, limit):
+        assert address == SOL and limit == 10
+        return 200, [{
+            "signature": "sig-one",
+            "timestamp": 1730000000,
+            "nativeTransfers": [{"fromUserAccount": SOL, "toUserAccount": "Counterparty111111111111111111111111111", "amount": 500000000}],
+            "tokenTransfers": [],
+        }]
+
+    monkeypatch.setattr("app.api.data._helius_rpc", fake_rpc)
+    monkeypatch.setattr("app.api.data._helius_transactions", fake_transactions)
+    r = await client.post("/v1/data/wallet-intel", json={"address": SOL, "chain": "solana"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["native_balance"] == 2.0
+    assert body["holdings"][0]["mint"] == MINT
+    assert body["recent_out"][0]["asset"] == "SOL"
+    assert body["counterparties"][0]["sent_count"] == 1
+    assert body["evidence"]["transactions"]["source"] == "helius"
