@@ -36,6 +36,7 @@ jobs:
       POSTGRES_HOST: 127.0.0.1
       POSTGRES_PORT: 5432
       POSTGRES_DB: cortexcloud_test
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/cortexcloud_test
       DATA_ENABLED: "false"
       X402_ENABLED: "false"
       HELIUS_API_KEY: ""
