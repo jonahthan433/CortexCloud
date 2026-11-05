@@ -128,6 +128,15 @@ async def llms_txt():
     ttl_rows = "\n".join(
         f"| /v1/data/{name} | {ttl}s |" for name, ttl in sorted(DATA_TTL_S.items())
     )
+    solana_section = ""
+    if settings.HELIUS_API_KEY:
+        solana_section = """## Solana (Helius)
+
+Solana reads are enabled on this instance for token balances (legacy SPL and
+Token-2022), transaction history, and token prices. Payment settlement remains
+USDC on Base; Solana is the read chain, not the payment chain.
+
+"""
 
     text = f"""# CortexCloud On-Chain Data API - api.cortexcloud.org
 
@@ -223,7 +232,7 @@ fails, that key carries an `error` while the rest of the snapshot still
 returns (`partial: true`, `errors`, `sections`). One call, $0.070 versus
 $0.100 for the three routes separately.
 
-## Honesty
+{solana_section}## Honesty
 
 - Provider costs are published; CortexCloud margin is computed transparently.
 - Missing data is reported as missing, never estimated silently.
