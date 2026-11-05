@@ -1330,6 +1330,7 @@ class X402Middleware(BaseHTTPMiddleware):
         x_correlation_id = request.headers.get("x-correlation-id")
         mpp = await _get_mpp()
         authorization = request.headers.get("authorization")
+        has_subscription_key = bool(authorization and authorization.startswith("Bearer cx_live_"))
 
         # Money-path guard: reject a body the endpoint would reject BEFORE any
         # 402 challenge or settlement — so a malformed request is a clean
@@ -1351,13 +1352,13 @@ class X402Middleware(BaseHTTPMiddleware):
         # GET data routes: query params are the body. Validate them before
         # settle too (H3: no pay-then-400), but only when payment credentials
         # are present - an unauthenticated probe must reach the 402 first.
-        if (payment_signature or (mpp and authorization)) and path in ("/v1/data/block", "/v1/data/gas-oracle"):
+        if (payment_signature or (mpp and authorization) or has_subscription_key) and path in ("/v1/data/block", "/v1/data/gas-oracle"):
             _q_err = _validate_data_query(path, request.query_params)
             if _q_err:
                 return _q_err
         # Re-validate on the paid pass before the settle branch (same guard,
         # no double-charge).
-        if path in _data_paths and (payment_signature or (mpp and authorization)):
+        if path in _data_paths and (payment_signature or (mpp and authorization) or has_subscription_key):
             _chain_err = _chain_not_supported_response(path, data)
             if _chain_err is not None:
                 return _chain_err
@@ -1397,6 +1398,108 @@ class X402Middleware(BaseHTTPMiddleware):
                 _derr = _validate_data_body(path, data)
                 if _derr:
                     return JSONResponse(status_code=422, content={"detail": _derr})
+
+        # Wallet-linked subscription credits are a prepaid alternative to
+        # per-call x402 settlement. When credits are exhausted, the request
+        # falls through to the ordinary x402 challenge (paid overage).
+        if (not payment_signature and has_subscription_key
+                and (path.startswith("/v1/data/") or path.startswith("/v1/aggregate/"))):
+            from app.api.billing import lookup_wallet_api_key
+            api_key = await lookup_wallet_api_key(request)
+            if api_key is None:
+                return JSONResponse(status_code=401, content={"error": "invalid_subscription_api_key"})
+            request.state.x402_payer = api_key.wallet_address
+            request.state.subscription_api_key_id = str(api_key.id)
+            request.state.x402_start = time.perf_counter()
+            credits_needed = max(1, (int(required) + 999) // 1000)  # 1 credit = $0.001
+            idempotency_key = (request.headers.get("idempotency-key")
+                               or request.headers.get("x-idempotency-key") or "").strip() or None
+            if idempotency_key and len(idempotency_key) > 128:
+                return JSONResponse(status_code=422, content={"error": "idempotency_key_too_long"})
+            try:
+                from datetime import datetime, timezone
+                from sqlalchemy import select
+                from app.database.session import AsyncSessionLocal
+                from app.models.subscription import WalletSubscription, WalletCreditTransaction
+                async with AsyncSessionLocal() as credit_db:
+                    if idempotency_key:
+                        duplicate = await credit_db.execute(
+                            select(WalletCreditTransaction).where(
+                                WalletCreditTransaction.wallet_address == api_key.wallet_address,
+                                WalletCreditTransaction.idempotency_key == idempotency_key,
+                            )
+                        )
+                        if duplicate.scalar_one_or_none():
+                            return JSONResponse(status_code=409, content={"error": "idempotency_key_already_used"})
+                    result = await credit_db.execute(
+                        select(WalletSubscription)
+                        .where(WalletSubscription.wallet_address == api_key.wallet_address)
+                        .with_for_update()
+                    )
+                    subscription = result.scalar_one_or_none()
+                    now = datetime.now(timezone.utc)
+                    if (subscription and subscription.status == "active"
+                            and subscription.period_end > now
+                            and subscription.credits_remaining >= credits_needed):
+                        subscription.credits_remaining -= credits_needed
+                        remaining = subscription.credits_remaining
+                        credit_db.add(WalletCreditTransaction(
+                            wallet_address=api_key.wallet_address,
+                            amount_credits=-credits_needed,
+                            type="usage_charge",
+                            endpoint=path,
+                            idempotency_key=idempotency_key,
+                        ))
+                        await credit_db.commit()
+                    else:
+                        remaining = None
+                if remaining is not None:
+                    try:
+                        response = await call_next(request)
+                    except Exception:
+                        async with AsyncSessionLocal() as refund_db:
+                            sub_result = await refund_db.execute(
+                                select(WalletSubscription)
+                                .where(WalletSubscription.wallet_address == api_key.wallet_address)
+                                .with_for_update()
+                            )
+                            current = sub_result.scalar_one_or_none()
+                            if current:
+                                current.credits_remaining += credits_needed
+                                refund_db.add(WalletCreditTransaction(
+                                    wallet_address=api_key.wallet_address,
+                                    amount_credits=credits_needed,
+                                    type="usage_refund",
+                                    endpoint=path,
+                                ))
+                                await refund_db.commit()
+                        raise
+                    if response.status_code >= 500:
+                        async with AsyncSessionLocal() as refund_db:
+                            sub_result = await refund_db.execute(
+                                select(WalletSubscription)
+                                .where(WalletSubscription.wallet_address == api_key.wallet_address)
+                                .with_for_update()
+                            )
+                            current = sub_result.scalar_one_or_none()
+                            if current:
+                                current.credits_remaining += credits_needed
+                                refund_db.add(WalletCreditTransaction(
+                                    wallet_address=api_key.wallet_address,
+                                    amount_credits=credits_needed,
+                                    type="usage_refund",
+                                    endpoint=path,
+                                ))
+                                await refund_db.commit()
+                    response.headers["X-CortexCloud-Billing"] = "subscription_credits"
+                    response.headers["X-CortexCloud-Credits-Used"] = str(credits_needed)
+                    response.headers["X-CortexCloud-Credits-Remaining"] = str(remaining)
+                    _log_request(request, response, request.state.x402_start)
+                    return response
+            except Exception as exc:
+                logger.warning("subscription credit debit failed; falling back to x402: %s", exc)
+            # Do not let an API key be interpreted as an MPP authorization.
+            authorization = None
 
         if not payment_signature:
             if mpp and authorization:
