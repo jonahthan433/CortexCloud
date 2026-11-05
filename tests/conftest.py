@@ -8,11 +8,16 @@ _DB_NAME = "cortexcloud_test"
 if "DATABASE_URL" not in os.environ:
     _pw = os.environ.get("POSTGRES_PASSWORD", "")
     if not _pw:
-        # pytest doesn't export .env — read the real password from the app env file.
-        for _l in open("/opt/CortexCloudAPI/.env"):
-            if _l.startswith("POSTGRES_PASSWORD="):
-                _pw = _l.split("=", 1)[1].strip()
-                break
+        # pytest doesn't export .env — read the real password from the app env
+        # file when it exists (it is absent on hardened hosts, where the
+        # password lives in the systemd EnvironmentFile instead).
+        try:
+            for _l in open("/opt/CortexCloudAPI/.env"):
+                if _l.startswith("POSTGRES_PASSWORD="):
+                    _pw = _l.split("=", 1)[1].strip()
+                    break
+        except OSError:
+            pass
     os.environ["DATABASE_URL"] = (
         "postgresql+asyncpg://"
         f"{os.environ.get('POSTGRES_USER', 'postgres')}:{_pw}@127.0.0.1:5432/{_DB_NAME}"

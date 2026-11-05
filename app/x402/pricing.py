@@ -562,7 +562,7 @@ def automation_provider_cost_usd(endpoint: str) -> float:
 # ---------------------------------------------------------------------------
 FREE_ROUTES = {
     "GET /v1/capabilities": "Service capabilities, limits, payment terms (free).",
-    "GET /v1/webhooks/whale-alerts": "List registered whale-alert webhooks, optionally filtered by owner=0x... (free; HMAC secrets and management tokens are never returned).",
+    "GET /v1/webhooks/whale-alerts": "List the caller's registered whale-alert webhooks; requires ?owner=0x... (free; HMAC secrets and management tokens are never returned).",
     "GET /v1/billing/plans": "Public subscription plans, monthly prices, and weighted credit allowances (free).",
     "GET /v1/billing/account": "Authenticated wallet subscription status and remaining credits (free).",
     "GET /v1/billing/usage": "Authenticated credit usage and transaction history (free).",

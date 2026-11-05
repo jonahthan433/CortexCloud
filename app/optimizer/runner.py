@@ -9,6 +9,9 @@ learn; never from synthetic data.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
+import json
 import logging
 import time
 import uuid
@@ -114,13 +117,23 @@ def _fire_webhook(job) -> None:
 
     async def _post() -> None:
         payload = job_payload(job)
+        # Sign the exact bytes we send so the recipient can verify transport
+        # authenticity (the nested receipt signature alone is not bound to the
+        # HTTP request). Falls back to unsigned when no secret is configured.
+        body = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
+        headers = {
+            "Content-Type": "application/json",
+            "X-Cortexcloud-Event": f"job.{job.status}",
+            "X-Cortexcloud-Timestamp": str(int(time.time())),
+        }
+        if settings.AUTOMATION_WEBHOOK_SECRET:
+            headers["X-Cortexcloud-Signature"] = "sha256=" + hmac.new(
+                settings.AUTOMATION_WEBHOOK_SECRET.encode(), body, hashlib.sha256
+            ).hexdigest()
         client = shared_client("webhook", timeout=10.0)
         for attempt in (1, 2):
             try:
-                r = await client.post(
-                    url, json=payload,
-                    headers={"X-Cortexcloud-Event": f"job.{job.status}"},
-                )
+                r = await client.post(url, content=body, headers=headers)
                 if r.status_code < 400:
                     return
                 logger.warning(f"webhook {url} -> {r.status_code} (attempt {attempt})")

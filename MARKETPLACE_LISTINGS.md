@@ -20,7 +20,7 @@ until checked directly. Re-submit or refresh descriptions using this file.
   `GET /v1/billing/plans`, and API-key-authenticated billing account/usage/key
   management endpoints.
 - Payee wallet: `0x5a0353bc9c75b893a9b5735d3e79f1bd988ea143`
-- MCP: `https://api.cortexcloud.org/mcp` (Streamable HTTP; 18 tools catalogued
+- MCP: `https://api.cortexcloud.org/mcp` (Streamable HTTP; 19 tools catalogued
   at `/.well-known/bazaar`; server version 0.5.0)
 - Discovery: `/llms.txt` · `/.well-known/x402.json` · `/.well-known/bazaar` ·
   `/.well-known/agentsearch.txt` · `/openapi.json`

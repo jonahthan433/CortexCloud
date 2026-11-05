@@ -21,17 +21,18 @@ indicators).
 - API: `cortexcloud.service` (uvicorn :8000)
   - Paid (x402, USDC on Base): 12 `/v1/data/*` routes, 4 `/v1/aggregate/*`
     routes, `POST /v1/webhooks/whale-alerts`
-  - Free: `GET /v1/capabilities`, `GET /v1/webhooks/whale-alerts`
+  - Free: `GET /v1/capabilities`, `GET /v1/webhooks/whale-alerts?owner=0x...`
+  (owner is required so no one can enumerate every registration),
 - Feature-branch additions (not yet deployed): 3 subscription purchase routes,
   billing plans/account/usage/key-revocation APIs, and `/billing.html`.
 - Discovery: `/llms.txt`, `/.well-known/x402.json`, `/.well-known/x402`,
   `/.well-known/agentsearch.txt`, `/.well-known/bazaar`,
   `/.well-known/x402list.txt`, `/openapi.json`
-- MCP: `cortexcloud-mcp.service` (Streamable HTTP :3100 + stdio) — 18 tools
+- MCP: `cortexcloud-mcp.service` (Streamable HTTP :3100 + stdio) — 19 tools
   catalogued at `/.well-known/bazaar` (17 paid routes + free capabilities)
-- Gateway: `cortexcloud-gateway.service` (Node)
-- Internal: `/internal/metrics` (X-Internal-Token) — revenue aggregates only,
-  never public
+- Internal: `/internal/metrics` and `/internal/revenue` (X-Internal-Token) —
+  revenue aggregates and business analytics, never public. Prometheus
+  `/metrics` carries the same token gate.
 
 ## Pricing policy
 | Route group | Price |
