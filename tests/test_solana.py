@@ -464,6 +464,7 @@ async def test_solana_cross_chain_compare_requires_explicit_mint_and_compares_bo
 async def test_solana_is_not_advertised_until_helius_is_configured(client, monkeypatch):
     from app.core.config import settings
     monkeypatch.setattr(settings, "HELIUS_API_KEY", None, raising=False)
+    monkeypatch.setattr(settings, "HELIUS_VERIFIED", False, raising=False)
     capabilities = await client.get("/v1/capabilities")
     body = capabilities.json()
     assert body["solana"]["status"] == "not_configured"
@@ -479,6 +480,7 @@ async def test_unconfigured_helius_is_rejected_before_x402_settlement(monkeypatc
     from app.core.config import settings
     from app.middleware.x402 import _chain_not_supported_response
     monkeypatch.setattr(settings, "HELIUS_API_KEY", None, raising=False)
+    monkeypatch.setattr(settings, "HELIUS_VERIFIED", False, raising=False)
     result = _chain_not_supported_response(
         "/v1/data/token-balances", {"address": SOL, "chain": "solana"}
     )
