@@ -1004,6 +1004,133 @@ async def token_risk(req: TokenRiskRequest, request: Request):
     return _stamp(out, endpoint, provider_cost)
 
 
+async def _solana_wallet_intel(req: WalletIntelRequest) -> dict | JSONResponse:
+    """Solana wallet profile using Helius RPC + Enhanced Transactions."""
+    if e := _need_helius():
+        return e
+    endpoint = "wallet-intel"
+    cache_key = _cache_key(endpoint, "solana", req.address, str(req.limit))
+    hit = _cached_get(endpoint, cache_key)
+    if hit is not None:
+        out = dict(hit)
+        out["cache_hit"] = True
+        return _stamp(out, endpoint, 0.0)
+
+    calls = [
+        _helius_rpc("getBalance", [req.address, {"commitment": "confirmed"}]),
+        *[
+            _helius_rpc(
+                "getTokenAccountsByOwner",
+                [req.address, {"programId": program_id}, {"encoding": "jsonParsed"}],
+            )
+            for program_id in (SOLANA_TOKEN_PROGRAM, SOLANA_TOKEN_2022_PROGRAM)
+        ],
+    ]
+    results, tx_result = await asyncio.gather(
+        asyncio.gather(*calls),
+        _helius_transactions(req.address, req.limit),
+    )
+    for status, data in results:
+        if status != 200:
+            return JSONResponse(status_code=status or 502,
+                                content={"error": "upstream_helius", "detail": json.dumps(data)[:500]})
+    tx_status, tx_data = tx_result
+    if tx_status != 200 or not isinstance(tx_data, list):
+        return JSONResponse(status_code=tx_status or 502,
+                            content={"error": "upstream_helius", "detail": json.dumps(tx_data)[:500]})
+
+    balance_data = results[0][1]
+    lamports = (balance_data.get("result") or {}).get("value")
+    native_balance = (lamports / 1_000_000_000) if isinstance(lamports, int) else None
+    holdings = []
+    seen_accounts = set()
+    for _status, data in results[1:]:
+        for account in ((data.get("result") or {}).get("value") or []):
+            pubkey = account.get("pubkey")
+            if pubkey and pubkey in seen_accounts:
+                continue
+            if pubkey:
+                seen_accounts.add(pubkey)
+            info = (((account.get("account") or {}).get("data") or {}).get("parsed") or {}).get("info") or {}
+            amount = info.get("tokenAmount") or {}
+            holdings.append({
+                "mint": info.get("mint"),
+                "raw": amount.get("amount"),
+                "decimals": amount.get("decimals"),
+                "ui_amount": amount.get("uiAmount"),
+            })
+
+    counterparties = {}
+    recent_out, recent_in = [], []
+    for tx in tx_data[:req.limit]:
+        signature = tx.get("signature")
+        timestamp = tx.get("timestamp")
+        try:
+            timestamp = datetime.fromtimestamp(timestamp, timezone.utc).isoformat() if isinstance(timestamp, (int, float)) else None
+        except (OverflowError, OSError, ValueError):
+            timestamp = None
+        transfers = []
+        for transfer in tx.get("nativeTransfers") or []:
+            transfers.append({
+                "from": transfer.get("fromUserAccount"),
+                "to": transfer.get("toUserAccount"),
+                "asset": "SOL",
+                "value": (transfer.get("amount") / 1_000_000_000) if isinstance(transfer.get("amount"), int) else None,
+            })
+        for transfer in tx.get("tokenTransfers") or []:
+            transfers.append({
+                "from": transfer.get("fromUserAccount"),
+                "to": transfer.get("toUserAccount"),
+                "asset": transfer.get("mint"),
+                "value": transfer.get("tokenAmount"),
+            })
+        tx_out, tx_in = [], []
+        for transfer in transfers:
+            sender = transfer.get("from") or ""
+            receiver = transfer.get("to") or ""
+            if sender == req.address:
+                direction, counterparty = "out", receiver
+            elif receiver == req.address:
+                direction, counterparty = "in", sender
+            else:
+                continue
+            item = {"hash": signature, "counterparty": counterparty or None,
+                    "asset": transfer.get("asset"), "value": transfer.get("value"),
+                    "timestamp": timestamp}
+            (tx_out if direction == "out" else tx_in).append(item)
+            if counterparty:
+                entry = counterparties.setdefault(counterparty, {
+                    "address": counterparty, "sent_count": 0, "received_count": 0,
+                })
+                entry["sent_count" if direction == "out" else "received_count"] += 1
+        recent_out.extend(tx_out)
+        recent_in.extend(tx_in)
+
+    top_counterparties = sorted(
+        counterparties.values(),
+        key=lambda item: -(item["sent_count"] + item["received_count"]),
+    )[:10]
+    now = datetime.now(timezone.utc).isoformat()
+    out = {
+        "address": req.address,
+        "chain": "solana",
+        "native_balance": native_balance,
+        "holdings": holdings[:50],
+        "holdings_count": len(holdings),
+        "recent_out": recent_out[:10],
+        "recent_in": recent_in[:10],
+        "counterparties": top_counterparties,
+        "activity_window": {"transactions_scanned": min(len(tx_data), req.limit), "limit": req.limit},
+        "evidence": {
+            "native_balance": _sol_evidence(native_balance, "getBalance", now),
+            "holdings": _sol_evidence(holdings, "getTokenAccountsByOwner", now),
+            "transactions": _sol_evidence(len(tx_data[:req.limit]), "getEnhancedTransactions", now),
+        },
+        "cache_hit": False,
+    }
+    _cached_set(endpoint, cache_key, out)
+    return _stamp(out, endpoint, helius_provider_cost_usd(4))
+    
 @router.post("/wallet-intel")
 async def wallet_intel(req: WalletIntelRequest, request: Request):
     """Wallet profile: balances + holdings + recent activity + counterparties.
@@ -1011,7 +1138,7 @@ async def wallet_intel(req: WalletIntelRequest, request: Request):
     if d := _disabled():
         return d
     if is_solana(req.chain):
-        return _chain_not_supported("wallet-intel", req.chain)
+        return await _solana_wallet_intel(req)
     if e := _need_alchemy():
         return e
     try:
