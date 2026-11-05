@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>API reference — CortexCloud</title>
-<meta name="description" content="CortexCloud API reference: every endpoint, schema, pricing and the x402 payment flow. Paid calls from $0.004 in USDC on Base; the 402 challenge is always free.">
+<meta name="description" content="CortexCloud API reference: every endpoint, schema, pricing and the x402 payment flow. Pay per call over x402 in USDC on Base, or choose monthly prepaid credits; the 402 challenge is always free.">
 <meta name="robots" content="index, follow">
 <meta name="theme-color" content="#0a0a0a">
 <script src="/theme.js"></script>
@@ -91,9 +91,21 @@ pre .tp{color:var(--muted)}
   <div class="cta">
     <a class="btn" href="/">Back to home</a>
     <a class="btn" href="/demo">Paid call example</a>
+    <a class="btn" href="/billing.html">Billing dashboard</a>
     <a class="btn" href="/llms.txt">llms.txt</a>
   </div>
 </header>
+
+<section class="wrap" id="billing">
+  <h2>Monthly prepaid subscriptions</h2>
+  <p>Manual USDC prepayment on Base. One credit equals $0.001 of advertised API price. Credits are deducted on data and aggregate calls; when credits are exhausted, the standard x402 per-call challenge handles overages. There are no automatic wallet withdrawals.</p>
+  <div class="grid">
+    <article class="card"><h3>Starter</h3><p><strong>$19 / month</strong></p><p>19,000 credits</p><code>POST /v1/billing/subscribe/starter</code></article>
+    <article class="card"><h3>Trading Pro</h3><p><strong>$49 / month</strong></p><p>49,000 credits</p><code>POST /v1/billing/subscribe/trading-pro</code></article>
+    <article class="card"><h3>Agent Fleet</h3><p><strong>$99 / month</strong></p><p>99,000 credits</p><code>POST /v1/billing/subscribe/agent-fleet</code></article>
+  </div>
+  <p>After a settled purchase, the API returns a wallet-linked API key once. Use it as <code>Authorization: Bearer cx_live_…</code>. View your balance and activity in the <a href="/billing.html">billing dashboard</a>.</p>
+</section>
 
 <section class="wrap">
   <h2>Endpoints</h2>
